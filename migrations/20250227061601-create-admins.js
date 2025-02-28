@@ -1,32 +1,25 @@
 "use strict";
-
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("users", {
+    await queryInterface.createTable("admins", {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
-      username: {
+      firstName: {
         type: Sequelize.STRING,
-        defaultValue:"User"
       },
-      mobile: {
-        type: Sequelize.INTEGER,
+      password: {
+        type: Sequelize.STRING,
         allowNull: false,
-        unique: true,
       },
-      avatar: {
+      role: {
         type: Sequelize.STRING,
-        allowNull: true,
-        defaultValue: " https://www.w3schools.com/howto/img_avatar.png",
-      },
-      dob: {
-        type: Sequelize.DATE,
-        allowNull: true,
+        allowNull: false,
+        defaultValue: "admin",
       },
       createdAt: {
         allowNull: false,
@@ -38,8 +31,7 @@ module.exports = {
       },
     });
   },
-
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("users");
+    await queryInterface.dropTable("admins");
   },
 };
