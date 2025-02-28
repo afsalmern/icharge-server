@@ -7,11 +7,11 @@ const { getAllUsers, blockOrUnblockUser, activeOrInactiveUser } = require("../..
 const router = express.Router();
 
 //Locations
-router.post("/locations", verifyToken, locationDataValidation, validate, addLocation);
+router.post("/locations", verifyToken, checkRole("admin"), locationDataValidation, validate, addLocation);
 router.get("/locations", verifyToken, getLocations);
 
 //Terms and conditions
-router.post("/terms-conditions", verifyToken, addLocation);
+router.post("/terms-conditions", verifyToken,checkRole("admin"), addLocation);
 router.get("/terms-conditions", verifyToken, getLocations);
 
 //Users
