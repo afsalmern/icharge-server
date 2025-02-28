@@ -68,17 +68,14 @@ exports.blockOrUnblockUser = async (req, res, next) => {
 
 exports.activeOrInactiveUser = async (req, res, next) => {
   const { id: user_id } = req.params;
-  const { status } = req.body;
-  if (status !== "active" && status !== "inactive") {
-    throw new ApiError(400, "Invalid status");
-  }
   const user = await Users.findByPk(user_id);
   if (!user) {
     throw new ApiError(404, "User not found");
   }
+  const currentStatus = user.status;
   try {
-    await user.update({ status: status });
-    const messsage = `User ${status === "active" ? "activated" : "deactivated"} successfully`;
+    await user.update({ status: currentStatus == "active" ? "inactive" : "active" });
+    const messsage = `User ${currentStatus === "active" ? "deactivated" : "activated"} successfully`;
     sendSuccess(res, messsage, {}, 200);
   } catch (error) {
     console.log(error);

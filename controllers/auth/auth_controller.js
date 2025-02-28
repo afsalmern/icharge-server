@@ -11,7 +11,12 @@ const Admins = db.admins;
 
 exports.sendOtp = async (req, res, next) => {
   const { mobile } = req.body;
+  const user = await User.findOne({ attributes: ["id", "status", "block_status"], where: { mobile } });
+
   try {
+    if (user && user.block_status) {
+      throw new ApiError(400, "User is blocked");
+    }
     const otp = generateOtp();
     if (!otp) {
       throw new ApiError(500, "Otp not genrated");
@@ -66,7 +71,7 @@ exports.loginAdmin = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    const admin = await Admins.findOne({ attributes: ["id", "email", "role", "firstName","password"], where: { email } });
+    const admin = await Admins.findOne({ attributes: ["id", "email", "role", "firstName", "password"], where: { email } });
     if (!admin) {
       throw new ApiError(404, "Admin not found");
     }

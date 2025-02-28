@@ -43,14 +43,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: "user",
     },
-    createdAt: {
-      allowNull: false,
-      type: DataTypes.DATE,
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
     deposit_amount: {
       type: DataTypes.DECIMAL(10, 2),
       defaultValue: 0.0,
@@ -59,6 +51,9 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DECIMAL(10, 2),
       defaultValue: 0.0,
     },
+  },{
+    underscored : true,
+    timestamps: true
   });
 
   Users.associate = (models) => {
