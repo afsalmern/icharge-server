@@ -102,9 +102,11 @@ exports.addPackage = async (req, res, next) => {
 
 exports.updatePackage = async (req, res, next) => {
   const { id } = req.params;
-  const { name, description, price, duration, swap } = req.body;
+  const { name, description, price, duration, swap, type } = req.body;
 
-  const package_image = req.files?.["image"][0].filename || null;
+  console.log(req.files);
+
+  const package_image = (req.files && req.files?.["image"]?.[0]?.filename) || null;
 
   const package = await Packages.findByPk(id);
   if (!package) {
@@ -113,7 +115,7 @@ exports.updatePackage = async (req, res, next) => {
   const transacion = await db.sequelize.transaction();
   try {
     const updatedPackage = await package.update(
-      { name, description, price, duration, swap, image: package_image ? package_image : package.image },
+      { name, description, price, duration, swap, image: package_image ? package_image : package.image,type },
       { returning: true },
       { transacion }
     );
