@@ -4,6 +4,7 @@ const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 
 const Users = db.users;
+const Packages = db.packages;
 exports.getAllUsers = async (req, res, next) => {
   const { status = "all", block_status = "all", page = 1, limit = 20, keyword, from = 0, to = 0 } = req.query;
   let userCreatedFilter = {};
@@ -79,6 +80,73 @@ exports.activeOrInactiveUser = async (req, res, next) => {
     sendSuccess(res, messsage, {}, 200);
   } catch (error) {
     console.log(error);
+    next(error);
+  }
+};
+
+exports.addPackage = async (req, res, next) => {
+  const { name, description, price, duration, swap, type } = req.body;
+  if (!req.files || !req.files["image"]) {
+    throw new ApiError(400, "Package image is required");
+  }
+  const file = req.files["package_image"][0];
+  const package_image = file.filename;
+  try {
+    const package = await db.packages.create({ name, description, price, duration, swap, image: package_image, type });
+    sendSuccess(res, "Package added successfully", { package }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+exports.updatePackage = async (req, res, next) => {
+  const { id } = req.params;
+  const { name, description, price, duration, swap } = req.body;
+
+  const package_image = req.files?.["image"][0].filename || null;
+
+  const package = await Packages.findByPk(id);
+  if (!package) {
+    throw new ApiError(404, "Package not found");
+  }
+  const transacion = await db.sequelize.transaction();
+  try {
+    const updatedPackage = await package.update(
+      { name, description, price, duration, swap, image: package_image ? package_image : package.image },
+      { returning: true },
+      { transacion }
+    );
+    await transacion.commit();
+    sendSuccess(res, "Package updated successfully", { updatedPackage }, 200);
+  } catch (error) {
+    console.error(error);
+    await transacion.rollback();
+    next(error);
+  }
+};
+
+exports.getPackages = async (req, res, next) => {
+  try {
+    const packages = await db.packages.findAll({ attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type"] });
+    sendSuccess(res, "Packages fetched successfully", { packages }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+exports.deletePackage = async (req, res, next) => {
+  const { id } = req.params;
+  const package = await Packages.findByPk(id);
+  if (!package) {
+    throw new ApiError(404, "Package not found");
+  }
+  try {
+    await package.destroy();
+    sendSuccess(res, "Package deleted successfully", {}, 200);
+  } catch (error) {
+    console.error(error);
     next(error);
   }
 };
