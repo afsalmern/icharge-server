@@ -82,5 +82,35 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
+  Rental.associate = (models) => {
+    Rental.belongsTo(models.users, {
+      foreignKey: "user_id",
+      as: "rented_user",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+
+    Rental.belongsTo(models.boxes, {
+      foreignKey: "box_id",
+      as: "rented_box",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+
+    Rental.belongsTo(models.packages, {
+      foreignKey: "package_id",
+      as: "rented_package",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+
+    Rental.belongsTo(models.locations, {
+      foreignKey: "return_location_id",
+      as: "return_location",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+    });
+  };
+
   return Rental;
 };

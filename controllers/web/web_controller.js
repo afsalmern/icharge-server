@@ -1,5 +1,7 @@
 const { Op } = require("sequelize");
 const db = require("../../models");
+const path = require("path");
+const fs = require("fs");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 
@@ -37,7 +39,7 @@ exports.getAllUsers = async (req, res, next) => {
 
   if (from !== 0 && to !== 0) {
     userCreatedFilter = {
-      createdAt: {
+      created_at: {
         [Op.between]: [from, to],
       },
     };
@@ -45,7 +47,7 @@ exports.getAllUsers = async (req, res, next) => {
 
   if (from !== 0 && to == 0) {
     userCreatedFilter = {
-      createdAt: {
+      created_at: {
         [Op.gte]: from,
       },
     };
@@ -57,18 +59,18 @@ exports.getAllUsers = async (req, res, next) => {
 
   const whereClause = {
     ...userCreatedFilter,
-    [Op.or]: [{ username: { [Op.iLike]: dynamicIlike } }],
+    [Op.or]: [{ name: { [Op.iLike]: dynamicIlike } }],
     ...(status != "all" ? { status } : {}), // Only add status if it's defined
     ...(block_status != "all" ? { block_status } : {}), // Only add block_status if it's defined
   };
 
   try {
     const { rows, count } = await Users.findAndCountAll({
-      attributes: ["id", "username", "mobile", "status", "block_status", "createdAt"],
+      attributes: ["id", "name", "mobile", "status", "block_status", "created_at"],
       where: whereClause,
       limit: parsedLimit,
       offset,
-      order: [["createdAt", "DESC"]],
+      order: [["created_at", "DESC"]],
     });
     sendSuccess(res, "User fetched successfully", { users: rows, count }, 200);
   } catch (error) {
@@ -113,16 +115,22 @@ exports.activeOrInactiveUser = async (req, res, next) => {
 //Package Actions
 exports.addPackage = async (req, res, next) => {
   const { name, description, price, duration, swap, type } = req.body;
+
   if (!req.files || !req.files["image"]) {
     throw new ApiError(400, "Package image is required");
   }
-  const file = req.files["package_image"][0];
+  const file = req.files["image"][0];
   const package_image = file.filename;
   try {
     const package = await db.packages.create({ name, description, price, duration, swap, image: package_image, type });
     sendSuccess(res, "Package added successfully", { package }, 200);
   } catch (error) {
     console.log(error);
+    if (fs.existsSync(imagePath)) {
+      fs.unlink(imagePath, (err) => {
+        if (err) console.error("Error deleting file:", err);
+      });
+    }
     next(error);
   }
 };
@@ -263,24 +271,23 @@ exports.deleteBoxes = async (req, res, next) => {
 
 exports.updateBox = async (req, res, next) => {
   const { id } = req.params;
-  const { unique_id, location_id, total_powerbanks, available_powerbanks, status } = req.body;
+  const { status } = req.body;
 
-  const box = await Boxes.findByPk(id);
-  if (!box) {
-    throw new ApiError(404, "Box not found");
-  }
-  const transacion = await db.sequelize.transaction();
+  // if (!box) {
+  //   throw new ApiError(404, "Box not found");
+  // }
+  const transaction = await db.sequelize.transaction();
   try {
+    const box = await Boxes.findByPk(id, { lock: transaction.LOCK.UPDATE, transaction });
     const updatedBox = await box.update(
-      { unique_id, location_id, total_powerbanks, available_powerbanks, status },
-      { returning: true },
-      { transacion }
+      { status },
+      { transaction } 
     );
-    await transacion.commit();
+    await transaction.commit();
     sendSuccess(res, "Package updated successfully", { updatedBox }, 200);
   } catch (error) {
     console.error(error);
-    await transacion.rollback();
+    await transaction.rollback();
     next(error);
   }
 };

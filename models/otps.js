@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       timestamps: true,
-      underscored: true, // Creates created_at, updated_at instead of camelCase
+      underscored: true,
     }
   );
 

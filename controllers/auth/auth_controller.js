@@ -12,6 +12,12 @@ const Admins = db.admins;
 
 exports.sendOtp = asyncWrapper(async (req, res, next) => {
   const { mobile } = req.body;
+
+  const previousOtps = await Otp.findAll({ where: { mobile } });
+  if (previousOtps) {
+    await Otp.destroy({ where: { mobile } });
+  }
+
   const otp = generateOtp();
   const user = await User.findOne({ attributes: ["id", "status", "block_status"], where: { mobile } });
 
@@ -32,22 +38,15 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
 exports.verifyOtp = asyncWrapper(async (req, res) => {
   const { mobile, otp } = req.body;
   const otpData = await Otp.findOne({ where: { mobile } });
+
   if (!otpData) {
     throw new ApiError(400, "Otp not found");
   }
-
-  console.log("OTP==>",otp)
-  console.log("OTP==>",typeof otp)
-  console.log("OTP FROM DB==>",otpData.otp)
-  console.log("OTP FROM DB==>",typeof otpData.otp)
-
-
 
   if (otpData.otp !== otp) {
     throw new ApiError(400, "Invalid OTP");
   }
 
-  // Convert `createdAt` to timestamp and check expiry
   const otpCreatedAt = new Date(otpData.createdAt).getTime();
   if (Date.now() - otpCreatedAt > 60000) {
     await Otp.destroy({ where: { mobile } });
