@@ -27,11 +27,15 @@ exports.getUserProfile = async (req, res, next) => {
 
 exports.updatUserProfile = async (req, res, next) => {
   const { user } = req;
-  const { username, dob, avatar } = req.body;
+  const { name, dob, email } = req.body;
 
+  const avatar = (req.files && req.files?.["avatar"]?.[0]?.filename) || null;
   const transaction = await db.sequelize.transaction();
   try {
-    await user.update({ username, dob, avatar }, { returning: true, transaction });
+    await user.update(
+      { name, dob: dob ? dob : user.dob, email: email ? email : user.email, avatar: avatar ? avatar : user.avatar },
+      { returning: true, transaction }
+    );
     await transaction.commit();
     sendSuccess(res, "User profile updated successfully", { user }, 200);
   } catch (error) {

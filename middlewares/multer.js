@@ -19,6 +19,7 @@ const upload = multer({ storage: storage }).fields([
   { name: "photo", maxCount: 1 }, // Accept 1 file with field name "photo"
   { name: "proof_photo", maxCount: 1 }, // Accept 1 file with field name "proof_photo"
   { name: "image", maxCount: 1 }, // Accept 1 file with field name "proof_photo"
+  { name: "avatar", maxCount: 1 }, // Accept 1 file with field name "proof_photo"
 ]);
 
 module.exports = upload;
