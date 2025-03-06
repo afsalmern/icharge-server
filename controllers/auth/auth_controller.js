@@ -50,16 +50,18 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "Otp expired");
   }
 
-  const [user] = await User.findOrCreate({
+  const [user, created] = await User.findOrCreate({
     where: { mobile },
     defaults: {},
   });
+
+  console.log(created);
 
   // Generate token and return response
   const token = generateToken(user);
   await Otp.destroy({ where: { mobile } });
 
-  sendSuccess(res, "Otp verified successfully", { token, user }, 200);
+  sendSuccess(res, "Otp verified successfully", { token, user, isGuest: created }, 200);
 });
 
 exports.loginAdmin = asyncWrapper(async (req, res) => {
