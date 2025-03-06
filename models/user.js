@@ -18,6 +18,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         unique: true,
       },
+      dob:{
+        type: DataTypes.STRING(15),
+        allowNull: true,
+      },
       avatar: {
         type: DataTypes.STRING(255),
         allowNull: true,
@@ -59,6 +63,13 @@ module.exports = (sequelize, DataTypes) => {
       underscored: true, // Converts createdAt → created_at, updatedAt → updated_at
     }
   );
+
+  User.associate = (models) => {
+    User.hasMany(models.rentals, {
+      foreignKey: "user_id",
+      as: "rentals",
+    });
+  };
 
   return User;
 };
