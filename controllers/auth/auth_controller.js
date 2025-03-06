@@ -36,6 +36,9 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "Otp not found");
   }
 
+  console.log(otpData.otp);
+  console.log(otp);
+
   if (otpData.otp !== otp) {
     throw new ApiError(400, "Invalid OTP");
   }
@@ -47,8 +50,10 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "Otp expired");
   }
 
-  // Check if user exists or create a new one
-  const [user] = await User.findOrCreate({ where: { mobile }, defaults: {} });
+  const [user] = await User.findOrCreate({
+    where: { mobile },
+    defaults: {},
+  });
 
   // Generate token and return response
   const token = generateToken(user);
@@ -60,15 +65,14 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
 exports.loginAdmin = asyncWrapper(async (req, res) => {
   const { email, password } = req.body;
 
-  const admin = await Admins.findOne({ attributes: ["id", "email", "role", "firstName", "password"], where: { email } });
+  const admin = await Admins.findOne({ attributes: ["id", "email", "role", "name", "password"], where: { email } });
   if (!admin) {
     throw new ApiError(404, "Admin not found");
   }
 
-  // Compare entered password with the hashed password
-  const isMatch = await bcrypt.compare(password, admin.password);
-  if (!isMatch) {
-    throw new ApiError(401, "Invalid credentials");
+  const isValid = await admin.validPassword(password);
+  if (!isValid) {
+    throw new ApiError(401, "Invalid password");
   }
 
   const token = generateToken(admin);

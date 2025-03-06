@@ -1,76 +1,86 @@
 module.exports = (sequelize, DataTypes) => {
-  const Rentals = sequelize.define("rentals", {
-    id: {
-      allowNull: false,
-      autoIncrement: true,
-      primaryKey: true,
-      type: DataTypes.INTEGER,
-    },
-    user_id: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: "users",
-        key: "id",
+  const Rental = sequelize.define(
+    "rentals",
+    {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: DataTypes.INTEGER,
       },
-      allowNull: true,
-    },
-    box_id: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: "boxes",
-        key: "id",
+      user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "users",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
-      allowNull: true,
-    },
-    package_id: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: "packages",
-        key: "id",
+      box_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "boxes",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
-      allowNull: true,
-    },
-    return_location_id: {
-      type: DataTypes.INTEGER,
-      references: {
-        model: "locations",
-        key: "id",
+      package_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "packages",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
-      allowNull: true,
+      start_time: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+      end_time: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      return_time: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      return_location_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "locations",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
+      },
+      extra_hours: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+      },
+      status: {
+        type: DataTypes.ENUM("ongoing", "completed", "overdue"),
+        allowNull: false,
+        defaultValue: "ongoing",
+      },
+      extra_charge: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 0.0,
+      },
     },
-    start_time: {
-      allowNull: false,
-      type: DataTypes.DATE,
-    },
-    end_time: {
-      allowNull: false,
-      type: DataTypes.DATE,
-    },
-    return_time: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    extra_hours: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-    },
-    status: {
-      type: DataTypes.ENUM("ongoing", "completed", "overdue"),
-      allowNull: false,
-    },
-    extra_charge: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-    },
-    createdAt: {
-      allowNull: false,
-      type: DataTypes.DATE,
-    },
-    updatedAt: {
-      allowNull: false,
-      type: DataTypes.DATE,
-    },
-  });
+    {
+      timestamps: true,
+      underscored: true,
+    }
+  );
 
-  return Rentals;
+  return Rental;
 };

@@ -1,51 +1,41 @@
+'use strict';
+
 module.exports = (sequelize, DataTypes) => {
-  const Locations = sequelize.define("locations", {
+  const Location = sequelize.define('locations', {
     id: {
       allowNull: false,
       autoIncrement: true,
       primaryKey: true,
-      type: DataTypes.INTEGER,
+      type: DataTypes.INTEGER
     },
     name: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: false
     },
     latitude: {
       type: DataTypes.DECIMAL(10, 8),
-      allowNull: false,
+      allowNull: false
     },
     longitude: {
       type: DataTypes.DECIMAL(10, 8),
-      allowNull: false,
+      allowNull: false
     },
     address: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
+      type: DataTypes.TEXT,
+      allowNull: false
     },
     starting_hour: {
       type: DataTypes.TIME,
-      allowNull: false,
+      allowNull: false
     },
     ending_hour: {
       type: DataTypes.TIME,
-      allowNull: false,
+      allowNull: false
     },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
+  }, {
+    timestamps: true,
+    underscored: true
   });
 
-  Locations.associate = (models) => {
-    Locations.hasOne(models.boxes, {
-      foreignKey: "location_id",
-      as: "boxes",
-    });
-  };
-
-  return Locations;
+  return Location;
 };

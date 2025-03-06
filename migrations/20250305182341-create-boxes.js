@@ -1,50 +1,56 @@
-"use strict";
-/** @type {import('sequelize-cli').Migration} */
+'use strict';
+
 module.exports = {
-  async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("boxes", {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('boxes', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER,
+        type: Sequelize.INTEGER
       },
       location_id: {
         type: Sequelize.INTEGER,
-        references: {
-          model: "locations",
-          key: "id",
-        },
         allowNull: false,
+        references: {
+          model: 'locations',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      status: {
+        type: Sequelize.ENUM('active', 'inactive', 'maintenance'),
+        allowNull: false,
+        defaultValue: 'active'
       },
       unique_id: {
         type: Sequelize.STRING(50),
         allowNull: false,
-      },
-      status: {
-        type: Sequelize.ENUM("active", "inactive", "maintenance"),
-        allowNull: false,
-        defaultValue: "active",
+        unique: true
       },
       total_powerbanks: {
         type: Sequelize.INTEGER,
         allowNull: false,
+        defaultValue: 0
       },
       available_powerbanks: {
         type: Sequelize.INTEGER,
         allowNull: false,
+        defaultValue: 0
       },
-      createdAt: {
+      created_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
-      updatedAt: {
+      updated_at: {
         allowNull: false,
         type: Sequelize.DATE,
-      },
+      }
     });
   },
-  async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("boxes");
-  },
+
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.dropTable('boxes');
+  }
 };

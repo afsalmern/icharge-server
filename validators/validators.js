@@ -1,7 +1,7 @@
 const { body, param, validationResult } = require("express-validator");
 const { ApiError } = require("../middlewares/error");
 
-const allowedTypesForPackageTypes = ["hourly","weekly","monthly"];
+const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly"];
 
 const locationDataValidation = [
   body("name").not().isEmpty().withMessage("Name is required"),
@@ -50,14 +50,27 @@ const validateId = [
   param("id").notEmpty().withMessage("ID is required").isInt().withMessage("ID must be an integer").toInt(), // Converts the ID to an integer if it's a string number
 ];
 
-const validatePackagesData =[
+const validatePackagesData = [
   body("name").not().isEmpty().withMessage("Name is required"),
   body("price").not().isEmpty().withMessage("Price is required").bail().isNumeric().withMessage("Price must be a number"),
   body("duration").not().isEmpty().withMessage("Duration is required").bail().isNumeric().withMessage("Duration must be a number"),
   body("description").not().isEmpty().withMessage("Description is required").bail().isString().withMessage("Description must be a string"),
   body("swap").not().isEmpty().withMessage("Swap is required").bail().isNumeric().withMessage("Swap must be a number"),
-  body("type").not().isEmpty().withMessage("Type is required").bail().isIn(allowedTypesForPackageTypes).withMessage("Type must be one of " + allowedTypesForPackageTypes.join(", ")),
-]
+  body("type")
+    .not()
+    .isEmpty()
+    .withMessage("Type is required")
+    .bail()
+    .isIn(allowedTypesForPackageTypes)
+    .withMessage("Type must be one of " + allowedTypesForPackageTypes.join(", ")),
+];
+
+const validateBoxesData = [
+  body("location_id").not().isEmpty().withMessage("Location is required"),
+  body("unique_id").not().isEmpty().withMessage("Unique id is required"),
+  body("total_powerbanks").not().isEmpty().withMessage("Number of power banks are required"),
+  body("available_powerbanks").not().isEmpty().withMessage("Number of power banks available are required"),
+];
 
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -71,4 +84,13 @@ const validate = (req, res, next) => {
   next();
 };
 
-module.exports = { locationDataValidation, mobileNumberValidation, adminSignupValidation, adminLoginValidation,validatePackagesData, validateId, validate };
+module.exports = {
+  locationDataValidation,
+  mobileNumberValidation,
+  adminSignupValidation,
+  adminLoginValidation,
+  validatePackagesData,
+  validateBoxesData,
+  validateId,
+  validate,
+};

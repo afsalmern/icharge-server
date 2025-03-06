@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const KycDetails = sequelize.define(
+  const KycDetail = sequelize.define(
     "kyc_details",
     {
       id: {
@@ -10,43 +10,43 @@ module.exports = (sequelize, DataTypes) => {
       },
       user_id: {
         type: DataTypes.INTEGER,
+        allowNull: false,
         references: {
-          model: "users",
+          model: "users", // Ensure 'users' table exists
           key: "id",
         },
-        allowNull: true,
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
       full_name: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.STRING(255),
         allowNull: false,
       },
       photo: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        allowNull: true,
       },
       proof_type: {
-        type: DataTypes.ENUM("aadhar", "passport", "driving_licence"),
+        type: DataTypes.ENUM("passport", "driver_license", "national_id"),
         allowNull: false,
       },
       proof_number: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.STRING(50),
         allowNull: false,
+        unique: true,
       },
       proof_document: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        allowNull: true,
       },
       status: {
-        type: DataTypes.ENUM("pending", "approved", "rejected"),
+        type: DataTypes.ENUM("pending", "verified", "rejected"),
         allowNull: false,
+        defaultValue: "pending",
       },
-      proof_number: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-      },
-      subbmitted_at: {
+      submitted_at: {
         type: DataTypes.DATE,
-        allowNull: true,
+        allowNull: false,
       },
       verified_at: {
         type: DataTypes.DATE,
@@ -55,15 +55,19 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       timestamps: true,
+      underscored: true, // Creates created_at, updated_at instead of camelCase
     }
   );
 
-  KycDetails.associate = (models) => {
-    KycDetails.belongsTo(models.users, {
+  // Define association with User
+  KycDetail.associate = (models) => {
+    KycDetail.belongsTo(models.users, {
       foreignKey: "user_id",
       as: "user",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
     });
   };
 
-  return KycDetails;
+  return KycDetail;
 };

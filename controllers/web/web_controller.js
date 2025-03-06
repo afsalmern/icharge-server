@@ -5,6 +5,32 @@ const { ApiError } = require("../../middlewares/error");
 
 const Users = db.users;
 const Packages = db.packages;
+const Boxes = db.boxes;
+const Locations = db.locations;
+
+//Data for Drop down
+exports.getDropDownDatas = async (req, res, next) => {
+  try {
+    const { type } = req.query;
+    const data = {};
+
+    if (type == "locations") {
+      const locations = await Locations.findAll({
+        attributes: [
+          ["id", "value"],
+          ["name", "label"],
+        ],
+      });
+      data["locations"] = locations;
+    }
+    sendSuccess(res, "Drop down data fetched successfully", { data }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+//User Actions
 exports.getAllUsers = async (req, res, next) => {
   const { status = "all", block_status = "all", page = 1, limit = 20, keyword, from = 0, to = 0 } = req.query;
   let userCreatedFilter = {};
@@ -84,6 +110,7 @@ exports.activeOrInactiveUser = async (req, res, next) => {
   }
 };
 
+//Package Actions
 exports.addPackage = async (req, res, next) => {
   const { name, description, price, duration, swap, type } = req.body;
   if (!req.files || !req.files["image"]) {
@@ -104,8 +131,6 @@ exports.updatePackage = async (req, res, next) => {
   const { id } = req.params;
   const { name, description, price, duration, swap, type } = req.body;
 
-  console.log(req.files);
-
   const package_image = (req.files && req.files?.["image"]?.[0]?.filename) || null;
 
   const package = await Packages.findByPk(id);
@@ -115,7 +140,7 @@ exports.updatePackage = async (req, res, next) => {
   const transacion = await db.sequelize.transaction();
   try {
     const updatedPackage = await package.update(
-      { name, description, price, duration, swap, image: package_image ? package_image : package.image,type },
+      { name, description, price, duration, swap, image: package_image ? package_image : package.image, type },
       { returning: true },
       { transacion }
     );
@@ -149,6 +174,113 @@ exports.deletePackage = async (req, res, next) => {
     sendSuccess(res, "Package deleted successfully", {}, 200);
   } catch (error) {
     console.error(error);
+    next(error);
+  }
+};
+
+//Boxes Actions
+exports.getBoxes = async (req, res, next) => {
+  try {
+    const boxes = await db.boxes.findAll({
+      attributes: ["id", "unique_id", "status", "total_powerbanks", "available_powerbanks", "location_id"],
+      include: [
+        {
+          model: db.locations,
+          attributes: ["name"],
+          as: "location",
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+    sendSuccess(res, "Boxes fetched successfully", { boxes }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+exports.addBoxes = async (req, res, next) => {
+  try {
+    const { unique_id, location_id, total_powerbanks, available_powerbanks } = req.body;
+
+    console.log(unique_id);
+
+    const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
+    if (!isLocationValid) {
+      throw new ApiError(404, "Location not found");
+    }
+    const isBoxExistWithUniqueId = await Boxes.findOne({
+      attributes: ["unique_id"],
+      where: { unique_id: unique_id },
+    });
+    if (isBoxExistWithUniqueId) {
+      throw new ApiError(409, "Box with this id already exists,choose another id for box");
+    }
+    const box = await Boxes.create({ unique_id, location_id, total_powerbanks, available_powerbanks });
+    sendSuccess(res, "Box added successfully", { box }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+exports.getLocationWiseBoxes = async (req, res, next) => {
+  const { id: location_id } = req.params;
+  const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
+  if (!isLocationValid) {
+    throw new ApiError(404, "Location not found");
+  }
+  try {
+    const boxes = await Locations.findByPk(location_id, {
+      include: [
+        {
+          model: Boxes,
+          as: "boxes",
+        },
+      ],
+    });
+    sendSuccess(res, "Boxes for location fetched successfully", { boxes }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+exports.deleteBoxes = async (req, res, next) => {
+  const { id } = req.params;
+  const box = await Boxes.findByPk(id);
+  if (!box) {
+    throw new ApiError(404, "Box not found");
+  }
+  try {
+    await box.destroy();
+    sendSuccess(res, "Box deleted successfully", {}, 200);
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+};
+
+exports.updateBox = async (req, res, next) => {
+  const { id } = req.params;
+  const { unique_id, location_id, total_powerbanks, available_powerbanks, status } = req.body;
+
+  const box = await Boxes.findByPk(id);
+  if (!box) {
+    throw new ApiError(404, "Box not found");
+  }
+  const transacion = await db.sequelize.transaction();
+  try {
+    const updatedBox = await box.update(
+      { unique_id, location_id, total_powerbanks, available_powerbanks, status },
+      { returning: true },
+      { transacion }
+    );
+    await transacion.commit();
+    sendSuccess(res, "Package updated successfully", { updatedBox }, 200);
+  } catch (error) {
+    console.error(error);
+    await transacion.rollback();
     next(error);
   }
 };

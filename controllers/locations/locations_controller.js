@@ -80,12 +80,9 @@ exports.deleteLocation = async (req, res, next) => {
   }
   try {
     await location.destroy();
-  sendSuccess(res, "Location deleted successfully", {}, 200);
+    sendSuccess(res, "Location deleted successfully", {}, 200);
   } catch (error) {
     console.error(error);
     next(error);
   }
 };
-
-
-

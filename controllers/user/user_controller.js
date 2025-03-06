@@ -41,17 +41,7 @@ exports.updatUserProfile = async (req, res, next) => {
   }
 };
 
-exports.getUserKycDetails = async (req, res,next) => {
-  try {
-    const { user } = req;
-    return res.status(200).json({ user });
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-};
-
-exports.getRentalDetails = async (req, res,next) => {
+exports.getUserKycDetails = async (req, res, next) => {
   try {
     const { user } = req;
     return res.status(200).json({ user });

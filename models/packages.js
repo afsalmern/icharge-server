@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-  const Packages = sequelize.define(
+  const Package = sequelize.define(
     "packages",
     {
       id: {
@@ -8,29 +8,30 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true,
         type: DataTypes.INTEGER,
       },
-      price: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false,
-      },
       name: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.STRING(255),
         allowNull: false,
       },
       duration: {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      description: {
-        type: DataTypes.STRING,
+      price: {
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
-      swap: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
+      description: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
       },
       image: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      swap:{
+        type: DataTypes.INTEGER,
         allowNull: false,
+        defaultValue: 0
       },
       type: {
         type: DataTypes.ENUM("hourly", "weekly", "monthly"),
@@ -43,7 +44,5 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  Packages.associate = (models) => {};
-
-  return Packages;
+  return Package;
 };
