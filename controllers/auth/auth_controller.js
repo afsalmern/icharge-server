@@ -36,8 +36,12 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
     throw new ApiError(400, "Otp not found");
   }
 
-  console.log(otpData.otp);
-  console.log(otp);
+  console.log("OTP==>",otp)
+  console.log("OTP==>",typeof otp)
+  console.log("OTP FROM DB==>",otpData.otp)
+  console.log("OTP FROM DB==>",typeof otpData.otp)
+
+
 
   if (otpData.otp !== otp) {
     throw new ApiError(400, "Invalid OTP");
