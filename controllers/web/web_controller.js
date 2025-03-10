@@ -271,18 +271,22 @@ exports.deleteBoxes = async (req, res, next) => {
 
 exports.updateBox = async (req, res, next) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, available_powerbanks, location_id, total_powerbanks, unique_id } = req.body;
+  const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
 
-  // if (!box) {
-  //   throw new ApiError(404, "Box not found");
-  // }
+  if (!isLocationValid) {
+    throw new ApiError(404, "Location not found");
+  }
+
+  const isBoxValid = await Boxes.findByPk(id, { attributes: ["id"] });
+  if (!isBoxValid) {
+    throw new ApiError(404, "Box not found");
+  }
+
   const transaction = await db.sequelize.transaction();
   try {
-    const box = await Boxes.findByPk(id, { lock: transaction.LOCK.UPDATE, transaction });
-    const updatedBox = await box.update(
-      { status },
-      { transaction } 
-    );
+    const box = await Boxes.findByPk(id, { transaction });
+    const updatedBox = await box.update({ status, available_powerbanks, location_id, total_powerbanks, unique_id }, { transaction });
     await transaction.commit();
     sendSuccess(res, "Package updated successfully", { updatedBox }, 200);
   } catch (error) {

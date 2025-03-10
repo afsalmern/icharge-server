@@ -18,14 +18,17 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         unique: true,
       },
-      dob:{
+      dob: {
         type: DataTypes.STRING(15),
+        allowNull: true,
+      },
+      referral_code: {
+        type: DataTypes.STRING(100),
         allowNull: true,
       },
       avatar: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        defaultValue: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
       },
       mobile: {
         type: DataTypes.STRING(20),
@@ -68,6 +71,11 @@ module.exports = (sequelize, DataTypes) => {
     User.hasMany(models.rentals, {
       foreignKey: "user_id",
       as: "rentals",
+    });
+
+    User.hasOne(models.kyc_details, {
+      foreignKey: "user_id",
+      as: "kyc_details",
     });
   };
 

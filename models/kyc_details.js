@@ -35,12 +35,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
-      proof_document: {
+      proof_front: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      proof_back: {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
       status: {
-        type: DataTypes.ENUM("pending", "verified", "rejected"),
+        type: DataTypes.ENUM("pending", "verified", "rejected","privilege"),
         allowNull: false,
         defaultValue: "pending",
       },

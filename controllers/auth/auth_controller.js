@@ -9,6 +9,8 @@ const asyncWrapper = require("../../handlers/async_handler");
 const Otp = db.otps;
 const User = db.users;
 const Admins = db.admins;
+const KycDetails = db.kyc_details;
+
 
 exports.sendOtp = asyncWrapper(async (req, res, next) => {
   const { mobile } = req.body;
@@ -58,13 +60,15 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
     defaults: {},
   });
 
-  console.log(created);
+  console.log("USER", JSON.stringify(user, null, 2));
+
+  const kyc_status = await KycDetails.findOne({ where: { user_id: user.id }, attributes: ["status", "id"] });
 
   // Generate token and return response
   const token = generateToken(user);
   await Otp.destroy({ where: { mobile } });
 
-  sendSuccess(res, "Otp verified successfully", { token, user, isGuest: created }, 200);
+  sendSuccess(res, "Otp verified successfully", { token, user, isGuest: created, kyc_status: kyc_status ? kyc_status.status : null }, 200);
 });
 
 exports.loginAdmin = asyncWrapper(async (req, res) => {

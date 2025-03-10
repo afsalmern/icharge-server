@@ -2,13 +2,28 @@ const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 
 const User = db.users;
+const Boxes = db.boxes;
+const Locations = db.locations;
 
 exports.getHome = async (req, res, next) => {
   try {
-    const { user } = req;
-    const { lat, long } = req.params;
-
-    sendSuccess(res, "Home details fetched successfully", { user }, 200);
+    const devices = await Boxes.findAll({
+      attributes: ["id", "location_id", "status", ["total_powerbanks","batteries"], ["available_powerbanks","slots"]],
+      include: [
+        {
+          attributes: [
+            "id",
+            "name",
+            "address",
+            [db.Sequelize.literal(`TO_CHAR("location"."starting_hour", 'HH12:MI AM')`), "start_time"],
+            [db.Sequelize.literal(`TO_CHAR("location"."ending_hour", 'HH12:MI AM')`), "end_time"],
+          ],
+          model: Locations,
+          as: "location",
+        },
+      ],
+    });
+    sendSuccess(res, "Home details fetched successfully", { devices }, 200);
   } catch (error) {
     console.log(error);
     next(error);
