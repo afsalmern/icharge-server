@@ -19,6 +19,7 @@ const {
   deleteBoxes,
 } = require("../../controllers/web/web_controller");
 const upload = require("../../middlewares/multer");
+const { getKycDatas } = require("../../controllers/kyc/kyc_controller");
 const router = express.Router();
 
 //DropDownData
@@ -51,5 +52,8 @@ router.get("/terms-conditions", verifyToken, getLocations);
 router.get("/users", verifyToken, checkRole("admin"), getAllUsers);
 router.patch("/users/:id", verifyToken, checkRole("admin"), validateId, validate, blockOrUnblockUser);
 router.patch("/user-status/:id", verifyToken, checkRole("admin"), validateId, validate, activeOrInactiveUser);
+
+//Kyc
+router.get("/kyc", verifyToken, checkRole("admin"), getKycDatas);
 
 module.exports = router;

@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       proof_type: {
-        type: DataTypes.ENUM("passport", "driver_license", "national_id"),
+        type: DataTypes.ENUM("aadhar","driving_license"),
         allowNull: false,
       },
       proof_number: {

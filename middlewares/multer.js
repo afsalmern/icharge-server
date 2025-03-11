@@ -16,11 +16,12 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage: storage }).fields([
-  { name: "photo", maxCount: 1 }, // Accept 1 file with field name "photo"
-  { name: "proof_back", maxCount: 1 }, // Accept 1 file with field name "proof_photo"
-  { name: "proof_front", maxCount: 1 }, // Accept 1 file with field name "proof_photo"
-  { name: "image", maxCount: 1 }, // Accept 1 file with field name "proof_photo"
-  { name: "avatar", maxCount: 1 }, // Accept 1 file with field name "proof_photo"
+  { name: "photo", maxCount: 1 },
+  { name: "proof_back", maxCount: 1 },
+  { name: "proof_front", maxCount: 1 },
+  { name: "image", maxCount: 1 },
+  { name: "avatar", maxCount: 1 },
+  { name: "kyc_photo", maxCount: 1 },
 ]);
 
 module.exports = upload;

@@ -1,4 +1,4 @@
-const { body, param, validationResult } = require("express-validator");
+const { body, param, check, validationResult } = require("express-validator");
 const { ApiError } = require("../middlewares/error");
 
 const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly"];
@@ -67,9 +67,35 @@ const validatePackagesData = [
 
 const validateBoxesData = [
   body("location_id").not().isEmpty().withMessage("Location is required"),
+  body("device_id").not().isEmpty().withMessage("Device id is required"),
   body("unique_id").not().isEmpty().withMessage("Unique id is required"),
   body("total_powerbanks").not().isEmpty().withMessage("Number of power banks are required"),
   body("available_powerbanks").not().isEmpty().withMessage("Number of power banks available are required"),
+];
+
+const validateKycData = [
+  body("full_name").not().isEmpty().withMessage("Full name is required"),
+  body("proof_type").not().isEmpty().withMessage("Proof type is required"),
+  body("proof_number").not().isEmpty().withMessage("Proof number is required"),
+  check("proof_front").custom((value, { req }) => {
+    if (!req.files || !req.files["proof_front"]) {
+      throw new Error("Proof front image is required");
+    }
+    return true;
+  }),
+  check("photo").custom((value, { req }) => {
+    if (!req.files || !req.files["photo"]) {
+      throw new Error("Kyc photo is required");
+    }
+    return true;
+  }),
+
+  check("proof_back").custom((value, { req }) => {
+    if (!req.files || !req.files["proof_back"]) {
+      throw new Error("Proof back image is required");
+    }
+    return true;
+  }),
 ];
 
 const validate = (req, res, next) => {
@@ -92,5 +118,6 @@ module.exports = {
   validatePackagesData,
   validateBoxesData,
   validateId,
+  validateKycData,
   validate,
 };

@@ -8,7 +8,6 @@ const userRouter = require("./routes/v1/user_routes");
 const webRouter = require("./routes/v1/web_routes");
 const { errorHandler } = require("./middlewares/error");
 
-
 dotenv.config();
 
 const port = process.env.PORT || 3000;

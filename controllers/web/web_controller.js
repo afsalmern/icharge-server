@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
+const machineSave = require("../../helpers/externalCalls");
 
 const Users = db.users;
 const Packages = db.packages;
@@ -190,7 +191,7 @@ exports.deletePackage = async (req, res, next) => {
 exports.getBoxes = async (req, res, next) => {
   try {
     const boxes = await db.boxes.findAll({
-      attributes: ["id", "unique_id", "status", "total_powerbanks", "available_powerbanks", "location_id"],
+      attributes: ["id", "unique_id", "device_id", "status", "total_powerbanks", "available_powerbanks", "location_id"],
       include: [
         {
           model: db.locations,
@@ -209,22 +210,29 @@ exports.getBoxes = async (req, res, next) => {
 
 exports.addBoxes = async (req, res, next) => {
   try {
-    const { unique_id, location_id, total_powerbanks, available_powerbanks } = req.body;
-
-    console.log(unique_id);
+    const { unique_id, device_id, location_id, total_powerbanks, available_powerbanks } = req.body;
 
     const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
     if (!isLocationValid) {
       throw new ApiError(404, "Location not found");
     }
-    const isBoxExistWithUniqueId = await Boxes.findOne({
-      attributes: ["unique_id"],
-      where: { unique_id: unique_id },
+    const boxes = await Boxes.findAll({
+      attributes: ["unique_id", "device_id"],
     });
-    if (isBoxExistWithUniqueId) {
+
+    if (boxes.find((box) => box.unique_id === unique_id)) {
       throw new ApiError(409, "Box with this id already exists,choose another id for box");
     }
-    const box = await Boxes.create({ unique_id, location_id, total_powerbanks, available_powerbanks });
+
+    if (boxes.find((box) => box.device_id === device_id)) {
+      throw new ApiError(409, "Box with this device id already exists,choose another device id for box");
+    }
+
+    const box = await Boxes.create({ unique_id, device_id, location_id, total_powerbanks, available_powerbanks });
+
+    // const saveDeviceToCloud = await machineSave(unique_id, device_id);
+    // console.log(saveDeviceToCloud);
+
     sendSuccess(res, "Box added successfully", { box }, 200);
   } catch (error) {
     console.log(error);
@@ -271,7 +279,7 @@ exports.deleteBoxes = async (req, res, next) => {
 
 exports.updateBox = async (req, res, next) => {
   const { id } = req.params;
-  const { status, available_powerbanks, location_id, total_powerbanks, unique_id } = req.body;
+  const { status, available_powerbanks, location_id, total_powerbanks } = req.body;
   const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
 
   if (!isLocationValid) {
@@ -286,7 +294,7 @@ exports.updateBox = async (req, res, next) => {
   const transaction = await db.sequelize.transaction();
   try {
     const box = await Boxes.findByPk(id, { transaction });
-    const updatedBox = await box.update({ status, available_powerbanks, location_id, total_powerbanks, unique_id }, { transaction });
+    const updatedBox = await box.update({ status, available_powerbanks, location_id, total_powerbanks }, { transaction });
     await transaction.commit();
     sendSuccess(res, "Package updated successfully", { updatedBox }, 200);
   } catch (error) {

@@ -30,6 +30,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         unique: true,
       },
+      device_id: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        unique: true,
+      },
       total_powerbanks: {
         type: DataTypes.INTEGER,
         allowNull: false,
