@@ -15,6 +15,8 @@ exports.getHome = async (req, res, next) => {
             "id",
             "name",
             "address",
+            "latitude",
+            "longitude",
             [db.Sequelize.literal(`TO_CHAR("location"."starting_hour", 'HH12:MI AM')`), "start_time"],
             [db.Sequelize.literal(`TO_CHAR("location"."ending_hour", 'HH12:MI AM')`), "end_time"],
           ],
