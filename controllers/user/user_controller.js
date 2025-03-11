@@ -40,6 +40,8 @@ exports.getHome = async (req, res, next) => {
       ],
     });
 
+    console.log("RENTALS", onGoingRentals);
+
     const notificationsData = {
       title: "Overdue",
       sub_title: "You have an overdue rental, please return the box to continue using it",
@@ -65,12 +67,15 @@ exports.getHome = async (req, res, next) => {
       avatar: "https://dummyimage.com/100x100/000/fff&text=Step+1",
     };
 
-    const rentalsModified = {
-      ...onGoingRentals.toJSON(),
-      current_cost: 100,
-      total_hours: 100,
-      duration: 2,
-    };
+    const rentalsModified =
+      onGoingRentals === null
+        ? null
+        : {
+            ...onGoingRentals.toJSON(),
+            current_cost: 100,
+            total_hours: 100,
+            duration: 2,
+          };
 
     sendSuccess(
       res,
