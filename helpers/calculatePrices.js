@@ -40,4 +40,15 @@ const getCostOnWeeks = (duration, started_on, price) => {
   };
 };
 
-module.exports = { getCostOnHours, getCostOnWeeks };
+const calculatePriceOnRentals = (duration, started_on, price) => {
+  const startTime = new Date(started_on);
+  const currentTime = new Date();
+
+  // Calculate the total hours elapsed
+  const elapsedHours = Math.ceil((currentTime - startTime) / (1000 * 60 * 60));
+
+
+  return { totalPrice, extraHours };
+};
+
+module.exports = { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals };
