@@ -1,11 +1,12 @@
 const express = require("express");
-const { getHome, updatUserProfile, getUserProfile, getUserKycDetails, uploadKyc } = require("../../controllers/user/user_controller");
+const { getHome, updatUserProfile, getUserProfile } = require("../../controllers/user/user_controller");
 const { verifyToken } = require("../../middlewares/auth");
 const { checkIsKycSubmitted, verifyUserExist } = require("../../middlewares/check_user");
 const { checkRole } = require("../../middlewares/role_check");
 const { getRentalDetails, buyItem } = require("../../controllers/rentals/rentals.controller");
 const upload = require("../../middlewares/multer");
 const { validateKycData, validate } = require("../../validators/validators");
+const { uploadKyc, getUserKycDetails } = require("../../controllers/kyc/kyc_controller");
 const router = express.Router();
 //Home
 router.get("/home", verifyToken, getHome);
@@ -15,8 +16,8 @@ router.get("/profile", verifyToken, checkRole("user"), verifyUserExist, getUserP
 router.put("/profile", verifyToken, checkRole("user"), verifyUserExist, upload, updatUserProfile);
 
 //Kyc details
-router.get("/kyc-details", verifyToken, verifyUserExist, getUserKycDetails);
-router.post("/kyc-details", verifyToken, checkIsKycSubmitted,upload, validateKycData, validate, uploadKyc);
+router.get("/kyc-details", verifyToken, getUserKycDetails);
+router.post("/kyc-details", verifyToken, checkIsKycSubmitted, upload, validateKycData, validate, uploadKyc);
 
 //Rental details
 router.get("/rentals", verifyToken, verifyUserExist, getRentalDetails);

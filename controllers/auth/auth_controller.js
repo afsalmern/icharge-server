@@ -60,7 +60,6 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
     defaults: {},
   });
 
-  console.log("USER", JSON.stringify(user, null, 2));
 
   const kyc_status = await KycDetails.findOne({ where: { user_id: user.id }, attributes: ["status", "id"] });
 
