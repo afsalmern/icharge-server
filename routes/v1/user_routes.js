@@ -1,5 +1,5 @@
 const express = require("express");
-const { getHome, updatUserProfile, getUserProfile } = require("../../controllers/user/user_controller");
+const { getHome, updatUserProfile, getUserProfile, getPackages } = require("../../controllers/user/user_controller");
 const { verifyToken } = require("../../middlewares/auth");
 const { checkIsKycSubmitted, verifyUserExist } = require("../../middlewares/check_user");
 const { checkRole } = require("../../middlewares/role_check");
@@ -8,8 +8,13 @@ const upload = require("../../middlewares/multer");
 const { validateKycData, validate } = require("../../validators/validators");
 const { uploadKyc, getUserKycDetails } = require("../../controllers/kyc/kyc_controller");
 const router = express.Router();
+
 //Home
 router.get("/home", verifyToken, getHome);
+
+//Packages
+router.get("/packages", verifyToken, getPackages);
+
 
 //User profile
 router.get("/profile", verifyToken, checkRole("user"), verifyUserExist, getUserProfile);

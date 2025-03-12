@@ -43,11 +43,19 @@ exports.uploadKyc = async (req, res, next) => {
 
   const proof_front = (req.files && req.files?.["proof_front"]?.[0]?.filename) || null;
   const proof_back = (req.files && req.files?.["proof_back"]?.[0]?.filename) || null;
-  const photo = (req.files && req.files?.["kyc_photo"]?.[0]?.filename) || null;
+  const photo = (req.files && req.files?.["photo"]?.[0]?.filename) || null;
 
   try {
     const user = await Users.findByPk(user_id);
+    const existingKyc = await KycDetails.findOne({
+      where: {
+        proof_number,
+      },
+    });
 
+    if (existingKyc && existingKyc.proof_number == proof_number) {
+      throw new ApiError(409, "Item with this proof number already exists");
+    }
     const kyc = await user?.createKyc_details({
       full_name,
       proof_type,

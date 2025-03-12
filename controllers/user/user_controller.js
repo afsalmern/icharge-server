@@ -131,3 +131,15 @@ exports.updatUserProfile = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getPackages = async (req, res, next) => {
+  try {
+    const packages = await Packages.findAll({
+      attributes: ["name", "duration", "price", "description", "image", "swap", "type"],
+    });
+    sendSuccess(res, "Packages fetched successfully", { packages }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};

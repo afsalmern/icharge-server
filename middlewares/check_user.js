@@ -43,4 +43,4 @@ const checkIsKycSubmitted = async (req, res, next) => {
   }
 };
 
-module.exports = {verifyUserExist, checkIsKycSubmitted};
+module.exports = { verifyUserExist, checkIsKycSubmitted };

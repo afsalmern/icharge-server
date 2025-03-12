@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { getCostOnHours, getCostOnWeeks } = require("../../helpers/calculatePrices");
+const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals } = require("../../helpers/calculatePrices");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 
@@ -32,16 +32,7 @@ exports.getRentalDetails = async (req, res, next) => {
       const package_duration = rentals?.rented_package?.duration;
       const price_for_duration = rentals?.rented_package?.price;
 
-      let cost_details = null;
-
-      switch (package_type) {
-        case "hourly":
-          cost_details = getCostOnHours(package_duration, start_on, price_for_duration);
-          break;
-        case "weekly":
-          cost_details = getCostOnWeeks(package_duration, start_on, price_for_duration);
-          break;
-      }
+      const cost_details = calculatePriceOnRentals(package_duration, start_on, price_for_duration);
 
       return {
         ...rentals.toJSON(),

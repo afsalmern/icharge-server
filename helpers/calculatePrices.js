@@ -44,11 +44,21 @@ const calculatePriceOnRentals = (duration, started_on, price) => {
   const startTime = new Date(started_on);
   const currentTime = new Date();
 
-  // Calculate the total hours elapsed
-  const elapsedHours = Math.ceil((currentTime - startTime) / (1000 * 60 * 60));
 
+  // Calculate total hours elapsed
+  const elapsedHours = Math.floor((currentTime - startTime) / (1000 * 60 * 60));
 
-  return { totalPrice, extraHours };
+  console.log(started_on)
+  console.log(startTime)
+  console.log(currentTime)
+  console.log(elapsedHours)
+
+  // Calculate total price and extra cost
+  const totalPrice = (elapsedHours * price).toFixed(2);
+  const extraHours = elapsedHours > duration ? elapsedHours - duration : 0;
+  const extraCost = (extraHours * price).toFixed(2);
+
+  return { elapsedHours, totalPrice, extraHours, extraCost };
 };
 
 module.exports = { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals };
