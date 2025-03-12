@@ -20,6 +20,7 @@ const {
 } = require("../../controllers/web/web_controller");
 const upload = require("../../middlewares/multer");
 const { getKycDatas, updateKyc } = require("../../controllers/kyc/kyc_controller");
+const { getAllRentals } = require("../../controllers/rentals/rentals.controller");
 const router = express.Router();
 
 //DropDownData
@@ -56,5 +57,8 @@ router.patch("/user-status/:id", verifyToken, checkRole("admin"), validateId, va
 //Kyc
 router.get("/kyc", verifyToken, checkRole("admin"), getKycDatas);
 router.patch("/kyc/:id", verifyToken, checkRole("admin"), updateKyc);
+
+//Rental
+router.get("/rentals", verifyToken, checkRole("admin"), getAllRentals);
 
 module.exports = router;

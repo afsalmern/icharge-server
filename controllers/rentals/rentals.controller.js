@@ -4,9 +4,11 @@ const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 
 const Boxes = db.boxes;
+const Users = db.users;
 const Packages = db.packages;
 const Rentals = db.rentals;
-exports.getRentalDetails = async (req, res, next) => {
+
+exports.getRentalHistory = async (req, res, next) => {
   try {
     const { user_id } = req;
     const userRentals = await Rentals.findAll({
@@ -98,6 +100,60 @@ exports.buyItem = async (req, res, next) => {
   } catch (error) {
     console.log(error);
     await transaction.rollback();
+    next(error);
+  }
+};
+
+exports.getAllRentals = async (req, res, next) => {
+  try {
+    const userRentals = await Rentals.findAll({
+      attributes: [
+        ["id", "order_id"],
+        "box_id",
+        "package_id",
+        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_time"],
+        "end_time",
+        "status",
+      ],
+      include: [
+        {
+          model: Users,
+          as: "rented_user",
+          attributes: ["id", "mobile", "name"],
+        },
+        {
+          model: Boxes,
+          as: "rented_box",
+          attributes: ["id", "status", "unique_id"],
+        },
+        {
+          model: Packages,
+          as: "rented_package",
+          attributes: ["id", "duration", "type", "price"],
+        },
+      ],
+    });
+
+    const rentals_history = userRentals?.map((rental) => {
+      const { id: order_id, start_time, status, rented_package, rented_user } = rental;
+      const { duration, price } = rented_package || {};
+      const { name, mobile } = rented_user || {};
+
+      const cost_details = calculatePriceOnRentals(duration, start_time, price);
+
+      return {
+        order_id,
+        start_time,
+        status,
+        name,
+        mobile,
+        net_amount: price,
+        ...cost_details,
+      };
+    });
+    sendSuccess(res, "Rental details fetched successfully", { rentals_history }, 200);
+  } catch (error) {
+    console.log(error);
     next(error);
   }
 };
