@@ -1,4 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
+const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 const KycDetails = db.kyc_details;
 const Users = db.users;
@@ -73,6 +74,42 @@ exports.getUserKycDetails = async (req, res, next) => {
     sendSuccess(res, "Kyc details fetched successfully", { kyc_data }, 200);
   } catch (error) {
     console.log(error);
+    next(error);
+  }
+};
+
+exports.updateKyc = async (req, res, next) => {
+  const { id } = req.params;
+  const { type } = req.body;
+
+  const allowedTypes = ["rejected", "verified"];
+
+  const transaction = await db.sequelize.transaction();
+  try {
+    if (!allowedTypes.includes(type)) {
+      throw new ApiError(500, "Please choose valid status to update kyc");
+    }
+
+    const kyc = await KycDetails.findByPk(id);
+    if (!kyc) {
+      throw new ApiError(500, "Kyc data not found");
+    }
+
+    const updatedKyc = await kyc.update(
+      {
+        verified_at: new Date(),
+        status: type,
+      },
+      {
+        returning: true,
+      }
+    );
+    await transaction.commit();
+    sendSuccess(res, "Kyc updated successfully", { kyc: updatedKyc }, 200);
+  } catch (error) {
+    console.log(error);
+    console.log("reached here");
+    if (transaction) await transaction.rollback();
     next(error);
   }
 };
