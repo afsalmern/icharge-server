@@ -11,7 +11,14 @@ exports.getRentalDetails = async (req, res, next) => {
     const { user_id } = req;
     const userRentals = await Rentals.findAll({
       where: { user_id },
-      attributes: [["id", "order_id"], "box_id", "package_id", "start_time", "end_time", "status"],
+      attributes: [
+        ["id", "order_id"],
+        "box_id",
+        "package_id",
+        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_time"],
+        "end_time",
+        "status",
+      ],
       include: [
         {
           model: Boxes,
@@ -26,21 +33,22 @@ exports.getRentalDetails = async (req, res, next) => {
       ],
     });
 
-    const modifiedResult = userRentals?.map((rentals) => {
-      const package_type = rentals?.rented_package?.type;
-      const start_on = rentals?.start_time;
-      const package_duration = rentals?.rented_package?.duration;
-      const price_for_duration = rentals?.rented_package?.price;
+    const rentals_history = userRentals?.map((rental) => {
+      const { id: order_id, start_time, status, rented_package } = rental;
+      const { duration, price } = rented_package || {};
 
-      const cost_details = calculatePriceOnRentals(package_duration, start_on, price_for_duration);
+      const cost_details = calculatePriceOnRentals(duration, start_time, price);
 
       return {
-        ...rentals.toJSON(),
-        cost_details,
+        order_id,
+        start_time,
+        status,
+        net_amount: price,
+        ...cost_details,
       };
     });
 
-    sendSuccess(res, "Rental details fetched successfully", { modifiedResult }, 200);
+    sendSuccess(res, "Rental details fetched successfully", { rentals_history }, 200);
   } catch (error) {
     console.log(error);
     next(error);
