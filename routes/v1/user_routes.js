@@ -10,7 +10,7 @@ const { uploadKyc, getUserKycDetails } = require("../../controllers/kyc/kyc_cont
 const router = express.Router();
 
 //Home
-router.get("/home", verifyToken, getHome);
+router.get("/home", verifyToken, checkRole("user"), getHome);
 
 //Packages
 router.get("/packages", verifyToken, getPackages);
