@@ -20,6 +20,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
+      hourly_price: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+      },
       description: {
         type: DataTypes.STRING(255),
         allowNull: true,
@@ -28,10 +32,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
-      swap:{
+      swap: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        defaultValue: 0
+        defaultValue: 0,
       },
       type: {
         type: DataTypes.ENUM("hourly", "weekly", "monthly"),

@@ -17,7 +17,8 @@ exports.getRentalHistory = async (req, res, next) => {
         ["id", "order_id"],
         "box_id",
         "package_id",
-        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_time"],
+        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
+        "start_time",
         "end_time",
         "status",
       ],
@@ -30,20 +31,22 @@ exports.getRentalHistory = async (req, res, next) => {
         {
           model: Packages,
           as: "rented_package",
-          attributes: ["id", "duration", "type", "price"],
+          attributes: ["id", "hourly_price", "price"],
         },
       ],
     });
 
     const rentals_history = userRentals?.map((rental) => {
       const { id: order_id, start_time, status, rented_package } = rental;
-      const { duration, price } = rented_package || {};
+      const { hourly_price, price } = rented_package || {};
 
-      const cost_details = calculatePriceOnRentals(duration, start_time, price);
+      const start_on = rental?.get("start_on");
+
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price);
 
       return {
         order_id,
-        start_time,
+        start_time: start_on,
         status,
         net_amount: price,
         ...cost_details,

@@ -18,7 +18,7 @@ const getCostOnHours = (duration, started_on, price) => {
   return { elapsed_hours, extra_hours, extra_cost, totalCost };
 };
 
-const getCostOnWeeks = (duration, started_on, price) => {
+const getCostOnWeeks = (started_on, price) => {
   const startTime = new Date(started_on);
   const currentTime = new Date();
 
@@ -40,7 +40,7 @@ const getCostOnWeeks = (duration, started_on, price) => {
   };
 };
 
-const calculatePriceOnRentals = (duration, started_on, price) => {
+const calculatePriceOnRentals = (started_on, price) => {
   const startTime = new Date(started_on);
   const currentTime = new Date();
 
@@ -63,11 +63,31 @@ const calculatePriceOnRentals = (duration, started_on, price) => {
   }
 
   // Calculate total price and extra cost
-  const total_price = (elapsed_hours * price).toFixed(2);
-  const extra_hours = elapsed_hours > duration ? elapsed_hours - duration : 0;
-  const extra_cost = (extra_hours * price).toFixed(2);
+  const total_price = elapsed_hours == 0 ? price : (elapsed_hours * price).toFixed(2);
 
-  return { elapsed_hours, current_price: total_price, extra_hours, additional_cost: extra_cost, total_time_used, gst: 1 };
+  return { elapsed_hours, current_price: total_price, total_time_used, gst: 1 };
 };
 
-module.exports = { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals };
+const getHourlyPrice = (type, price) => {
+  let cost = 0.0;
+
+  switch (type) {
+    case "hourly":
+      cost = price; // Hourly price remains the same
+      break;
+    case "weekly":
+      cost = price / (7 * 24); // Convert weekly price to hourly rate
+      break;
+    case "monthly":
+      cost = price / (30 * 24); // Convert monthly price to hourly rate (assuming 30 days in a month)
+      break;
+    default:
+      throw new Error("Invalid type. Allowed values: hourly, weekly, monthly");
+  }
+
+  const formattedCost = parseFloat(Math.ceil(cost).toFixed(2));
+
+  return formattedCost;
+};
+
+module.exports = { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, getHourlyPrice };

@@ -5,6 +5,7 @@ const fs = require("fs");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 const machineSave = require("../../helpers/externalCalls");
+const { getHourlyPrice } = require("../../helpers/calculatePrices");
 
 const Users = db.users;
 const Packages = db.packages;
@@ -122,16 +123,14 @@ exports.addPackage = async (req, res, next) => {
   }
   const file = req.files["image"][0];
   const package_image = file.filename;
+
+  const hourly_price = getHourlyPrice(type, price);
+
   try {
-    const package = await db.packages.create({ name, description, price, duration, swap, image: package_image, type });
+    const package = await db.packages.create({ name, description, price, duration, swap, image: package_image, hourly_price, type });
     sendSuccess(res, "Package added successfully", { package }, 200);
   } catch (error) {
     console.log(error);
-    if (fs.existsSync(imagePath)) {
-      fs.unlink(imagePath, (err) => {
-        if (err) console.error("Error deleting file:", err);
-      });
-    }
     next(error);
   }
 };
@@ -164,7 +163,7 @@ exports.updatePackage = async (req, res, next) => {
 
 exports.getPackages = async (req, res, next) => {
   try {
-    const packages = await db.packages.findAll({ attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type"] });
+    const packages = await db.packages.findAll({ attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type","hourly_price"] });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
   } catch (error) {
     console.log(error);
