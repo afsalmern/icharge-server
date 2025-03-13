@@ -5,14 +5,12 @@ const secret = process.env.JWT_SECRET;
 exports.verifyToken = (req, res, next) => {
   try {
     let token = req.header("authorization");
-    console.log("TOKEN", token);
     if (!token) {
       throw new ApiError(401, "No token provided!");
     }
 
     const bearer = token.split(" ");
     token = bearer[1];
-    console.log("TOKEN BEARER", token);
 
     jwt.verify(token, secret, (err, decoded) => {
       if (err) {

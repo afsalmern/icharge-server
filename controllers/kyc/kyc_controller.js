@@ -15,6 +15,7 @@ exports.getKycDatas = async (req, res, next) => {
         "proof_number",
         "proof_front",
         "status",
+        "reject_remarks",
         "submitted_at",
         "verified_at",
         "created_at",
@@ -88,12 +89,15 @@ exports.getUserKycDetails = async (req, res, next) => {
 
 exports.updateKyc = async (req, res, next) => {
   const { id } = req.params;
-  const { type } = req.body;
+  const { type, reject_remarks = null } = req.body;
 
   const allowedTypes = ["rejected", "verified"];
 
   const transaction = await db.sequelize.transaction();
   try {
+    if (type == "rejected" && (!reject_remarks || reject_remarks == "")) {
+      throw new ApiError(500, "Please enter reject remarks");
+    }
     if (!allowedTypes.includes(type)) {
       throw new ApiError(500, "Please choose valid status to update kyc");
     }
@@ -107,6 +111,7 @@ exports.updateKyc = async (req, res, next) => {
       {
         verified_at: new Date(),
         status: type,
+        reject_remarks: type == "verified" ? null : reject_remarks,
       },
       {
         returning: true,

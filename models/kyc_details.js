@@ -27,7 +27,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       proof_type: {
-        type: DataTypes.ENUM("aadhar","driving_license"),
+        type: DataTypes.ENUM("aadhar", "driving_license"),
         allowNull: false,
       },
       proof_number: {
@@ -44,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       status: {
-        type: DataTypes.ENUM("pending", "verified", "rejected","privilege"),
+        type: DataTypes.ENUM("pending", "verified", "rejected", "privilege"),
         allowNull: false,
         defaultValue: "pending",
       },
@@ -54,6 +54,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       verified_at: {
         type: DataTypes.DATE,
+        allowNull: true,
+      },
+      reject_remarks: {
+        type: DataTypes.STRING(255),
         allowNull: true,
       },
     },
