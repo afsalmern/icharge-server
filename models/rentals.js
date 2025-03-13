@@ -38,6 +38,18 @@ module.exports = (sequelize, DataTypes) => {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
+      power_number: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      machine_id: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      position_id: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
       start_time: {
         type: DataTypes.DATE,
         allowNull: false,
