@@ -98,6 +98,13 @@ const validateKycData = [
   }),
 ];
 
+const validateKycDataUpdate = [
+  body("kyc_id").not().isEmpty().withMessage("Kyc id is required"),
+  body("full_name").not().isEmpty().withMessage("Full name is required"),
+  body("proof_type").not().isEmpty().withMessage("Proof type is required"),
+  body("proof_number").not().isEmpty().withMessage("Proof number is required"),
+];
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -119,5 +126,6 @@ module.exports = {
   validateBoxesData,
   validateId,
   validateKycData,
+  validateKycDataUpdate,
   validate,
 };

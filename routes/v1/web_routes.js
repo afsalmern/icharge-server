@@ -19,7 +19,7 @@ const {
   deleteBoxes,
 } = require("../../controllers/web/web_controller");
 const upload = require("../../middlewares/multer");
-const { getKycDatas, updateKyc } = require("../../controllers/kyc/kyc_controller");
+const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
 const { getAllRentals } = require("../../controllers/rentals/rentals.controller");
 const router = express.Router();
 
@@ -56,7 +56,7 @@ router.patch("/user-status/:id", verifyToken, checkRole("admin"), validateId, va
 
 //Kyc
 router.get("/kyc", verifyToken, checkRole("admin"), getKycDatas);
-router.patch("/kyc/:id", verifyToken, checkRole("admin"), updateKyc);
+router.patch("/kyc/:id", verifyToken, checkRole("admin"), updateKycStatus);
 
 //Rental
 router.get("/rentals", verifyToken, checkRole("admin"), getAllRentals);

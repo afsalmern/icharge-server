@@ -64,7 +64,7 @@ exports.getHome = async (req, res, next) => {
     ];
 
     const userData = await User.findByPk(user_id, {
-      attributes: ["id", "name", "email", "mobile", "avatar","deposit_amount","outstanding_amount","block_status","status"],
+      attributes: ["id", "name", "email", "mobile", "avatar","deposit_amount","outstanding_amount","block_status","status","is_verified"],
       include: [
         {
           model: KycDetail,

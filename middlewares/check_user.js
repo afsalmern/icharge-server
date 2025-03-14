@@ -23,24 +23,4 @@ const verifyUserExist = async (req, res, next) => {
   }
 };
 
-const checkIsKycSubmitted = async (req, res, next) => {
-  try {
-    const { user_id } = req;
-
-    const user = await Users.findByPk(user_id);
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-    const isKycSubmitted = await user?.getKyc_details();
-
-    if (isKycSubmitted) {
-      throw new ApiError(400, "Kyc details already submitted");
-    }
-    next();
-  } catch (error) {
-    console.error(error);
-    next(error);
-  }
-};
-
-module.exports = { verifyUserExist, checkIsKycSubmitted };
+module.exports = { verifyUserExist };

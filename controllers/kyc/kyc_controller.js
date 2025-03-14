@@ -1,4 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
+const deleteFile = require("../../helpers/deleteFiles");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 const KycDetails = db.kyc_details;
@@ -22,6 +23,9 @@ exports.getKycDatas = async (req, res, next) => {
         "updated_at",
         "proof_back",
       ],
+      where: {
+        status: "pending",
+      },
       include: [
         {
           model: Users,
@@ -40,33 +44,104 @@ exports.getKycDatas = async (req, res, next) => {
 
 exports.uploadKyc = async (req, res, next) => {
   const { user_id } = req;
-  const { full_name, proof_type, proof_number } = req.body;
+  const { kyc_id = null, full_name, proof_type, proof_number } = req.body;
 
   const proof_front = (req.files && req.files?.["proof_front"]?.[0]?.filename) || null;
   const proof_back = (req.files && req.files?.["proof_back"]?.[0]?.filename) || null;
   const photo = (req.files && req.files?.["photo"]?.[0]?.filename) || null;
 
   try {
-    const user = await Users.findByPk(user_id);
-    const existingKyc = await KycDetails.findOne({
-      where: {
-        proof_number,
-      },
-    });
+    if (!kyc_id) {
+      const existingKyc = await KycDetails.findOne({
+        where: {
+          proof_number,
+        },
+      });
 
-    if (existingKyc && existingKyc.proof_number == proof_number) {
-      throw new ApiError(409, "Item with this proof number already exists");
+      if (existingKyc && existingKyc.proof_number == proof_number) {
+        throw new ApiError(409, "Item with this proof number already exists");
+      }
+
+      const kyc = await KycDetails.create({
+        full_name,
+        proof_type,
+        proof_number,
+        proof_front,
+        proof_back,
+        photo,
+        user_id,
+        submitted_at: new Date(),
+        verified_at: null,
+      });
+      return sendSuccess(res, "Kyc details updated successfully", { kyc }, 200);
+    } else {
+      const currentKyc = await KycDetails.findByPk(kyc_id);
+      if (!currentKyc) {
+        throw new ApiError(500, "Kyc data not found");
+      }
+
+      const updatedKyc = await currentKyc.update(
+        {
+          full_name,
+          proof_type,
+          proof_number,
+          proof_front: proof_front ? proof_front : currentKyc.proof_front,
+          proof_back: proof_back ? proof_back : currentKyc.proof_back,
+          photo: photo ? photo : currentKyc.photo,
+          user_id,
+          reject_remarks: null,
+          status: "pending",
+          submitted_at: new Date(),
+          verified_at: null,
+        },
+        {
+          returning: true,
+        }
+      );
+
+      if (updatedKyc) {
+        if (proof_front) await deleteFile(currentKyc.proof_front);
+        if (proof_back) await deleteFile(currentKyc.proof_back);
+        if (photo) await deleteFile(currentKyc.photo);
+        return sendSuccess(res, "Kyc details updated successfully", { kyc: updatedKyc }, 200);
+      }
     }
-    const kyc = await user?.createKyc_details({
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+exports.updateKyc = async (req, res, next) => {
+  try {
+    const { kyc_id, full_name, proof_type, proof_number } = req.body;
+
+
+    const proof_front = (req.files && req.files?.["proof_front"]?.[0]?.filename) || null;
+    const proof_back = (req.files && req.files?.["proof_back"]?.[0]?.filename) || null;
+    const photo = (req.files && req.files?.["photo"]?.[0]?.filename) || null;
+
+    const existingKyc = await KycDetails.findByPk(kyc_id);
+
+    if (!existingKyc) {
+      throw new ApiError(404, "Kyc details not found");
+    }
+
+    const kyc = await existingKyc.update({
       full_name,
       proof_type,
       proof_number,
-      proof_front,
-      proof_back,
-      photo,
-      submitted_at: new Date(),
-      verified_at: null,
+      proof_front: proof_front ? proof_front : existingKyc.proof_front,
+      proof_back: proof_back ? proof_back : existingKyc.proof_back,
+      photo: photo ? photo : existingKyc.photo,
+      reject_remarks: null,
+      status: "pending",
     });
+
+
+    if (proof_back) await deleteFile(existingKyc.proof_front);
+    if (proof_front) await deleteFile(existingKyc.proof_back);
+    if (photo) await deleteFile(existingKyc.photo);
 
     sendSuccess(res, "Kyc details updated successfully", { kyc }, 200);
   } catch (error) {
@@ -87,7 +162,7 @@ exports.getUserKycDetails = async (req, res, next) => {
   }
 };
 
-exports.updateKyc = async (req, res, next) => {
+exports.updateKycStatus = async (req, res, next) => {
   const { id } = req.params;
   const { type, reject_remarks = null } = req.body;
 
@@ -117,6 +192,12 @@ exports.updateKyc = async (req, res, next) => {
         returning: true,
       }
     );
+
+    if (type == "verified") {
+      const user = await Users.findByPk(kyc.user_id);
+      await user.update({ is_verified: true });
+    }
+
     await transaction.commit();
     sendSuccess(res, "Kyc updated successfully", { kyc: updatedKyc }, 200);
   } catch (error) {
