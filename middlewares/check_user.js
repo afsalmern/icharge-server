@@ -33,7 +33,7 @@ const checkIsKycSubmitted = async (req, res, next) => {
     }
     const isKycSubmitted = await user?.getKyc_details();
 
-    if (isKycSubmitted.status == "verified") {
+    if (isKycSubmitted?.status == "verified") {
       throw new ApiError(400, "Kyc details already submitted");
     }
     next();
