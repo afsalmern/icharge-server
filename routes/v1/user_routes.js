@@ -3,7 +3,7 @@ const { getHome, updatUserProfile, getUserProfile, getPackages } = require("../.
 const { verifyToken } = require("../../middlewares/auth");
 const { checkIsKycSubmitted, verifyUserExist } = require("../../middlewares/check_user");
 const { checkRole } = require("../../middlewares/role_check");
-const { getRentalHistory, buyItem } = require("../../controllers/rentals/rentals.controller");
+const { getRentalHistory, buyItem, rentItem } = require("../../controllers/rentals/rentals.controller");
 const upload = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate } = require("../../validators/validators");
 const { uploadKyc, getUserKycDetails, updateKycStatus, updateKyc } = require("../../controllers/kyc/kyc_controller");
@@ -28,6 +28,7 @@ router.patch("/kyc-details", verifyToken, upload, validateKycDataUpdate, validat
 //Rental details
 router.get("/rentals-history", verifyToken, verifyUserExist, getRentalHistory);
 router.post("/buy-item", verifyToken, checkRole("user"), buyItem);
+router.post("/start-rent", verifyToken, checkRole("user"), rentItem);
 
 //Deposit deposit_amount
 router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount);

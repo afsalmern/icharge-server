@@ -25,7 +25,31 @@ const machineSave = async (deviceUuid, deviceNo) => {
     if (error.response) {
       console.error("Response Data:", error.response.data);
     }
+    throw error;
   }
 };
 
-module.exports = machineSave;
+const startRent = async (deviceUuid, battery) => {
+  try {
+    const dataToSend = {
+      deviceUuid,
+      battery,
+    };
+
+    const { data } = await axios.post(`${BASE_URL}/device/startRent`, dataToSend, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    return data?.data;
+  } catch (error) {
+    console.error("Error in start rent external:", error.message);
+    if (error.response) {
+      console.error("Response Data:", error.response.data);
+    }
+    throw error;
+  }
+};
+
+module.exports = { machineSave, startRent };
