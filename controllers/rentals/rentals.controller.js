@@ -201,7 +201,7 @@ exports.rentItem = async (req, res, next) => {
     await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction });
 
     await transaction.commit();
-    return sendSuccess(res, "Rental added successfully", { createdRental }, 201);
+    return sendSuccess(res, "Rental added successfully", { power_bank }, 201);
   } catch (error) {
     console.error("Error in rentItem:", error);
     next(error);
