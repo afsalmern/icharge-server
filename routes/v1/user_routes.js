@@ -21,7 +21,7 @@ router.put("/profile", verifyToken, checkRole("user"), verifyUserExist, upload, 
 
 //Kyc details
 router.get("/kyc-details", verifyToken, getUserKycDetails);
-router.post("/kyc-details", verifyToken, upload, validateKycData, validate, uploadKyc);
+router.post("/kyc-details", verifyToken,checkIsKycSubmitted, upload, validateKycData, validate, uploadKyc);
 router.patch("/kyc-details", verifyToken, upload, validateKycDataUpdate, validate, updateKyc);
 
 //Rental details

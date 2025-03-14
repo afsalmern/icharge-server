@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const deleteFile = require("../../helpers/deleteFiles");
 const { ApiError } = require("../../middlewares/error");
@@ -24,7 +25,7 @@ exports.getKycDatas = async (req, res, next) => {
         "proof_back",
       ],
       where: {
-        status: "pending",
+        [Op.or]: [{ status: "pending" }, { status: "verified" }],
       },
       include: [
         {
