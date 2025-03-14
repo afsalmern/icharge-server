@@ -117,16 +117,23 @@ exports.updateKyc = async (req, res, next) => {
   try {
     const { kyc_id, full_name, proof_type, proof_number } = req.body;
 
-
     const proof_front = (req.files && req.files?.["proof_front"]?.[0]?.filename) || null;
     const proof_back = (req.files && req.files?.["proof_back"]?.[0]?.filename) || null;
     const photo = (req.files && req.files?.["photo"]?.[0]?.filename) || null;
+
+    console.log(proof_back);
+    console.log(proof_front);
+    console.log(photo);
 
     const existingKyc = await KycDetails.findByPk(kyc_id);
 
     if (!existingKyc) {
       throw new ApiError(404, "Kyc details not found");
     }
+
+    const oldProofFront = existingKyc.proof_front;
+    const oldProofBack = existingKyc.proof_back;
+    const oldPhoto = existingKyc.photo;
 
     const kyc = await existingKyc.update({
       full_name,
@@ -139,10 +146,9 @@ exports.updateKyc = async (req, res, next) => {
       status: "pending",
     });
 
-
-    if (proof_back) await deleteFile(existingKyc.proof_front);
-    if (proof_front) await deleteFile(existingKyc.proof_back);
-    if (photo) await deleteFile(existingKyc.photo);
+    if (proof_back) await deleteFile(oldProofBack);
+    if (proof_front) await deleteFile(oldProofFront);
+    if (photo) await deleteFile(oldPhoto);
 
     sendSuccess(res, "Kyc details updated successfully", { kyc }, 200);
   } catch (error) {
