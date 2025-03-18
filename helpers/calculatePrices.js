@@ -41,11 +41,19 @@ const getCostOnWeeks = (started_on, price) => {
 };
 
 const calculatePriceOnRentals = (started_on, price) => {
+
+  console.log(started_on)
   const startTime = new Date(started_on);
   const currentTime = new Date();
 
+  console.log(startTime)
+  console.log(currentTime)
+  
   // Calculate total elapsed time in milliseconds
   const elapsedMs = currentTime - startTime;
+
+  console.log(elapsedMs)
+
 
   // Convert elapsed time to minutes, hours, or days
   const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));

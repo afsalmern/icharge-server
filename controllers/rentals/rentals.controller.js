@@ -68,7 +68,8 @@ exports.getAllRentals = async (req, res, next) => {
         ["id", "order_id"],
         "box_id",
         "package_id",
-        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_time"],
+        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
+        "start_time",
         "end_time",
         "status",
       ],
@@ -76,7 +77,7 @@ exports.getAllRentals = async (req, res, next) => {
         {
           model: Users,
           as: "rented_user",
-          attributes: ["id", "mobile", "name"],
+          attributes: ["id", "name", "mobile"],
         },
         {
           model: Boxes,
@@ -86,21 +87,23 @@ exports.getAllRentals = async (req, res, next) => {
         {
           model: Packages,
           as: "rented_package",
-          attributes: ["id", "duration", "type", "price"],
+          attributes: ["id", "hourly_price", "price"],
         },
       ],
     });
 
     const rentals_history = userRentals?.map((rental) => {
       const { id: order_id, start_time, status, rented_package, rented_user } = rental;
-      const { duration, price } = rented_package || {};
+      const { hourly_price, price } = rented_package || {};
       const { name, mobile } = rented_user || {};
+      const start_on = rental?.get("start_on");
 
-      const cost_details = calculatePriceOnRentals(duration, start_time, price);
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price);
 
       return {
         order_id,
         start_time,
+        start_on,
         status,
         name,
         mobile,
@@ -168,13 +171,21 @@ exports.rentItem = async (req, res, next) => {
 
   const transaction = await db.sequelize.transaction();
   try {
+    const user = await Users.findByPk(user_id);
+    if (!user) throw new ApiError(404, "User not found");
+    if (!user.is_verified) throw new ApiError(400, "User not verified");
+
+    const userRentals = await user?.getRentals({ attributes: ["id", "status"], where: { status: "ongoing" } });
+
+    if (userRentals?.length > 0) throw new ApiError(400, "You already have an ongoing rental");
+
     const box = await Boxes.findByPk(box_id);
     const package = await Packages.findByPk(package_id);
 
     if (!box) throw new ApiError(404, "Box not found");
     if (!package) throw new ApiError(404, "Package not found");
     if (box.status !== "active") throw new ApiError(400, "This box is not active");
-    if (box.available_powerbanks <= 0) throw new ApiError(400, "No available power banks in this box");
+    // if (box.available_powerbanks <= 0) throw new ApiError(400, "No available power banks in this box");
 
     const deviceUuid = box.unique_id;
     const data = await startRent(deviceUuid, battery);
@@ -201,7 +212,7 @@ exports.rentItem = async (req, res, next) => {
     await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction });
 
     await transaction.commit();
-    return sendSuccess(res, "Rental added successfully", { power_bank }, 201);
+    return sendSuccess(res, "Rental added successfully", { power_bank: powerNo }, 201);
   } catch (error) {
     console.error("Error in rentItem:", error);
     next(error);
