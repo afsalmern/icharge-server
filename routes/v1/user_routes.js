@@ -7,7 +7,7 @@ const { getRentalHistory, buyItem, rentItem } = require("../../controllers/renta
 const upload = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate } = require("../../validators/validators");
 const { uploadKyc, getUserKycDetails, updateKycStatus, updateKyc } = require("../../controllers/kyc/kyc_controller");
-const { addDepositAmount } = require("../../controllers/payments/payments_controller");
+const { addDepositAmount, getDepositHistories } = require("../../controllers/payments/payments_controller");
 const router = express.Router();
 
 //Home
@@ -30,7 +30,8 @@ router.get("/rentals-history", verifyToken, verifyUserExist, getRentalHistory);
 router.post("/buy-item", verifyToken, checkRole("user"), buyItem);
 router.post("/start-rent", verifyToken, checkRole("user"), rentItem);
 
-//Deposit deposit_amount
+//Transactions
 router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount);
+router.get("/transaction-history", verifyToken, checkRole("user"), getDepositHistories);
 
 module.exports = router;
