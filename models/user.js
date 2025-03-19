@@ -88,6 +88,13 @@ module.exports = (sequelize, DataTypes) => {
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     });
+
+    User.hasMany(models.withdraw_requests, {
+      foreignKey: "user_id",
+      as: "withdraw_requests",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
   };
 
   return User;

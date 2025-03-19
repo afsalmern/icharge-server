@@ -19,20 +19,15 @@ module.exports = {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      status: {
-        type: Sequelize.ENUM("transferred", "recieved"),
+      type: {
+        type: Sequelize.ENUM("deposit", "withdraw"),
         allowNull: false,
       },
       amount: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
       },
-      transfer_status: {
-        type: Sequelize.ENUM("pending", "success", "failed"),
-        allowNull: false,
-        defaultValue: "pending",
-      },
-      withdrawal_status: {
+      status: {
         type: Sequelize.ENUM("pending", "success", "failed"),
         allowNull: false,
         defaultValue: "pending",

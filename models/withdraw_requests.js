@@ -1,8 +1,8 @@
 "use strict";
 
 module.exports = (sequelize, DataTypes) => {
-  const UserTransactions = sequelize.define(
-    "user_transactions",
+  const WithdrawRequest = sequelize.define(
+    "withdraw_requests",
     {
       id: {
         type: DataTypes.INTEGER,
@@ -20,21 +20,17 @@ module.exports = (sequelize, DataTypes) => {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      type: {
-        type: DataTypes.ENUM("deposit", "withdraw"),
-        allowNull: false,
-      },
-      transfer_status: {
-        type: DataTypes.ENUM("pending", "success", "failed"),
-        allowNull: false,
-        defaultValue: "pending",
-      },
       amount: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
-      transaction_date: {
-        type: DataTypes.DATE,
+      status: {
+        type: DataTypes.ENUM("requested", "onhold", "accepted", "rejected"),
+        allowNull: false,
+        defaultValue: "requested",
+      },
+      remarks: {
+        type: DataTypes.STRING,
         allowNull: true,
       },
     },
@@ -44,8 +40,8 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  UserTransactions.associate = (models) => {
-    UserTransactions.belongsTo(models.users, {
+  WithdrawRequest.associate = (models) => {
+    WithdrawRequest.belongsTo(models.users, {
       foreignKey: "user_id",
       as: "user",
       onDelete: "CASCADE",
@@ -53,5 +49,5 @@ module.exports = (sequelize, DataTypes) => {
     });
   };
 
-  return UserTransactions;
+  return WithdrawRequest;
 };

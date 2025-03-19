@@ -1,59 +1,15 @@
-const getCostOnHours = (duration, started_on, price) => {
-  const startTime = new Date(started_on);
-  const currentTime = new Date();
-
-  // Calculate elapsed time in hours
-  const elapsed_hours = Math.ceil((currentTime - startTime) / (1000 * 60 * 60)); // Convert ms to hours
-
-  // Determine extra hours used
-  const extra_hours = Math.max(0, elapsed_hours - duration);
-
-  // Calculate extra cost (assuming per-hour cost is price/duration)
-  const hourlyRate = price / duration;
-  const extra_cost = extra_hours * hourlyRate;
-
-  // Calculate total cost
-  const totalCost = price + extra_cost;
-
-  return { elapsed_hours, extra_hours, extra_cost, totalCost };
-};
-
-const getCostOnWeeks = (started_on, price) => {
-  const startTime = new Date(started_on);
-  const currentTime = new Date();
-
-  // Calculate the difference in time (milliseconds)
-  const diffInMilliseconds = currentTime - startTime;
-
-  // Convert milliseconds to weeks (1 week = 7 days = 7 * 24 * 60 * 60 * 1000 ms)
-  const elapsedWeeks = diffInMilliseconds / (7 * 24 * 60 * 60 * 1000);
-
-  // Calculate the number of full weeks used
-  const fullWeeksUsed = Math.ceil(elapsedWeeks); // Always round up
-
-  // If the duration is exceeded, charge extra
-  const totalCost = fullWeeksUsed * price;
-
-  return {
-    fullWeeksUsed,
-    totalCost,
-  };
-};
-
 const calculatePriceOnRentals = (started_on, price) => {
-
-  console.log(started_on)
+  console.log(started_on);
   const startTime = new Date(started_on);
   const currentTime = new Date();
 
-  console.log(startTime)
-  console.log(currentTime)
-  
+  console.log(startTime);
+  console.log(currentTime);
+
   // Calculate total elapsed time in milliseconds
   const elapsedMs = currentTime - startTime;
 
-  console.log(elapsedMs)
-
+  console.log(elapsedMs);
 
   // Convert elapsed time to minutes, hours, or days
   const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
@@ -98,4 +54,32 @@ const getHourlyPrice = (type, price) => {
   return formattedCost;
 };
 
-module.exports = { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, getHourlyPrice };
+const calculateTotalPrice = (passedDate, duration, pricePerHour) => {
+  // Convert the passed date to a Date object
+  const givenDate = new Date(passedDate);
+
+  // Get the current date and time
+  const currentDate = new Date();
+
+  // Calculate the difference in milliseconds
+  const diffInMs = currentDate - givenDate;
+
+  // Convert milliseconds to hours
+  const totalHours = diffInMs / (1000 * 60 * 60);
+
+  // Check if extra hours are used
+  const isExtraHour = totalHours > duration;
+
+  // Calculate price
+  const totalPrice = isExtraHour
+    ? duration * pricePerHour + (totalHours - duration) * pricePerHour * 1.5 // 1.5x rate for extra hours
+    : totalHours * pricePerHour;
+
+  return {
+    totalHours: totalHours.toFixed(2),
+    totalPrice: totalPrice.toFixed(2),
+    isExtraHour,
+  };
+};
+
+module.exports = { calculatePriceOnRentals, getHourlyPrice,calculateTotalPrice };

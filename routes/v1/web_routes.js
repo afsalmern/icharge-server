@@ -21,6 +21,7 @@ const {
 const upload = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
 const { getAllRentals } = require("../../controllers/rentals/rentals.controller");
+const { processWithdrawRequest, getAllWithdrawRequests } = require("../../controllers/payments/payments_controller");
 const router = express.Router();
 
 //DropDownData
@@ -60,5 +61,9 @@ router.patch("/kyc/:id", verifyToken, checkRole("admin"), updateKycStatus);
 
 //Rental
 router.get("/rentals", verifyToken, checkRole("admin"), getAllRentals);
+
+//Transactions
+router.patch("/withdraw-request", verifyToken, checkRole("admin"), processWithdrawRequest);
+router.get("/withdraw-request", verifyToken, checkRole("admin"), getAllWithdrawRequests);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals } = require("../../helpers/calculatePrices");
+const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, calculateTotalPrice } = require("../../helpers/calculatePrices");
 const { startRent } = require("../../helpers/externalCalls");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
@@ -7,6 +7,7 @@ const db = require("../../models");
 const Boxes = db.boxes;
 const Users = db.users;
 const Packages = db.packages;
+const Locations = db.locations;
 const Rentals = db.rentals;
 
 exports.getRentalHistory = async (req, res, next) => {
@@ -187,14 +188,14 @@ exports.rentItem = async (req, res, next) => {
     if (box.status !== "active") throw new ApiError(400, "This box is not active");
     // if (box.available_powerbanks <= 0) throw new ApiError(400, "No available power banks in this box");
 
-    const deviceUuid = box.unique_id;
-    const data = await startRent(deviceUuid, battery);
+    // const deviceUuid = box.unique_id;
+    // const data = await startRent(deviceUuid, battery);
 
-    if (data?.code !== 200) {
-      return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
-    }
+    // if (data?.code !== 200) {
+    //   return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
+    // }
 
-    const { machineUuid, powerNo, positionUuid } = data.data;
+    // const { machineUuid, powerNo, positionUuid } = data.data;
 
     const createdRental = await Rentals.create(
       {
@@ -202,9 +203,9 @@ exports.rentItem = async (req, res, next) => {
         package_id,
         user_id,
         start_time: new Date().toISOString(),
-        power_number: powerNo,
-        machine_id: machineUuid,
-        position_id: positionUuid,
+        power_number: 12,
+        machine_id: 12,
+        position_id: 12,
       },
       { transaction }
     );
@@ -212,7 +213,46 @@ exports.rentItem = async (req, res, next) => {
     await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction });
 
     await transaction.commit();
-    return sendSuccess(res, "Rental added successfully", { power_bank: powerNo }, 201);
+    return sendSuccess(res, "Rental added successfully", { power_bank: null }, 201);
+  } catch (error) {
+    console.error("Error in rentItem:", error);
+    next(error);
+  }
+};
+
+exports.returnItem = async (req, res, next) => {
+  const { user_id } = req;
+  const { rental_id, location_id } = req.body;
+
+  const transaction = await db.sequelize.transaction();
+  try {
+    const user = await Users.findByPk(user_id);
+    if (!user) throw new ApiError(404, "User not found");
+    const location = await Locations.findByPk(location_id);
+    if (!location) throw new ApiError(404, "Location not found");
+
+    const rentalItem = await Rentals.findByPk(rental_id, {
+      attributes: ["id", "box_id", "package_id","start_time"],
+    });
+    if (!rentalItem) throw new ApiError(404, "Rental not found");
+
+    const box_id = rentalItem?.get("box_id");
+    const package_id = rentalItem?.get("package_id");
+    const started_on = rentalItem?.get("start_time");
+
+    const box = await Boxes.findByPk(box_id);
+    if (!box) throw new ApiError(404, "Box not found");
+    const package = await Packages.findByPk(package_id);
+    if (!package) throw new ApiError(404, "Package not found");
+
+    const {} = calculateTotalPrice( )
+
+    await box.update({ available_powerbanks: box.available_powerbanks + 1 }, { transaction });
+
+    await transaction.commit();
+    return sendSuccess(res, "Power bank returned successfully", { power_bank:{
+      rentalItem
+    } }, 201);
   } catch (error) {
     console.error("Error in rentItem:", error);
     next(error);
