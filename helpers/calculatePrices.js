@@ -82,4 +82,4 @@ const calculateTotalPrice = (passedDate, duration, pricePerHour) => {
   };
 };
 
-module.exports = { calculatePriceOnRentals, getHourlyPrice,calculateTotalPrice };
+module.exports = { calculatePriceOnRentals, getHourlyPrice, calculateTotalPrice };

@@ -7,6 +7,12 @@ module.exports = {
     database: process.env.DEV_DB_NAME,
     host: process.env.DEV_DB_HOST,
     dialect: "postgres",
+    dialectOptions: {
+      ssl: {
+        require: true, // Railway requires SSL
+        rejectUnauthorized: false, // Allow self-signed certificates
+      },
+    },
   },
   test: {
     username: process.env.TEST_DB_USERNAME,
