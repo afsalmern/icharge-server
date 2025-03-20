@@ -22,14 +22,14 @@ Object.values(db).forEach((model) => {
   if (model.associate) model.associate(db);
 });
 
-console.log("\n🔍 Checking magic methods for models...\n");
+// console.log("\n🔍 Checking magic methods for models...\n");
 
-Object.keys(db).forEach((modelName) => {
-  const model = db[modelName];
-  console.log(`📌 Model: ${modelName}`);
-  console.log("Magic Methods:", Object.getOwnPropertyNames(model.prototype));
-  console.log("--------------------------------------------------------");
-});
+// Object.keys(db).forEach((modelName) => {
+//   const model = db[modelName];
+//   console.log(`📌 Model: ${modelName}`);
+//   console.log("Magic Methods:", Object.getOwnPropertyNames(model.prototype));
+//   console.log("--------------------------------------------------------");
+// });
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
