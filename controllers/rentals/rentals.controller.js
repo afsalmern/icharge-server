@@ -205,14 +205,14 @@ exports.rentItem = async (req, res, next) => {
     if (box.status !== "active") throw new ApiError(400, "This box is not active");
     // if (box.available_powerbanks <= 0) throw new ApiError(400, "No available power banks in this box");
 
-    // const deviceUuid = box.unique_id;
-    // const data = await startRent(deviceUuid, battery);
+    const deviceUuid = box.unique_id;
+    const data = await startRent(deviceUuid, battery);
 
-    // if (data?.code !== 200) {
-    //   return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
-    // }
+    if (data?.code !== 200) {
+      return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
+    }
 
-    // const { machineUuid, powerNo, positionUuid } = data.data;
+    const { machineUuid, powerNo, positionUuid } = data.data;
 
     const createdRental = await Rentals.create(
       {
@@ -220,9 +220,9 @@ exports.rentItem = async (req, res, next) => {
         package_id,
         user_id,
         start_time: new Date().toISOString(),
-        power_number: 12,
-        machine_id: 12,
-        position_id: 12,
+        power_number: powerNo,
+        machine_id: machineUuid,
+        position_id: positionUuid,
       },
       { transaction }
     );
@@ -230,7 +230,7 @@ exports.rentItem = async (req, res, next) => {
     await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction });
 
     await transaction.commit();
-    return sendSuccess(res, "Rental added successfully", { power_bank: null }, 201);
+    return sendSuccess(res, "Rental added successfully", { power_bank: powerNo }, 201);
   } catch (error) {
     console.error("Error in rentItem:", error);
     next(error);
