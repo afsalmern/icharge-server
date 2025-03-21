@@ -216,7 +216,7 @@ exports.rentItem = async (req, res, next) => {
 
     const createdRental = await Rentals.create(
       {
-        box_id,
+        box_id: box.id,
         package_id,
         user_id,
         start_time: new Date().toISOString(),
