@@ -195,7 +195,9 @@ exports.rentItem = async (req, res, next) => {
 
     if (userRentals?.length > 0) throw new ApiError(400, "You already have an ongoing rental");
 
-    const box = await Boxes.findByPk(box_id);
+    const box = await Boxes.findOne({
+      where: { device_id: box_id },
+    });
     const package = await Packages.findByPk(package_id);
 
     if (!box) throw new ApiError(404, "Box not found");
