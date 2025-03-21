@@ -10,6 +10,21 @@ const Packages = db.packages;
 const Locations = db.locations;
 const Rentals = db.rentals;
 
+exports.checkIsDeviceValid = async (req, res, next) => {
+  try {
+    const { device_id } = req.query;
+    const box = await Boxes.findOne({
+      where: { device_id },
+    });
+    const message = box ? "Device is valid" : "Device is not valid";
+    const is_scan_valid = box ? true : false;
+    sendSuccess(res, message, { is_scan_valid }, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
 exports.getRentalHistory = async (req, res, next) => {
   try {
     const { user_id } = req;
@@ -232,7 +247,7 @@ exports.returnItem = async (req, res, next) => {
     if (!location) throw new ApiError(404, "Location not found");
 
     const rentalItem = await Rentals.findByPk(rental_id, {
-      attributes: ["id", "box_id", "package_id","start_time"],
+      attributes: ["id", "box_id", "package_id", "start_time"],
     });
     if (!rentalItem) throw new ApiError(404, "Rental not found");
 
@@ -245,14 +260,21 @@ exports.returnItem = async (req, res, next) => {
     const package = await Packages.findByPk(package_id);
     if (!package) throw new ApiError(404, "Package not found");
 
-    const {} = calculateTotalPrice( )
+    const {} = calculateTotalPrice();
 
     await box.update({ available_powerbanks: box.available_powerbanks + 1 }, { transaction });
 
     await transaction.commit();
-    return sendSuccess(res, "Power bank returned successfully", { power_bank:{
-      rentalItem
-    } }, 201);
+    return sendSuccess(
+      res,
+      "Power bank returned successfully",
+      {
+        power_bank: {
+          rentalItem,
+        },
+      },
+      201
+    );
   } catch (error) {
     console.error("Error in rentItem:", error);
     next(error);

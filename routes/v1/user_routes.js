@@ -3,7 +3,7 @@ const { getHome, updatUserProfile, getUserProfile, getPackages } = require("../.
 const { verifyToken } = require("../../middlewares/auth");
 const { checkIsKycSubmitted, verifyUserExist } = require("../../middlewares/check_user");
 const { checkRole } = require("../../middlewares/role_check");
-const { getRentalHistory, buyItem, rentItem, returnItem } = require("../../controllers/rentals/rentals.controller");
+const { getRentalHistory, buyItem, rentItem, returnItem, checkIsDeviceValid } = require("../../controllers/rentals/rentals.controller");
 const upload = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate } = require("../../validators/validators");
 const { uploadKyc, getUserKycDetails, updateKycStatus, updateKyc } = require("../../controllers/kyc/kyc_controller");
@@ -30,6 +30,7 @@ router.get("/rentals-history", verifyToken, verifyUserExist, getRentalHistory);
 router.post("/buy-item", verifyToken, checkRole("user"), buyItem);
 router.post("/start-rent", verifyToken, checkRole("user"), rentItem);
 router.post("/return-item", verifyToken, checkRole("user"), returnItem);
+router.get("/validate-device", verifyToken, checkRole("user"), checkIsDeviceValid);
 
 //Transactions
 router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount);
