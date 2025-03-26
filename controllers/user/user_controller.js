@@ -114,6 +114,7 @@ const KycDetail = db.kyc_details;
 //   }
 // };
 
+
 const stepsData = [
   {
     title: "Step 1",
@@ -127,17 +128,24 @@ const stepsData = [
   },
 ];
 
-const calculatePriceOnRentals = (start_time, hourly_price) => {
+const calculatePriceOnRentals = (start_time, hourly_price, package_duration) => {
   const now = new Date();
   const start = new Date(start_time);
-  const elapsedMs = now - start;
-  const elapsedHours = Math.max(elapsedMs / (1000 * 60 * 60), 0); // Convert to hours
-  const current_cost = hourly_price ? (elapsedHours * hourly_price).toFixed(2) : 0;
+  const elapsedMs = now - start; // Total time since start in milliseconds
+  const totalHours = Math.max(elapsedMs / (1000 * 60 * 60), 0); // Total used hours
+
+  // Calculate expected end time based on package duration
+  const expectedEndMs = start.getTime() + package_duration * 60 * 60 * 1000; // duration in hours -> ms
+  const overdueMs = now - expectedEndMs; // Time past expected end
+  const elapsedHours = Math.max(overdueMs / (1000 * 60 * 60), 0); // Overdue hours, 0 if not overdue
+
+  // Cost based on total hours (or adjust to overdue hours if that's your logic)
+  const current_cost = hourly_price ? (totalHours * hourly_price).toFixed(2) : 0;
 
   return {
-    elapsed_hours: elapsedHours.toFixed(2), // Hours as a string with 2 decimals
-    current_cost: parseFloat(current_cost), // Cost as a number
-    total_hours: start.toFixed(2),
+    elapsed_hours: elapsedHours.toFixed(2),  // Hours past expected end (overdue)
+    total_hours: totalHours.toFixed(2),      // Total used hours from start to now
+    current_cost: parseFloat(current_cost),  // Cost based on total hours
   };
 };
 
@@ -151,7 +159,13 @@ exports.getHome = async (req, res, next) => {
   try {
     const [devices, onGoingRental, userData] = await Promise.all([
       Boxes.findAll({
-        attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"]],
+        attributes: [
+          "id",
+          "location_id",
+          "status",
+          ["total_powerbanks", "batteries"],
+          ["available_powerbanks", "slots"],
+        ],
         include: {
           model: Locations,
           as: "location",
@@ -180,10 +194,10 @@ exports.getHome = async (req, res, next) => {
           {
             model: Packages,
             as: "rented_package",
-            attributes: ["id", "hourly_price", "price"],
+            attributes: ["id", "hourly_price", "price", "duration"], // Added duration
           },
           {
-            model: User,
+            model: Users,
             as: "rented_user",
             attributes: ["id", "name", "mobile"],
           },
@@ -223,11 +237,11 @@ exports.getHome = async (req, res, next) => {
     const rentalsModified = onGoingRental
       ? (() => {
           const { order_id, start_time, status, rented_package, rented_user } = onGoingRental;
-          const { hourly_price, price } = rented_package || {};
+          const { hourly_price, price, duration } = rented_package || {};
           const { name, mobile } = rented_user || {};
           const start_on = onGoingRental.get("start_on");
 
-          const cost_details = calculatePriceOnRentals(start_time, hourly_price);
+          const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
 
           return {
             order_id,
@@ -236,8 +250,8 @@ exports.getHome = async (req, res, next) => {
             status,
             name,
             mobile,
-            net_amount: price, // Base price from package
-            ...cost_details, // Spread elapsed_hours and current_cost
+            net_amount: price,
+            ...cost_details, // Includes elapsed_hours, total_hours, total_used_hours, current_cost
           };
         })()
       : null;
