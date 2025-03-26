@@ -155,13 +155,33 @@ exports.getHome = async (req, res, next) => {
         lock: false, // Explicitly disable locking for read-only query
       }),
       db.rentals.findOne({
-        attributes: [["id", "order_id"], "box_id", "start_time", "status"],
+        attributes: [
+          ["id", "order_id"],
+          "box_id",
+          "package_id",
+          [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
+          "start_time",
+          "end_time",
+          "status",
+        ],
         where: { status: "ongoing", user_id },
-        include: {
-          model: Packages,
-          as: "rented_package",
-          attributes: ["duration", "price"],
-        },
+        include: [
+          {
+            model: User,
+            as: "rented_user",
+            attributes: ["id", "name", "mobile"],
+          },
+          {
+            model: Boxes,
+            as: "rented_box",
+            attributes: ["id", "status", "unique_id"],
+          },
+          {
+            model: Packages,
+            as: "rented_package",
+            attributes: ["id", "hourly_price", "price"],
+          },
+        ],
         lock: false, // Disable locking for read-only query
       }),
       User.findByPk(user_id, {
@@ -186,6 +206,26 @@ exports.getHome = async (req, res, next) => {
       }),
     ]);
 
+    const rentals_history = userRentals?.map((rental) => {
+      const { id: order_id, start_time, status, rented_package, rented_user } = rental;
+      const { hourly_price, price } = rented_package || {};
+      const { name, mobile } = rented_user || {};
+      const start_on = rental?.get("start_on");
+
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price);
+
+      return {
+        order_id,
+        start_time,
+        start_on,
+        status,
+        name,
+        mobile,
+        net_amount: price,
+        ...cost_details,
+      };
+    });
+
     // Prepare notification only if there's an ongoing rental
     const notificationsData = onGoingRental
       ? {
@@ -195,23 +235,13 @@ exports.getHome = async (req, res, next) => {
         }
       : null;
 
-    // Modify rental data only if it exists
-    const rentalsModified = onGoingRental
-      ? {
-          ...onGoingRental.toJSON(),
-          current_cost: 100, // Replace with actual logic if dynamic
-          total_hours: 100, // Replace with actual logic if dynamic
-          duration: 2, // Replace with actual logic if dynamic
-        }
-      : null;
-
     // Send response
     sendSuccess(
       res,
       "Home details fetched successfully",
       {
         devices,
-        onGoingRental: rentalsModified,
+        onGoingRental: rentals_history,
         notifications: notificationsData,
         steps: stepsData,
         userStatus: userData,
