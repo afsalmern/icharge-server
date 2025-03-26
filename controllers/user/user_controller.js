@@ -114,7 +114,6 @@ const KycDetail = db.kyc_details;
 //   }
 // };
 
-
 const stepsData = [
   {
     title: "Step 1",
@@ -139,13 +138,13 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration) => 
   const overdueMs = now - expectedEndMs; // Time past expected end
   const elapsedHours = Math.max(overdueMs / (1000 * 60 * 60), 0); // Overdue hours, 0 if not overdue
 
-  // Cost based on total hours (or adjust to overdue hours if that's your logic)
+  // Cost based on total hours
   const current_cost = hourly_price ? (totalHours * hourly_price).toFixed(2) : 0;
 
   return {
-    elapsed_hours: elapsedHours.toFixed(2),  // Hours past expected end (overdue)
-    total_hours: totalHours.toFixed(2),      // Total used hours from start to now
-    current_cost: parseFloat(current_cost),  // Cost based on total hours
+    elapsed_hours: elapsedHours.toFixed(2), // Hours past expected end (overdue)
+    total_hours: totalHours.toFixed(2), // Total used hours from start to now
+    current_cost: parseFloat(current_cost), // Cost based on total hours
   };
 };
 
@@ -159,13 +158,7 @@ exports.getHome = async (req, res, next) => {
   try {
     const [devices, onGoingRental, userData] = await Promise.all([
       Boxes.findAll({
-        attributes: [
-          "id",
-          "location_id",
-          "status",
-          ["total_powerbanks", "batteries"],
-          ["available_powerbanks", "slots"],
-        ],
+        attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"]],
         include: {
           model: Locations,
           as: "location",
@@ -180,12 +173,10 @@ exports.getHome = async (req, res, next) => {
           ],
         },
         lock: false,
-        raw: true,
-        nest: true,
       }),
       db.rentals.findOne({
         attributes: [
-          ["id", "order_id"],
+          ["id", "order_id"], // Alias id as order_id
           "box_id",
           "start_time",
           "status",
@@ -196,7 +187,7 @@ exports.getHome = async (req, res, next) => {
           {
             model: Packages,
             as: "rented_package",
-            attributes: ["id", "hourly_price", "price", "duration"], // Added duration
+            attributes: ["id", "hourly_price", "price", "duration"],
           },
           {
             model: User,
@@ -205,8 +196,8 @@ exports.getHome = async (req, res, next) => {
           },
         ],
         lock: false,
-        raw: true,
-        nest: true, 
+        raw: true, // Return plain object for main query
+        nest: true, // Keep nested structure for includes
       }),
       User.findByPk(user_id, {
         attributes: [
@@ -242,13 +233,12 @@ exports.getHome = async (req, res, next) => {
 
     const rentalsModified = onGoingRental
       ? (() => {
-          const { order_id, start_time, status, rented_package, rented_user } = onGoingRental;
+          const { order_id, start_time, status, rented_package, rented_user, start_on } = onGoingRental;
           console.log("onGoingRental ===============+>", onGoingRental);
           console.log("order_id ===============+>", order_id);
-          
+
           const { hourly_price, price, duration } = rented_package || {};
           const { name, mobile } = rented_user || {};
-          const start_on = onGoingRental.get("start_on");
 
           const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
 
@@ -260,7 +250,7 @@ exports.getHome = async (req, res, next) => {
             name,
             mobile,
             net_amount: price,
-            ...cost_details, // Includes elapsed_hours, total_hours, total_used_hours, current_cost
+            ...cost_details, // Includes elapsed_hours, total_hours, current_cost
           };
         })()
       : null;
