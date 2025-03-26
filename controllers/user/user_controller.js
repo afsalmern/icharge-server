@@ -223,6 +223,8 @@ exports.getHome = async (req, res, next) => {
           attributes: ["id", "status", "reject_remarks"],
         },
         lock: false,
+        raw: true, // Return plain object to make aliased fields directly accessible
+        nest: true, // Keep nested structure for includes
       }),
     ]);
 
