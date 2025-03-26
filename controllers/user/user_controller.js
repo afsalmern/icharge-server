@@ -206,7 +206,7 @@ exports.getHome = async (req, res, next) => {
       }),
     ]);
 
-    const rentals_history = userRentals?.map((rental) => {
+    const rentals_history = onGoingRental?.map((rental) => {
       const { id: order_id, start_time, status, rented_package, rented_user } = rental;
       const { hourly_price, price } = rented_package || {};
       const { name, mobile } = rented_user || {};
