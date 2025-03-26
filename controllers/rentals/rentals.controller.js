@@ -10,15 +10,42 @@ const Packages = db.packages;
 const Locations = db.locations;
 const Rentals = db.rentals;
 
+// exports.checkIsDeviceValid = async (req, res, next) => {
+//   try {
+//     const { device_id } = req.query;
+//     const box = await Boxes.findOne({
+//       where: { device_id },
+//     });
+//     const message = box ? "Device is valid" : "Device is not valid";
+//     const is_scan_valid = box ? true : false;
+//     sendSuccess(res, message, { is_scan_valid }, 200);
+//   } catch (error) {
+//     console.log(error);
+//     next(error);
+//   }
+// };
+
 exports.checkIsDeviceValid = async (req, res, next) => {
   try {
     const { device_id } = req.query;
+
+    // Fetch the box by device_id
     const box = await Boxes.findOne({
       where: { device_id },
     });
-    const message = box ? "Device is valid" : "Device is not valid";
-    const is_scan_valid = box ? true : false;
-    sendSuccess(res, message, { is_scan_valid }, 200);
+
+    // If no box is found, return "Device is not valid"
+    if (!box) {
+      return sendSuccess(res, "Device is not valid", { is_scan_valid: false }, 200);
+    }
+
+    // Check if available_powerbanks is 0 or less
+    if (box.available_powerbanks <= 0) {
+      return sendSuccess(res, "No powerbanks available in this device", { is_scan_valid: false }, 200);
+    }
+
+    // If box exists and has available powerbanks, return success
+    sendSuccess(res, "Device is valid", { is_scan_valid: true }, 200);
   } catch (error) {
     console.log(error);
     next(error);
