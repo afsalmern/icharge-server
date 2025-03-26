@@ -180,6 +180,8 @@ exports.getHome = async (req, res, next) => {
           ],
         },
         lock: false,
+        raw: true,
+        nest: true,
       }),
       db.rentals.findOne({
         attributes: [
@@ -203,6 +205,8 @@ exports.getHome = async (req, res, next) => {
           },
         ],
         lock: false,
+        raw: true,
+        nest: true, 
       }),
       User.findByPk(user_id, {
         attributes: [
@@ -223,8 +227,8 @@ exports.getHome = async (req, res, next) => {
           attributes: ["id", "status", "reject_remarks"],
         },
         lock: false,
-        raw: true, // Return plain object to make aliased fields directly accessible
-        nest: true, // Keep nested structure for includes
+        raw: true,
+        nest: true,
       }),
     ]);
 
