@@ -114,7 +114,6 @@ const KycDetail = db.kyc_details;
 //   }
 // };
 
-
 const stepsData = [
   {
     title: "Step 1",
@@ -138,6 +137,7 @@ const calculatePriceOnRentals = (start_time, hourly_price) => {
   return {
     elapsed_hours: elapsedHours.toFixed(2), // Hours as a string with 2 decimals
     current_cost: parseFloat(current_cost), // Cost as a number
+    total_hours: start.toFixed(2),
   };
 };
 
@@ -151,13 +151,7 @@ exports.getHome = async (req, res, next) => {
   try {
     const [devices, onGoingRental, userData] = await Promise.all([
       Boxes.findAll({
-        attributes: [
-          "id",
-          "location_id",
-          "status",
-          ["total_powerbanks", "batteries"],
-          ["available_powerbanks", "slots"],
-        ],
+        attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"]],
         include: {
           model: Locations,
           as: "location",
@@ -243,7 +237,7 @@ exports.getHome = async (req, res, next) => {
             name,
             mobile,
             net_amount: price, // Base price from package
-            ...cost_details,   // Spread elapsed_hours and current_cost
+            ...cost_details, // Spread elapsed_hours and current_cost
           };
         })()
       : null;
