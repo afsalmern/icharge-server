@@ -197,7 +197,7 @@ exports.getHome = async (req, res, next) => {
             attributes: ["id", "hourly_price", "price", "duration"], // Added duration
           },
           {
-            model: Users,
+            model: User,
             as: "rented_user",
             attributes: ["id", "name", "mobile"],
           },
