@@ -234,9 +234,6 @@ exports.getHome = async (req, res, next) => {
     const rentalsModified = onGoingRental
       ? (() => {
           const { order_id, start_time, status, rented_package, rented_user, start_on } = onGoingRental;
-          console.log("onGoingRental ===============+>", onGoingRental);
-          console.log("order_id ===============+>", order_id);
-
           const { hourly_price, price, duration } = rented_package || {};
           const { name, mobile } = rented_user || {};
 
