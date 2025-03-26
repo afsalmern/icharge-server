@@ -114,6 +114,7 @@ const KycDetail = db.kyc_details;
 //   }
 // };
 
+
 const stepsData = [
   {
     title: "Step 1",
@@ -127,6 +128,19 @@ const stepsData = [
   },
 ];
 
+const calculatePriceOnRentals = (start_time, hourly_price) => {
+  const now = new Date();
+  const start = new Date(start_time);
+  const elapsedMs = now - start;
+  const elapsedHours = Math.max(elapsedMs / (1000 * 60 * 60), 0); // Convert to hours
+  const current_cost = hourly_price ? (elapsedHours * hourly_price).toFixed(2) : 0;
+
+  return {
+    elapsed_hours: elapsedHours.toFixed(2), // Hours as a string with 2 decimals
+    current_cost: parseFloat(current_cost), // Cost as a number
+  };
+};
+
 exports.getHome = async (req, res, next) => {
   const { user_id } = req;
 
@@ -135,10 +149,15 @@ exports.getHome = async (req, res, next) => {
   }
 
   try {
-    // Fetch data concurrently with minimal locking
     const [devices, onGoingRental, userData] = await Promise.all([
       Boxes.findAll({
-        attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"]],
+        attributes: [
+          "id",
+          "location_id",
+          "status",
+          ["total_powerbanks", "batteries"],
+          ["available_powerbanks", "slots"],
+        ],
         include: {
           model: Locations,
           as: "location",
@@ -152,37 +171,30 @@ exports.getHome = async (req, res, next) => {
             [db.Sequelize.literal(`TO_CHAR("location"."ending_hour", 'HH12:MI AM')`), "end_time"],
           ],
         },
-        lock: false, // Explicitly disable locking for read-only query
+        lock: false,
       }),
       db.rentals.findOne({
         attributes: [
           ["id", "order_id"],
           "box_id",
-          "package_id",
-          [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
           "start_time",
-          "end_time",
           "status",
+          [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
         ],
         where: { status: "ongoing", user_id },
         include: [
-          {
-            model: User,
-            as: "rented_user",
-            attributes: ["id", "name", "mobile"],
-          },
-          {
-            model: Boxes,
-            as: "rented_box",
-            attributes: ["id", "status", "unique_id"],
-          },
           {
             model: Packages,
             as: "rented_package",
             attributes: ["id", "hourly_price", "price"],
           },
+          {
+            model: User,
+            as: "rented_user",
+            attributes: ["id", "name", "mobile"],
+          },
         ],
-        lock: false, // Disable locking for read-only query
+        lock: false,
       }),
       User.findByPk(user_id, {
         attributes: [
@@ -202,31 +214,10 @@ exports.getHome = async (req, res, next) => {
           as: "kyc_details",
           attributes: ["id", "status", "reject_remarks"],
         },
-        lock: false, // Disable locking for read-only query
+        lock: false,
       }),
     ]);
 
-    const rentals_history = onGoingRental?.map((rental) => {
-      const { id: order_id, start_time, status, rented_package, rented_user } = rental;
-      const { hourly_price, price } = rented_package || {};
-      const { name, mobile } = rented_user || {};
-      const start_on = rental?.get("start_on");
-
-      const cost_details = calculatePriceOnRentals(start_time, hourly_price);
-
-      return {
-        order_id,
-        start_time,
-        start_on,
-        status,
-        name,
-        mobile,
-        net_amount: price,
-        ...cost_details,
-      };
-    });
-
-    // Prepare notification only if there's an ongoing rental
     const notificationsData = onGoingRental
       ? {
           title: "Overdue",
@@ -235,13 +226,34 @@ exports.getHome = async (req, res, next) => {
         }
       : null;
 
-    // Send response
+    const rentalsModified = onGoingRental
+      ? (() => {
+          const { order_id, start_time, status, rented_package, rented_user } = onGoingRental;
+          const { hourly_price, price } = rented_package || {};
+          const { name, mobile } = rented_user || {};
+          const start_on = onGoingRental.get("start_on");
+
+          const cost_details = calculatePriceOnRentals(start_time, hourly_price);
+
+          return {
+            order_id,
+            start_time,
+            start_on,
+            status,
+            name,
+            mobile,
+            net_amount: price, // Base price from package
+            ...cost_details,   // Spread elapsed_hours and current_cost
+          };
+        })()
+      : null;
+
     sendSuccess(
       res,
       "Home details fetched successfully",
       {
         devices,
-        onGoingRental: rentals_history,
+        onGoingRental: rentalsModified,
         notifications: notificationsData,
         steps: stepsData,
         userStatus: userData,
