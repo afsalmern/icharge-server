@@ -78,13 +78,13 @@ exports.getRentalHistory = async (req, res, next) => {
           attributes: ["id", "hourly_price", "price"],
         },
       ],
+      raw: true,
+      nest: true,
     });
 
     const rentals_history = userRentals?.map((rental) => {
-      const { order_id, start_time, status, rented_package } = rental;
+      const { order_id, start_time, start_on, status, rented_package } = rental;
       const { hourly_price, price } = rented_package || {};
-
-      const start_on = rental?.get("start_on");
 
       const cost_details = calculatePriceOnRentals(start_time, hourly_price);
 
