@@ -197,35 +197,31 @@ exports.buyItem = async (req, res, next) => {
 //   const { user_id } = req;
 //   const { box_id, battery, package_id } = req.body;
 
+//   const user = await Users.findByPk(user_id);
+//   if (!user) throw new ApiError(404, "User not found");
+//   if (!user.is_verified) throw new ApiError(400, "User not verified");
+
+//   const userRentals = await user?.getRentals({ attributes: ["id", "status"], where: { status: "ongoing" } });
+//   if (userRentals?.length > 0) throw new ApiError(400, "You already have an ongoing rental");
+
+//   const box = await Boxes.findOne({ where: { device_id: box_id } });
+//   const package = await Packages.findByPk(package_id);
+
+//   if (!box) throw new ApiError(404, "Box not found");
+//   if (!package) throw new ApiError(404, "Package not found");
+//   if (box.status !== "active") throw new ApiError(400, "This box is not active");
+
+//   const deviceUuid = box.unique_id;
+//   const data = await startRent(deviceUuid, battery); // Move this outside the transaction
+
+//   if (data?.code !== 200) {
+//     return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
+//   }
+
+//   const { machineUuid, powerNo, positionUuid } = data.data;
+
 //   const transaction = await db.sequelize.transaction();
 //   try {
-//     const user = await Users.findByPk(user_id);
-//     if (!user) throw new ApiError(404, "User not found");
-//     if (!user.is_verified) throw new ApiError(400, "User not verified");
-
-//     const userRentals = await user?.getRentals({ attributes: ["id", "status"], where: { status: "ongoing" } });
-
-//     if (userRentals?.length > 0) throw new ApiError(400, "You already have an ongoing rental");
-
-//     const box = await Boxes.findOne({
-//       where: { device_id: box_id },
-//     });
-//     const package = await Packages.findByPk(package_id);
-
-//     if (!box) throw new ApiError(404, "Box not found");
-//     if (!package) throw new ApiError(404, "Package not found");
-//     if (box.status !== "active") throw new ApiError(400, "This box is not active");
-//     // if (box.available_powerbanks <= 0) throw new ApiError(400, "No available power banks in this box");
-
-//     const deviceUuid = box.unique_id;
-//     const data = await startRent(deviceUuid, battery);
-
-//     if (data?.code !== 200) {
-//       return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
-//     }
-
-//     const { machineUuid, powerNo, positionUuid } = data.data;
-
 //     const createdRental = await Rentals.create(
 //       {
 //         box_id: box.id,
@@ -244,6 +240,7 @@ exports.buyItem = async (req, res, next) => {
 //     await transaction.commit();
 //     return sendSuccess(res, "Rental added successfully", { power_bank: powerNo }, 201);
 //   } catch (error) {
+//     await transaction.rollback();
 //     console.error("Error in rentItem:", error);
 //     next(error);
 //   }
@@ -253,54 +250,76 @@ exports.rentItem = async (req, res, next) => {
   const { user_id } = req;
   const { box_id, battery, package_id } = req.body;
 
-  const user = await Users.findByPk(user_id);
-  if (!user) throw new ApiError(404, "User not found");
-  if (!user.is_verified) throw new ApiError(400, "User not verified");
-
-  const userRentals = await user?.getRentals({ attributes: ["id", "status"], where: { status: "ongoing" } });
-  if (userRentals?.length > 0) throw new ApiError(400, "You already have an ongoing rental");
-
-  const box = await Boxes.findOne({ where: { device_id: box_id } });
-  const package = await Packages.findByPk(package_id);
-
-  if (!box) throw new ApiError(404, "Box not found");
-  if (!package) throw new ApiError(404, "Package not found");
-  if (box.status !== "active") throw new ApiError(400, "This box is not active");
-
-  const deviceUuid = box.unique_id;
-  const data = await startRent(deviceUuid, battery); // Move this outside the transaction
-
-  if (data?.code !== 200) {
-    return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
-  }
-
-  const { machineUuid, powerNo, positionUuid } = data.data;
-
-  const transaction = await db.sequelize.transaction();
   try {
-    const createdRental = await Rentals.create(
-      {
-        box_id: box.id,
-        package_id,
-        user_id,
-        start_time: new Date().toISOString(),
-        power_number: powerNo,
-        machine_id: machineUuid,
-        position_id: positionUuid,
-      },
-      { transaction }
-    );
+    // Initial validation checks
+    const user = await Users.findByPk(user_id);
+    if (!user) throw new ApiError(404, "User not found");
+    if (!user.is_verified) throw new ApiError(400, "User not verified");
 
-    await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction });
+    // Check existing rentals with a lock timeout
+    const userRentals = await user.getRentals({
+      attributes: ["id", "status"],
+      where: { status: "ongoing" },
+      lock: db.sequelize.Transaction.LOCK.SHARE, // Use share lock to prevent deadlocks
+    });
+    if (userRentals?.length > 0) throw new ApiError(400, "You already have an ongoing rental");
 
-    await transaction.commit();
-    return sendSuccess(res, "Rental added successfully", { power_bank: powerNo }, 201);
+    // Fetch box and package concurrently to reduce wait time
+    const [box, package] = await Promise.all([
+      Boxes.findOne({
+        where: { device_id: box_id },
+        lock: db.sequelize.Transaction.LOCK.UPDATE, // Lock for update to prevent concurrent modifications
+      }),
+      Packages.findByPk(package_id),
+    ]);
+
+    if (!box) throw new ApiError(404, "Box not found");
+    if (!package) throw new ApiError(404, "Package not found");
+    if (box.status !== "active") throw new ApiError(400, "This box is not active");
+    if (box.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
+
+    // External operation outside transaction
+    const deviceUuid = box.unique_id;
+    const data = await startRent(deviceUuid, battery);
+    if (data?.code !== 200) {
+      return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
+    }
+
+    const { machineUuid, powerNo, positionUuid } = data.data;
+
+    // Start transaction with isolation level
+    const transaction = await db.sequelize.transaction({
+      isolationLevel: db.sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED,
+    });
+
+    try {
+      const createdRental = await Rentals.create(
+        {
+          box_id: box.id,
+          package_id,
+          user_id,
+          start_time: new Date().toISOString(),
+          power_number: powerNo,
+          machine_id: machineUuid,
+          position_id: positionUuid,
+        },
+        { transaction }
+      );
+
+      await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction });
+
+      await transaction.commit();
+      return sendSuccess(res, "Rental added successfully", { power_bank: powerNo }, 201);
+    } catch (error) {
+      await transaction.rollback();
+      throw error; // Re-throw to be caught by outer try-catch
+    }
   } catch (error) {
-    await transaction.rollback();
     console.error("Error in rentItem:", error);
     next(error);
   }
 };
+
 exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
   const { rental_id, location_id } = req.body;

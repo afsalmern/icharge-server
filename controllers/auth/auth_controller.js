@@ -1,4 +1,4 @@
-const axios = require('axios');
+const axios = require("axios");
 const bcrypt = require("bcrypt");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
@@ -12,8 +12,6 @@ const User = db.users;
 const Admins = db.admins;
 const KycDetails = db.kyc_details;
 
-
-
 exports.sendOtp = asyncWrapper(async (req, res, next) => {
   const { mobile } = req.body;
 
@@ -25,9 +23,9 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
 
   // Generate OTP
   const otp = generateOtp();
-  const user = await User.findOne({ 
-    attributes: ["id", "status", "block_status"], 
-    where: { mobile } 
+  const user = await User.findOne({
+    attributes: ["id", "status", "block_status"],
+    where: { mobile },
   });
 
   if (user && user.block_status) {
@@ -37,18 +35,22 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
     throw new ApiError(500, "Otp not generated");
   }
 
-  try {    
+  try {
     // Send OTP via Fast2SMS
-    const smsResponse = await axios.post(process.env.FAST2SMS_URL, {
-      route: "otp",
-      variables_values: otp, // The OTP value
-      numbers: mobile,      // Mobile number
-    }, {
-      headers: {
-        "authorization": process.env.FAST2SMS_API_KEY,
-        "Content-Type": "application/json"
+    const smsResponse = await axios.post(
+      process.env.FAST2SMS_URL,
+      {
+        route: "otp",
+        variables_values: otp, // The OTP value
+        numbers: mobile, // Mobile number
+      },
+      {
+        headers: {
+          authorization: process.env.FAST2SMS_API_KEY,
+          "Content-Type": "application/json",
+        },
       }
-    });
+    );
 
     // Check if SMS was sent successfully
     if (smsResponse.data.return !== true) {
@@ -95,14 +97,18 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
     defaults: {},
   });
 
-
   const kyc_status = await KycDetails.findOne({ where: { user_id: user.id }, attributes: ["status", "id"] });
 
   // Generate token and return response
   const token = generateToken(user);
   await Otp.destroy({ where: { mobile } });
 
-  sendSuccess(res, "Otp verified successfully", { token, user, isGuest: created, kyc_status: kyc_status ? kyc_status.status : null }, 200);
+  sendSuccess(
+    res,
+    "Otp verified successfully",
+    { token, user, isGuest: created, kyc_status: kyc_status ? kyc_status.status : null },
+    200
+  );
 });
 
 exports.loginAdmin = asyncWrapper(async (req, res) => {
@@ -142,4 +148,3 @@ exports.getAdmins = asyncWrapper(async (req, res) => {
   const admins = await Admins.findAll();
   sendSuccess(res, "Admins fetched successfully", { admins }, 200);
 });
-
