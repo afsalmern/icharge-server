@@ -1,3 +1,4 @@
+const axios = require('axios');
 const bcrypt = require("bcrypt");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
@@ -12,29 +13,65 @@ const Admins = db.admins;
 const KycDetails = db.kyc_details;
 
 
+
 exports.sendOtp = asyncWrapper(async (req, res, next) => {
   const { mobile } = req.body;
 
+  // Clean up previous OTPs
   const previousOtps = await Otp.findAll({ where: { mobile } });
   if (previousOtps) {
     await Otp.destroy({ where: { mobile } });
   }
 
+  // Generate OTP
   const otp = generateOtp();
-  const user = await User.findOne({ attributes: ["id", "status", "block_status"], where: { mobile } });
+  const user = await User.findOne({ 
+    attributes: ["id", "status", "block_status"], 
+    where: { mobile } 
+  });
 
   if (user && user.block_status) {
     throw new ApiError(400, "User is blocked");
   }
   if (!otp) {
-    throw new ApiError(500, "Otp not genrated");
+    throw new ApiError(500, "Otp not generated");
   }
-  const otpData = {
-    mobile,
-    otp,
-  };
-  await Otp.create(otpData);
-  sendSuccess(res, "Otp sent successfully", { otp }, 200);
+
+  try {
+    console.log("ENVs ============>", process.env.FAST2SMS_URL, process.env.FAST2SMS_API_KEY);
+    
+    // Send OTP via Fast2SMS
+    const smsResponse = await axios.post(process.env.FAST2SMS_URL, {
+      route: "otp",
+      variables_values: otp, // The OTP value
+      numbers: mobile,      // Mobile number
+    }, {
+      headers: {
+        "authorization": process.env.FAST2SMS_API_KEY,
+        "Content-Type": "application/json"
+      }
+    });
+
+    // Check if SMS was sent successfully
+    if (smsResponse.data.return !== true) {
+      throw new ApiError(500, "Failed to send OTP via SMS");
+    }
+
+    // Store OTP in database
+    const otpData = {
+      mobile,
+      otp,
+    };
+    await Otp.create(otpData);
+
+    sendSuccess(res, "Otp sent successfully", { otp }, 200);
+  } catch (error) {
+    if (error.response) {
+      // Handle Fast2SMS specific errors
+      throw new ApiError(500, `SMS sending failed: ${error.response.data.message}`);
+    }
+    throw new ApiError(500, "Error sending OTP");
+  }
 });
 
 exports.verifyOtp = asyncWrapper(async (req, res) => {
@@ -107,3 +144,4 @@ exports.getAdmins = asyncWrapper(async (req, res) => {
   const admins = await Admins.findAll();
   sendSuccess(res, "Admins fetched successfully", { admins }, 200);
 });
+
