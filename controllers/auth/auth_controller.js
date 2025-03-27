@@ -37,9 +37,7 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
     throw new ApiError(500, "Otp not generated");
   }
 
-  try {
-    console.log("ENVs ============>", process.env.FAST2SMS_URL, process.env.FAST2SMS_API_KEY);
-    
+  try {    
     // Send OTP via Fast2SMS
     const smsResponse = await axios.post(process.env.FAST2SMS_URL, {
       route: "otp",
