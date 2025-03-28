@@ -88,6 +88,11 @@ const getDeviceInfoByUuid = async (deviceUuid) => {
       return { success: false, message: "Device has no valid IP address", code: 200 };
     }
 
+    // Check if powerbanks are available
+    if (!device?.powerbankList || device?.powerbankList.length === 0) {
+      return { success: false, message: "No powerbanks available in this device", code: 200 };
+    }
+
     // If everything is fine, return the device info
     return { success: true, device, code: 200 };
   } catch (error) {
