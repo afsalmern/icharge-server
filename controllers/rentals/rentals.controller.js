@@ -14,6 +14,11 @@ exports.checkIsDeviceValid = async (req, res, next) => {
   try {
     const { device_id } = req.query;
 
+    // Validate request input
+    if (!device_id) {
+      return sendSuccess(res, "Device ID is required", { is_scan_valid: false }, 400);
+    }
+
     // Fetch the box by device_id
     const box = await Boxes.findOne({
       where: { device_id },
@@ -30,13 +35,12 @@ exports.checkIsDeviceValid = async (req, res, next) => {
     }
 
     // External operation
-    const deviceUuid = box.unique_id;
-    const deviceResponse = await getDeviceInfoByUuid(deviceUuid);
-    
+    const deviceResponse = await getDeviceInfoByUuid(box?.unique_id);
+
     if (!deviceResponse.success) {
       return sendSuccess(res, deviceResponse.message, { is_scan_valid: false }, deviceResponse.code);
     }
-    
+
     // If box exists and has available powerbanks, return success
     sendSuccess(res, "Device is valid", { is_scan_valid: true }, 200);
   } catch (error) {
