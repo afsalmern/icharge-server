@@ -196,6 +196,7 @@ exports.getPackages = async (req, res, next) => {
   try {
     const packages = await Packages.findAll({
       attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
+      order: [["created_at", "ASC"]],
     });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
   } catch (error) {
