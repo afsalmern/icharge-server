@@ -35,11 +35,11 @@ exports.checkIsDeviceValid = async (req, res, next) => {
     }
 
     // External operation
-    const deviceResponse = await getDeviceInfoByUuid(box?.unique_id);
+    // const deviceResponse = await getDeviceInfoByUuid(box?.unique_id);
 
-    if (!deviceResponse.success) {
-      return sendSuccess(res, deviceResponse.message, { is_scan_valid: false }, deviceResponse.code);
-    }
+    // if (!deviceResponse.success) {
+    //   return sendSuccess(res, deviceResponse.message, { is_scan_valid: false }, deviceResponse.code);
+    // }
 
     // If box exists and has available powerbanks, return success
     sendSuccess(res, "Device is valid", { is_scan_valid: true }, 200);
