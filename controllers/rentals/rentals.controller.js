@@ -1,6 +1,6 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, calculateTotalPrice } = require("../../helpers/calculatePrices");
-const { startRent } = require("../../helpers/externalCalls");
+const { startRent, getDeviceInfoByUuid } = require("../../helpers/externalCalls");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 
@@ -29,6 +29,14 @@ exports.checkIsDeviceValid = async (req, res, next) => {
       return sendSuccess(res, "No powerbanks available in this device", { is_scan_valid: false }, 200);
     }
 
+    // External operation
+    const deviceUuid = box.unique_id;
+    const deviceResponse = await getDeviceInfoByUuid(deviceUuid);
+    
+    if (!deviceResponse.success) {
+      return sendSuccess(res, deviceResponse.message, { is_scan_valid: false }, deviceResponse.code);
+    }
+    
     // If box exists and has available powerbanks, return success
     sendSuccess(res, "Device is valid", { is_scan_valid: true }, 200);
   } catch (error) {
@@ -192,80 +200,6 @@ exports.buyItem = async (req, res, next) => {
     next(error);
   }
 };
-
-// exports.rentItem = async (req, res, next) => {
-//   const { user_id } = req;
-//   const { box_id, battery, package_id } = req.body;
-
-//   try {
-//     // Initial validation checks
-//     const user = await Users.findByPk(user_id);
-//     if (!user) throw new ApiError(404, "User not found");
-//     if (!user.is_verified) throw new ApiError(400, "User not verified");
-
-//     // Check existing rentals with a lock timeout
-//     const userRentals = await user.getRentals({
-//       attributes: ["id", "status"],
-//       where: { status: "ongoing" },
-//       lock: db.sequelize.Transaction.LOCK.SHARE, // Use share lock to prevent deadlocks
-//     });
-//     if (userRentals?.length > 0) throw new ApiError(400, "You already have an ongoing rental");
-
-//     // Fetch box and package concurrently to reduce wait time
-//     const [box, package] = await Promise.all([
-//       Boxes.findOne({
-//         where: { device_id: box_id },
-//         lock: db.sequelize.Transaction.LOCK.UPDATE, // Lock for update to prevent concurrent modifications
-//       }),
-//       Packages.findByPk(package_id),
-//     ]);
-
-//     if (!box) throw new ApiError(404, "Box not found");
-//     if (!package) throw new ApiError(404, "Package not found");
-//     if (box.status !== "active") throw new ApiError(400, "This box is not active");
-//     if (box.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
-
-//     // External operation outside transaction
-//     const deviceUuid = box.unique_id;
-//     const data = await startRent(deviceUuid, battery);
-//     if (data?.code !== 200) {
-//       return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
-//     }
-
-//     const { machineUuid, powerNo, positionUuid } = data.data;
-
-//     // Start transaction with isolation level
-//     const transaction = await db.sequelize.transaction({
-//       isolationLevel: db.sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED,
-//     });
-
-//     try {
-//       const createdRental = await Rentals.create(
-//         {
-//           box_id: box.id,
-//           package_id,
-//           user_id,
-//           start_time: new Date().toISOString(),
-//           power_number: powerNo,
-//           machine_id: machineUuid,
-//           position_id: positionUuid,
-//         },
-//         { transaction }
-//       );
-
-//       await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction });
-
-//       await transaction.commit();
-//       return sendSuccess(res, "Rental added successfully", { power_bank: powerNo }, 201);
-//     } catch (error) {
-//       await transaction.rollback();
-//       throw error; // Re-throw to be caught by outer try-catch
-//     }
-//   } catch (error) {
-//     console.error("Error in rentItem:", error);
-//     next(error);
-//   }
-// };
 
 exports.rentItem = async (req, res, next) => {
   const { user_id } = req;
