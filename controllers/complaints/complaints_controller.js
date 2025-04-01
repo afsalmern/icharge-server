@@ -54,26 +54,73 @@ exports.createComplaint = async (req, res, next) => {
 };
 
 // Get all complaints
+// exports.getAllComplaints = async (req, res, next) => {
+//   try {
+//     const complaint = await Complaint.findAll();
+//     sendSuccess(res, "Complaints fetched successfully", { complaint }, 200);
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 exports.getAllComplaints = async (req, res, next) => {
   try {
-    const complaint = await Complaint.findAll();
-    sendSuccess(res, "Complaints fetched successfully", { complaint }, 200);
+    // Fetch all complaints from DB
+    const complaints = await Complaint.findAll();
+
+    if (!complaints.length) {
+      throw new ApiError(404, "No complaints found");
+    }
+
+    // Generate full image URLs for each complaint
+    const complaintsWithImages = complaints.map((complaint) => ({
+      ...complaint.toJSON(),
+      imageUrl: complaint.attachment 
+        ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}`
+        : null,
+    }));
+
+    sendSuccess(res, "Complaints fetched successfully", { complaints: complaintsWithImages }, 200);
   } catch (error) {
     next(error);
   }
 };
 
+
 // Get a complaint by ID
+// exports.getComplaintById = async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+//     const complaint = await Complaint.findByPk(id);
+
+//     if (!complaint) {
+//       throw new ApiError(404, "Complaint not found");
+//     }
+
+//     sendSuccess(res, "Complaint fetched successfully", { complaint }, 200);
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 exports.getComplaintById = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const complaint = await Complaint.findByPk(id);
+    const complaint = await Complaint.findByPk(req.params.id);
+    if (!complaint) throw new ApiError(404, "Complaint not found");
 
-    if (!complaint) {
-      throw new ApiError(404, "Complaint not found");
-    }
+    // Generate full image URL dynamically
+    const imageUrl = complaint.attachment
+      ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}`
+      : null;
 
-    sendSuccess(res, "Complaint fetched successfully", { complaint }, 200);
+    sendSuccess(
+      res,
+      "Complaint fetched successfully",
+      {
+        complaint: { ...complaint.toJSON(), imageUrl },
+      },
+      200
+    );
   } catch (error) {
     next(error);
   }
