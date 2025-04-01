@@ -84,34 +84,39 @@ exports.updateComplaint = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, description, issue_type, status } = req.body;
+
     // Find the existing complaint by its ID
     const complaint = await Complaint.findByPk(id);
     if (!complaint) {
       throw new ApiError(404, "Complaint not found");
     }
 
-    // Handle the attachment (if a new file is uploaded)
-    let attachment = complaint.attachment; // Keep the existing attachment if no new file is uploaded
+    let attachment = complaint.attachment; // Keep existing attachment if no new file is uploaded
+    console.log("req.file ------->", req.file);
+
     if (req.file) {
-      // Delete the old attachment file if it exists
-      const oldAttachmentPath = path.join(__dirname, "../../uploads/complaints", complaint.attachment);
-      if (fs.existsSync(oldAttachmentPath)) {
-        fs.unlinkSync(oldAttachmentPath); // Delete the old file
+      if (complaint.attachment) {
+        // Ensure attachment exists before accessing it
+        const oldAttachmentPath = path.join(__dirname, "../../uploads/complaints", complaint.attachment);
+        try {
+          await fs.unlink(oldAttachmentPath); // Delete the old file safely
+        } catch (err) {
+          console.error("Failed to delete old attachment:", err.message);
+        }
       }
-      // Save the new attachment file path
       attachment = req.file.filename;
     }
 
-    // Handle other fields (title, description, issue_type, status)
+    // Handle other fields
     const updatedData = {
-      title: title || complaint.title, // Keep existing if no new title provided
-      description: description || complaint.description, // Keep existing if no new description
-      issue_type: issue_type || complaint.issue_type, // Keep existing if no new issue_type provided
-      status: status || complaint.status, // Keep existing if no new status provided
-      attachment, // Updated attachment if a new one is uploaded, otherwise retain the old one
+      title: title ?? complaint.title,
+      description: description ?? complaint.description,
+      issue_type: issue_type ?? complaint.issue_type,
+      status: status ?? complaint.status,
+      attachment,
     };
 
-    // Update the complaint with the new data
+    // Update the complaint
     await complaint.update(updatedData);
 
     sendSuccess(res, "Complaint updated successfully", { complaint }, 200);
