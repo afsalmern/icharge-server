@@ -2,7 +2,13 @@ const express = require("express");
 const { addLocation, getLocations, updateLocation, deleteLocation } = require("../../controllers/locations/locations_controller");
 const { verifyToken } = require("../../middlewares/auth");
 const { checkRole } = require("../../middlewares/role_check");
-const { locationDataValidation, validate, validateId, validatePackagesData, validateBoxesData } = require("../../validators/validators");
+const {
+  locationDataValidation,
+  validate,
+  validateId,
+  validatePackagesData,
+  validateBoxesData,
+} = require("../../validators/validators");
 const {
   getAllUsers,
   blockOrUnblockUser,
@@ -18,11 +24,13 @@ const {
   updateBox,
   deleteBoxes,
 } = require("../../controllers/web/web_controller");
-const upload = require("../../middlewares/multer");
+const {upload, uploadComplaints} = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
 const { getAllRentals } = require("../../controllers/rentals/rentals.controller");
 const { processWithdrawRequest, getAllWithdrawRequests } = require("../../controllers/payments/payments_controller");
 const router = express.Router();
+
+const complaintController = require("../../controllers/complaints/complaints_controller");
 
 //DropDownData
 router.get("/dropdowns", verifyToken, checkRole("admin"), getDropDownDatas);
@@ -43,7 +51,7 @@ router.patch("/packages/:id", verifyToken, upload, validatePackagesData, validat
 router.get("/boxes", verifyToken, checkRole("admin"), getBoxes);
 router.get("/boxes-location/:id", verifyToken, checkRole("admin"), getLocationWiseBoxes);
 router.post("/boxes", verifyToken, checkRole("admin"), validateBoxesData, validate, addBoxes);
-router.delete("/boxes/:id", verifyToken, checkRole("admin"),  deleteBoxes);
+router.delete("/boxes/:id", verifyToken, checkRole("admin"), deleteBoxes);
 router.patch("/boxes/:id", verifyToken, checkRole("admin"), validateBoxesData, validate, updateBox);
 
 //Terms and conditions
@@ -65,5 +73,12 @@ router.get("/rentals", verifyToken, checkRole("admin"), getAllRentals);
 //Transactions
 router.patch("/withdraw-request", verifyToken, checkRole("admin"), processWithdrawRequest);
 router.get("/withdraw-request", verifyToken, checkRole("admin"), getAllWithdrawRequests);
+
+// Complaints Routes
+router.post("/complaints", verifyToken, uploadComplaints, complaintController.createComplaint);
+router.get("/complaints", verifyToken, complaintController.getAllComplaints);
+router.get("/complaints/:id", verifyToken, complaintController.getComplaintById);
+router.patch("/complaints/:id", verifyToken, uploadComplaints, complaintController.updateComplaint);
+router.delete("/complaints/:id", verifyToken, complaintController.deleteComplaint);
 
 module.exports = router;

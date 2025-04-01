@@ -24,4 +24,20 @@ const upload = multer({ storage: storage }).fields([
   { name: "kyc_photo", maxCount: 1 },
 ]);
 
-module.exports = upload;
+// complaints
+const complaintsDir = path.join(uploadFolder, "complaints");
+if (!fs.existsSync(complaintsDir)) {
+  fs.mkdirSync(complaintsDir, { recursive: true });
+}
+
+const complaintsStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, complaintsDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname));
+  },
+});
+
+const uploadComplaints = multer({ storage: complaintsStorage }).single("attachment");
+module.exports = { upload, uploadComplaints };
