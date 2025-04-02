@@ -1,7 +1,7 @@
 const { body, param, check, validationResult } = require("express-validator");
 const { ApiError } = require("../middlewares/error");
 
-const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly"];
+const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly", "free"];
 
 const locationDataValidation = [
   body("name").not().isEmpty().withMessage("Name is required"),
