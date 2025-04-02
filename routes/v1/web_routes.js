@@ -75,7 +75,6 @@ router.patch("/withdraw-request", verifyToken, checkRole("admin"), processWithdr
 router.get("/withdraw-request", verifyToken, checkRole("admin"), getAllWithdrawRequests);
 
 // Complaints Routes
-router.post("/complaints", verifyToken, uploadComplaints, complaintController.createComplaint);
 router.get("/complaints", verifyToken, complaintController.getAllComplaints);
 router.get("/complaints/:id", verifyToken, complaintController.getComplaintById);
 router.patch("/complaints/:id", verifyToken, uploadComplaints, complaintController.updateComplaint);

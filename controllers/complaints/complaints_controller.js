@@ -153,7 +153,6 @@ exports.getComplaintById = async (req, res, next) => {
 exports.updateComplaint = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { user_id } = req;
     const { title, description, issue_type, status } = req.body;
 
     // Find the existing complaint by its ID
@@ -185,7 +184,6 @@ exports.updateComplaint = async (req, res, next) => {
       issue_type: issue_type ?? complaint.issue_type,
       status: status ?? complaint.status,
       attachment,
-      user_id,
     };
 
     // Update the complaint
