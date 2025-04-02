@@ -9,6 +9,7 @@ const Users = db.users;
 const Packages = db.packages;
 const Locations = db.locations;
 const Rentals = db.rentals;
+const Disputes = db.disputes;
 
 exports.checkIsDeviceValid = async (req, res, next) => {
   try {
@@ -74,14 +75,20 @@ exports.getRentalHistory = async (req, res, next) => {
           as: "rented_package",
           attributes: ["id", "hourly_price", "price"],
         },
+        {
+          model: Disputes,
+          as: "disputes",
+          attributes: ["id", "reason"],
+        },
       ],
       raw: true,
       nest: true,
     });
 
     const rentals_history = userRentals?.map((rental) => {
-      const { order_id, start_time, start_on, status, rented_package } = rental;
+      const { order_id, start_time, start_on, status, rented_package, disputes } = rental;
       const { hourly_price, price } = rented_package || {};
+      const { reason } = disputes || {};
 
       const cost_details = calculatePriceOnRentals(start_time, hourly_price);
 
@@ -90,6 +97,7 @@ exports.getRentalHistory = async (req, res, next) => {
         start_time: start_on,
         status,
         net_amount: price,
+        dispute: reason,
         ...cost_details,
       };
     });
