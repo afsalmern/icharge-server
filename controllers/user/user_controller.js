@@ -7,6 +7,7 @@ const Boxes = db.boxes;
 const Locations = db.locations;
 const Packages = db.packages;
 const KycDetail = db.kyc_details;
+const disputes = db.disputes;
 
 const stepsData = [
   {
@@ -88,6 +89,11 @@ exports.getHome = async (req, res, next) => {
             as: "rented_user",
             attributes: ["id", "name", "mobile"],
           },
+          {
+            model: disputes,
+            as: "disputes",
+            attributes: ["id", "reason"],
+          },
         ],
         lock: false,
         raw: true, // Return plain object for main query
@@ -119,6 +125,7 @@ exports.getHome = async (req, res, next) => {
           const { order_id, start_time, status, rented_package, rented_user, start_on } = onGoingRental;
           const { hourly_price, price, duration } = rented_package || {};
           const { name, mobile } = rented_user || {};
+          const { reason } = disputes || {};
 
           const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
 
@@ -130,6 +137,7 @@ exports.getHome = async (req, res, next) => {
             name,
             mobile,
             net_amount: price,
+            disputes: reason,
             ...cost_details, // Includes elapsed_hours, total_hours, current_cost
           };
         })()
