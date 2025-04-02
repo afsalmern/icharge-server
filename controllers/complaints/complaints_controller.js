@@ -12,6 +12,7 @@ const Complaint = db.complaints;
 exports.createComplaint = async (req, res, next) => {
   try {
     const { title, description, issue_type } = req.body;
+    const { user_id } = req;
 
     // Check if title and description are provided
     if (!title) {
@@ -44,6 +45,7 @@ exports.createComplaint = async (req, res, next) => {
       issue_type,
       attachment, // Save the filename here
       ticket_no,
+      user_id,
     });
 
     // Send success response
@@ -75,9 +77,7 @@ exports.getAllComplaints = async (req, res, next) => {
     // Generate full image URLs for each complaint
     const complaintsWithImages = complaints.map((complaint) => ({
       ...complaint.toJSON(),
-      imageUrl: complaint.attachment 
-        ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}`
-        : null,
+      imageUrl: complaint.attachment ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}` : null,
     }));
 
     sendSuccess(res, "Complaints fetched successfully", { complaints: complaintsWithImages }, 200);
@@ -86,6 +86,29 @@ exports.getAllComplaints = async (req, res, next) => {
   }
 };
 
+exports.getComplaintsByUserId = async (req, res, next) => {
+  try {
+    const { user_id } = req;
+    // Fetch all complaints from DB
+    const complaints = await Complaint.findAll({
+      where: { user_id },
+    });
+
+    if (!complaints.length) {
+      throw new ApiError(404, "No complaints found");
+    }
+
+    // Generate full image URLs for each complaint
+    const complaintsWithImages = complaints.map((complaint) => ({
+      ...complaint.toJSON(),
+      imageUrl: complaint.attachment ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}` : null,
+    }));
+
+    sendSuccess(res, "Complaints fetched successfully", { complaints: complaintsWithImages }, 200);
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Get a complaint by ID
 // exports.getComplaintById = async (req, res, next) => {
@@ -130,6 +153,7 @@ exports.getComplaintById = async (req, res, next) => {
 exports.updateComplaint = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { user_id } = req;
     const { title, description, issue_type, status } = req.body;
 
     // Find the existing complaint by its ID
@@ -161,6 +185,7 @@ exports.updateComplaint = async (req, res, next) => {
       issue_type: issue_type ?? complaint.issue_type,
       status: status ?? complaint.status,
       attachment,
+      user_id,
     };
 
     // Update the complaint

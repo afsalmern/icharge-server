@@ -24,7 +24,7 @@ const {
   updateBox,
   deleteBoxes,
 } = require("../../controllers/web/web_controller");
-const {upload, uploadComplaints} = require("../../middlewares/multer");
+const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
 const { getAllRentals } = require("../../controllers/rentals/rentals.controller");
 const { processWithdrawRequest, getAllWithdrawRequests } = require("../../controllers/payments/payments_controller");

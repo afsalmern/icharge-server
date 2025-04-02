@@ -4,11 +4,12 @@ const { verifyToken } = require("../../middlewares/auth");
 const { checkIsKycSubmitted, verifyUserExist } = require("../../middlewares/check_user");
 const { checkRole } = require("../../middlewares/role_check");
 const { getRentalHistory, buyItem, rentItem, returnItem, checkIsDeviceValid } = require("../../controllers/rentals/rentals.controller");
-const {upload} = require("../../middlewares/multer");
+const {upload, uploadComplaints} = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate } = require("../../validators/validators");
 const { uploadKyc, getUserKycDetails, updateKycStatus, updateKyc } = require("../../controllers/kyc/kyc_controller");
 const { addDepositAmount, getDepositHistories, deductDepositAmount, submitWithDrawRequest } = require("../../controllers/payments/payments_controller");
 const router = express.Router();
+const complaintController = require("../../controllers/complaints/complaints_controller");
 
 //Home
 router.get("/home", verifyToken, checkRole("user"), getHome);
@@ -37,5 +38,10 @@ router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount
 router.patch("/deduct-amount", verifyToken, checkRole("user"), deductDepositAmount);
 router.post("/withdraw-request", verifyToken, checkRole("user"), submitWithDrawRequest);
 router.get("/transaction-history", verifyToken, checkRole("user"), getDepositHistories);
+
+router.post("/complaints", verifyToken, uploadComplaints, complaintController.createComplaint);
+router.get("/complaints", verifyToken, complaintController.getComplaintsByUserId);
+router.get("/complaints/:id", verifyToken, complaintController.getComplaintById);
+router.patch("/complaints/:id", verifyToken, uploadComplaints, complaintController.updateComplaint);
 
 module.exports = router;
