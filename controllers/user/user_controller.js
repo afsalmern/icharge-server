@@ -1,5 +1,6 @@
 const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
+const { Op } = require("sequelize");
 
 const User = db.users;
 const Boxes = db.boxes;
@@ -93,18 +94,7 @@ exports.getHome = async (req, res, next) => {
         nest: true, // Keep nested structure for includes
       }),
       User.findByPk(user_id, {
-        attributes: [
-          "id",
-          "name",
-          "email",
-          "mobile",
-          "avatar",
-          "deposit_amount",
-          "outstanding_amount",
-          "block_status",
-          "status",
-          "is_verified",
-        ],
+        attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified"],
         include: {
           model: KycDetail,
           as: "kyc_details",
@@ -194,9 +184,39 @@ exports.updatUserProfile = async (req, res, next) => {
 
 exports.getPackages = async (req, res, next) => {
   try {
-    const packages = await Packages.findAll({
+    const { user_id } = req;
+
+    const user = await User.findByPk(user_id);
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    const rentals = await user.getRentals({
+      attributes: ["id", "status"],
+      where: {
+        status: "ongoing",
+      },
+    });
+
+    let packages = null;
+
+    if (rentals.length > 0) {
+      packages = await Packages.findAll({
+        attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
+        where: {
+          type: {
+            [Op.notIn]: ["free"],
+          },
+        },
+        order: [["created_at", "DESC"]],
+      });
+      return sendSuccess(res, "Packages fetched successfully", { packages }, 200);
+    }
+
+    packages = await Packages.findAll({
       attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
-      order: [["created_at", "ASC"]],
+      order: [["created_at", "DESC"]],
     });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
   } catch (error) {
