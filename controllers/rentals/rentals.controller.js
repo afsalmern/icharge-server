@@ -334,3 +334,18 @@ exports.returnItem = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.addReasonForDispute = async (req, res, next) => {
+  const { rental_id, dispute } = req.body;
+  try {
+    const rental = await Rentals.findByPk(rental_id);
+    if (!rental) throw new ApiError(404, "Rental not found");
+
+    const createdDispute = await rental.createDispute({ reason: dispute });
+
+    return sendSuccess(res, "Reason for dispute added successfully", createdDispute, 201);
+  } catch (error) {
+    console.error("Error in rentItem:", error);
+    next(error);
+  }
+};
