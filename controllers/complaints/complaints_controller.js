@@ -97,7 +97,6 @@ exports.getComplaintsByUserId = async (req, res, next) => {
     if (!complaints.length) {
       return sendSuccess(res, "No complaints found,", { complaints: [] }, 200);
     }
-
     // Generate full image URLs for each complaint
     const complaintsWithImages = complaints.map((complaint) => ({
       ...complaint.toJSON(),
