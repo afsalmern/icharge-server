@@ -95,7 +95,7 @@ exports.getComplaintsByUserId = async (req, res, next) => {
     });
 
     if (!complaints.length) {
-      throw new ApiError(404, "No complaints found");
+      return sendSuccess(res, "No complaints found,", { complaints: [] }, 200);
     }
 
     // Generate full image URLs for each complaint
