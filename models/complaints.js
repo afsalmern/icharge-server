@@ -34,12 +34,32 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: "open",
       },
+      user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "users", // Referencing the users table
+          key: "id",
+        },
+        onDelete: "CASCADE",
+        onUpdate: "CASCADE",
+      },
     },
     {
       timestamps: true,
       underscored: true,
     }
   );
+
+  // Define associations
+  Complaint.associate = (models) => {
+    Complaint.belongsTo(models.users, {
+      foreignKey: "user_id",
+      as: "user",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+  };
 
   return Complaint;
 };
