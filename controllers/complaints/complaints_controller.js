@@ -132,7 +132,7 @@ exports.getComplaintById = async (req, res, next) => {
 
     // Generate full image URL dynamically
     const imageUrl = complaint.attachment
-      ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}`
+      ? `${req.protocol}://${req.get("host")}/icharge/uploads/complaints/${complaint.attachment}`
       : null;
 
     sendSuccess(
