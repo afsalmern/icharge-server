@@ -124,10 +124,24 @@ exports.addPackage = async (req, res, next) => {
   const file = req.files["image"][0];
   const package_image = file.filename;
 
-  const hourly_price = getHourlyPrice(type, price);
+  let hourly_price = 0;
+
+  const isFree = type === "free";
+  if (!isFree) {
+    hourly_price = getHourlyPrice(type, price);
+  }
 
   try {
-    const package = await db.packages.create({ name, description, price, duration, swap, image: package_image, hourly_price, type });
+    const package = await db.packages.create({
+      name,
+      description,
+      price: isFree ? 0 : price,
+      duration,
+      swap : isFree ? 0 : swap,
+      image: package_image,
+      hourly_price,
+      type,
+    });
     sendSuccess(res, "Package added successfully", { package }, 200);
   } catch (error) {
     console.log(error);
@@ -163,7 +177,9 @@ exports.updatePackage = async (req, res, next) => {
 
 exports.getPackages = async (req, res, next) => {
   try {
-    const packages = await db.packages.findAll({ attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type","hourly_price"] });
+    const packages = await db.packages.findAll({
+      attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type", "hourly_price"],
+    });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
   } catch (error) {
     console.log(error);

@@ -1,7 +1,7 @@
 const { body, param, check, validationResult } = require("express-validator");
 const { ApiError } = require("../middlewares/error");
 
-const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly"];
+const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly", "free"];
 
 const locationDataValidation = [
   body("name").not().isEmpty().withMessage("Name is required"),
@@ -105,6 +105,11 @@ const validateKycDataUpdate = [
   body("proof_number").not().isEmpty().withMessage("Proof number is required"),
 ];
 
+const validateDisputeData = [
+  body("rental_id").not().isEmpty().withMessage("Rental id is required"),
+  body("dispute").not().isEmpty().withMessage("Reason is required"),
+];
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -127,5 +132,6 @@ module.exports = {
   validateId,
   validateKycData,
   validateKycDataUpdate,
+  validateDisputeData,
   validate,
 };

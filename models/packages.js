@@ -38,7 +38,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 0,
       },
       type: {
-        type: DataTypes.ENUM("hourly", "weekly", "monthly"),
+        type: DataTypes.ENUM("hourly", "weekly", "monthly", "free"),
         allowNull: false,
       },
     },

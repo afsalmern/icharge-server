@@ -1,11 +1,13 @@
 const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
+const { Op } = require("sequelize");
 
 const User = db.users;
 const Boxes = db.boxes;
 const Locations = db.locations;
 const Packages = db.packages;
 const KycDetail = db.kyc_details;
+const disputes = db.disputes;
 
 const stepsData = [
   {
@@ -87,24 +89,18 @@ exports.getHome = async (req, res, next) => {
             as: "rented_user",
             attributes: ["id", "name", "mobile"],
           },
+          {
+            model: disputes,
+            as: "disputes",
+            attributes: ["id", "reason"],
+          },
         ],
         lock: false,
         raw: true, // Return plain object for main query
         nest: true, // Keep nested structure for includes
       }),
       User.findByPk(user_id, {
-        attributes: [
-          "id",
-          "name",
-          "email",
-          "mobile",
-          "avatar",
-          "deposit_amount",
-          "outstanding_amount",
-          "block_status",
-          "status",
-          "is_verified",
-        ],
+        attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified"],
         include: {
           model: KycDetail,
           as: "kyc_details",
@@ -126,9 +122,10 @@ exports.getHome = async (req, res, next) => {
 
     const rentalsModified = onGoingRental
       ? (() => {
-          const { order_id, start_time, status, rented_package, rented_user, start_on } = onGoingRental;
+          const { order_id, start_time, status, rented_package, rented_user, start_on, disputes } = onGoingRental;
           const { hourly_price, price, duration } = rented_package || {};
           const { name, mobile } = rented_user || {};
+          const { reason } = disputes || {};
 
           const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
 
@@ -140,6 +137,7 @@ exports.getHome = async (req, res, next) => {
             name,
             mobile,
             net_amount: price,
+            disputes: reason,
             ...cost_details, // Includes elapsed_hours, total_hours, current_cost
           };
         })()
@@ -194,9 +192,39 @@ exports.updatUserProfile = async (req, res, next) => {
 
 exports.getPackages = async (req, res, next) => {
   try {
-    const packages = await Packages.findAll({
+    const { user_id } = req;
+
+    const user = await User.findByPk(user_id);
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    const rentals = await user.getRentals({
+      attributes: ["id", "status"],
+      where: {
+        status: "ongoing",
+      },
+    });
+
+    let packages = null;
+
+    if (rentals.length > 0) {
+      packages = await Packages.findAll({
+        attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
+        where: {
+          type: {
+            [Op.notIn]: ["free"],
+          },
+        },
+        order: [["created_at", "DESC"]],
+      });
+      return sendSuccess(res, "Packages fetched successfully", { packages }, 200);
+    }
+
+    packages = await Packages.findAll({
       attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
-      order: [["created_at", "ASC"]],
+      order: [["created_at", "DESC"]],
     });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
   } catch (error) {
