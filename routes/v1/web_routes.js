@@ -31,6 +31,7 @@ const { processWithdrawRequest, getAllWithdrawRequests } = require("../../contro
 const router = express.Router();
 
 const complaintController = require("../../controllers/complaints/complaints_controller");
+const powerbankController = require("../../controllers/web/powerbank_controller");
 
 //DropDownData
 router.get("/dropdowns", verifyToken, checkRole("admin"), getDropDownDatas);
@@ -79,5 +80,10 @@ router.get("/complaints", verifyToken, complaintController.getAllComplaints);
 router.get("/complaints/:id", verifyToken, complaintController.getComplaintById);
 router.patch("/complaints/:id", verifyToken, uploadComplaints, complaintController.updateComplaint);
 router.delete("/complaints/:id", verifyToken, complaintController.deleteComplaint);
+
+router.get("/powerbank", powerbankController.getAllPowerBanks);
+router.post("/powerbank", powerbankController.addPowerBank);
+router.put("/powerbank/:id", powerbankController.updatePowerBank);
+router.delete("/powerbank/:id", powerbankController.deletePowerBank);
 
 module.exports = router;
