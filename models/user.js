@@ -65,6 +65,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: false,
       },
+      device_token: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      device_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      device_platform: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
     },
     {
       timestamps: true,
@@ -82,6 +94,7 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: "user_id",
       as: "kyc_details",
     });
+
     User.hasMany(models.user_transactions, {
       foreignKey: "user_id",
       as: "transactions",
