@@ -45,11 +45,11 @@ async function processCallback(data) {
       break;
     case 1004:
       console.log(`Power bank ${data.powerNo} returned to position ${data.positionUuid} with power level ${data.powerAd}`);
-      // 1. Update PowerBank
+
       // Step 1: Find the box ID from deviceUuid
       const box = await db.boxes.findOne({
         where: {
-          unique_id: data.deviceUuid, // Adjust field name if different
+          unique_id: data.deviceUuid, // Adjust field name if needed
         },
       });
 
@@ -58,24 +58,23 @@ async function processCallback(data) {
         break;
       }
 
-      // Step 2: Update PowerBank
-      const [updatedCount] = await db.powerbanks.update(
-        {
+      // Step 2: Find and update PowerBank instance (to trigger hooks)
+      const powerbank = await db.powerbanks.findOne({
+        where: {
+          unique_id: data.powerNo,
+        },
+      });
+
+      if (powerbank) {
+        await powerbank.update({
           status: "available",
           battery_level: parseFloat(data.powerAd),
           slot_number: parseInt(data.positionUuid),
           last_back_time: new Date(),
           last_synced_at: new Date(),
-          box_id: box.id, // ✅ Set the box ID
-        },
-        {
-          where: {
-            unique_id: data.powerNo,
-          },
-        }
-      );
+          box_id: box.id,
+        });
 
-      if (updatedCount > 0) {
         console.log(`Power bank ${data.powerNo} updated successfully.`);
 
         // Step 3: Complete Rental
@@ -102,6 +101,7 @@ async function processCallback(data) {
       }
 
       break;
+
     default:
       console.log("Unknown action:", data);
   }
