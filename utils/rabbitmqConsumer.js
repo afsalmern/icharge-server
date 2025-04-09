@@ -45,15 +45,28 @@ async function processCallback(data) {
       break;
     case 1004:
       console.log(`Power bank ${data.powerNo} returned to position ${data.positionUuid} with power level ${data.powerAd}`);
+      // 1. Update PowerBank
+      // Step 1: Find the box ID from deviceUuid
+      const box = await db.boxes.findOne({
+        where: {
+          unique_id: data.deviceUuid, // Adjust field name if different
+        },
+      });
 
-      // Update powerbank status, battery_level, slot_number, last_back_time
-      const updated = await db.powerbanks.update(
+      if (!box) {
+        console.warn(`Box not found for deviceUuid: ${data.deviceUuid}`);
+        break;
+      }
+
+      // Step 2: Update PowerBank
+      const [updatedCount] = await db.powerbanks.update(
         {
-          status: "available", // or "available" depending on your logic
+          status: "available",
           battery_level: parseFloat(data.powerAd),
           slot_number: parseInt(data.positionUuid),
           last_back_time: new Date(),
           last_synced_at: new Date(),
+          box_id: box.id, // ✅ Set the box ID
         },
         {
           where: {
@@ -61,6 +74,32 @@ async function processCallback(data) {
           },
         }
       );
+
+      if (updatedCount > 0) {
+        console.log(`Power bank ${data.powerNo} updated successfully.`);
+
+        // Step 3: Complete Rental
+        const rental = await db.rentals.findOne({
+          where: {
+            power_number: data.powerNo,
+            status: "ongoing",
+          },
+        });
+
+        if (rental) {
+          await rental.update({
+            end_time: new Date(),
+            return_time: new Date().toISOString(),
+            status: "completed",
+          });
+
+          console.log(`Rental ${rental.id} completed for powerbank ${data.powerNo}.`);
+        } else {
+          console.warn(`No ongoing rental found for powerbank ${data.powerNo}.`);
+        }
+      } else {
+        console.warn(`Power bank ${data.powerNo} not found in DB.`);
+      }
 
       break;
     default:

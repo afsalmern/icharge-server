@@ -71,10 +71,10 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: "CASCADE",
     });
 
-    PowerBank.hasMany(models.rentals, {
-      foreignKey: "powerbank_id",
-      as: "rentals",
-    });
+    // PowerBank.hasMany(models.rentals, {
+    //   foreignKey: "powerbank_id",
+    //   as: "rentals",
+    // });
 
     // models/powerbanks.js
 
@@ -88,30 +88,28 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     PowerBank.afterUpdate(async (powerbank, options) => {
-      if (!powerbank._previousDataValues) return;
-
       const prevStatus = powerbank._previousDataValues.status;
       const newStatus = powerbank.status;
 
       const prevBoxId = powerbank._previousDataValues.box_id;
       const newBoxId = powerbank.box_id;
 
-      // Adjust for status change
-      if (prevStatus !== newStatus && powerbank.box_id) {
+      // Case 1: Status changed but same box
+      if (prevBoxId === newBoxId && prevBoxId) {
         if (prevStatus === "available" && newStatus !== "available") {
           await sequelize.models.boxes.decrement("available_powerbanks", {
             by: 1,
-            where: { id: powerbank.box_id },
+            where: { id: newBoxId },
           });
         } else if (prevStatus !== "available" && newStatus === "available") {
           await sequelize.models.boxes.increment("available_powerbanks", {
             by: 1,
-            where: { id: powerbank.box_id },
+            where: { id: newBoxId },
           });
         }
       }
 
-      // Adjust for box change
+      // Case 2: Box changed
       if (prevBoxId !== newBoxId) {
         if (prevStatus === "available" && prevBoxId) {
           await sequelize.models.boxes.decrement("available_powerbanks", {
