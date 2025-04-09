@@ -356,19 +356,24 @@ exports.rentItem = async (req, res, next) => {
 
       // await box.update({ available_powerbanks: box.available_powerbanks - 1 }, { transaction: t });
 
-      await Powerbanks.update(
-        {
-          status: "rented",
-          last_synced_at: new Date(),
-          box_id: null,
-        },
-        {
-          where: {
-            unique_id: powerNo,
+      const powerbank = await Powerbanks.findOne({
+        where: { unique_id: powerNo },
+        transaction: t,
+      });
+      
+      if (powerbank) {
+        await powerbank.update(
+          {
+            status: "rented",
+            last_synced_at: new Date(),
+            box_id: null,
           },
-          transaction: t,
-        }
-      );
+          { transaction: t }
+        );
+      } else {
+        console.warn(`Power bank with unique_id ${powerNo} not found`);
+      }
+      
 
       return rental;
     });
