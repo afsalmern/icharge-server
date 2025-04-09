@@ -75,7 +75,7 @@ async function processCallback(data) {
           power_number: data.powerNo,
           status: "ongoing",
         },
-        include: [{ model: db.users, as: "user" }],
+        include: [{ model: db.users, as: "rented_user" }],
       });
 
       if (rental) {
@@ -88,7 +88,7 @@ async function processCallback(data) {
         console.log(`Rental ${rental.id} completed for powerbank ${data.powerNo}.`);
 
         // ✅ Send FCM Notification
-        const user = rental.user;
+        const user = rental.rented_user;
         if (user?.fcm_token) {
           await sendNotification(
             user.fcm_token,
