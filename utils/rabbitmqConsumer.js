@@ -1,7 +1,7 @@
 require("dotenv").config();
 const amqp = require("amqplib");
 const db = require("../models");
-const { sendNotification } = require("../utils/sendFCMNotification"); // add this at top
+const sendFCMNotification = require("../utils/sendFCMNotification");
 
 const RABBITMQ_URL = "amqp://guest:guest@47.84.188.80:5672"; // Update if needed
 const QUEUE = "POWER_SERVER_QUEUE"; // Replace with actual queue name
@@ -89,9 +89,11 @@ async function processCallback(data) {
 
         // ✅ Send FCM Notification
         const user = rental.rented_user;
-        if (user?.fcm_token) {
-          await sendNotification(
-            user.fcm_token,
+        console.log(" user ===========>", user);
+
+        if (user?.device_token) {
+          await sendFCMNotification(
+            user.device_token,
             "Powerbank Returned",
             "Thank you! Your powerbank has been returned successfully.",
             {
