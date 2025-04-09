@@ -23,7 +23,7 @@ module.exports = (sequelize, DataTypes) => {
       unique_id: {
         type: DataTypes.STRING(50),
         allowNull: false,
-        unique: true, // maps to powerNu
+        unique: true, // maps to powerNo
       },
       status: {
         type: DataTypes.ENUM("available", "rented", "charging", "maintenance", "lost"),

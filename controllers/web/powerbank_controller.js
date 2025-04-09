@@ -8,6 +8,7 @@ const Boxes = db.boxes;
 
 // Get All Powerbanks (with optional filters)
 exports.getAllPowerBanks = async (req, res, next) => {
+  // unique_id is powerNo
   try {
     const { status = "all", keyword } = req.query;
     const whereClause = {

@@ -40,12 +40,12 @@ module.exports = (sequelize, DataTypes) => {
       },
       power_number: {
         type: DataTypes.STRING(100),
-        allowNull: true,
+        allowNull: true, //powerbank uuid
       },
       machine_id: {
         type: DataTypes.STRING(100),
         allowNull: true,
-      },
+      }, //Box uuid
       position_id: {
         type: DataTypes.STRING(100),
         allowNull: true,

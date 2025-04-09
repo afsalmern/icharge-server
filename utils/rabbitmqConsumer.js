@@ -1,5 +1,6 @@
 require("dotenv").config();
 const amqp = require("amqplib");
+const db = require("../models");
 
 const RABBITMQ_URL = "amqp://guest:guest@47.84.188.80:5672"; // Update if needed
 const QUEUE = "POWER_SERVER_QUEUE"; // Replace with actual queue name
@@ -13,8 +14,8 @@ async function startConsumer() {
     console.log("Waiting for messages...");
 
     channel.consume(QUEUE, (msg) => {
-        console.log("listening");
-        
+      console.log("listening");
+
       if (msg !== null) {
         const data = JSON.parse(msg.content.toString());
         console.log("Received:", data);
@@ -27,7 +28,7 @@ async function startConsumer() {
   }
 }
 
-function processCallback(data) {
+async function processCallback(data) {
   switch (data.action) {
     case 1001:
       console.log(`Device ${data.deviceUuid} is ${data.state == 1 ? "Online" : "Offline"}`);
@@ -44,6 +45,23 @@ function processCallback(data) {
       break;
     case 1004:
       console.log(`Power bank ${data.powerNo} returned to position ${data.positionUuid} with power level ${data.powerAd}`);
+
+      // Update powerbank status, battery_level, slot_number, last_back_time
+      const updated = await db.powerbanks.update(
+        {
+          status: "available", // or "available" depending on your logic
+          battery_level: parseFloat(data.powerAd),
+          slot_number: parseInt(data.positionUuid),
+          last_back_time: new Date(),
+          last_synced_at: new Date(),
+        },
+        {
+          where: {
+            unique_id: data.powerNo,
+          },
+        }
+      );
+
       break;
     default:
       console.log("Unknown action:", data);
