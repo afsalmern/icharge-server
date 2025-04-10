@@ -6,30 +6,57 @@ const sendFCMNotification = require("../utils/sendFCMNotification");
 const RABBITMQ_URL = "amqp://guest:guest@47.84.188.80:5672"; // Update if needed
 const QUEUE = "POWER_SERVER_QUEUE"; // Replace with actual queue name
 
+
 async function startConsumer() {
   try {
     const connection = await amqp.connect(RABBITMQ_URL);
+
+    // 💥 Catch connection-level errors
+    connection.on("error", (err) => {
+      console.error("RabbitMQ connection error:", err.message);
+    });
+
+    connection.on("close", () => {
+      console.warn("RabbitMQ connection closed. Attempting reconnect...");
+      setTimeout(startConsumer, 5000); // Optional: auto-reconnect
+    });
+
     const channel = await connection.createChannel();
+
+    // 💥 Catch channel-level errors
+    channel.on("error", (err) => {
+      console.error("RabbitMQ channel error:", err.message);
+    });
+
     await channel.assertQueue(QUEUE, { durable: true });
 
-    console.log("Waiting for messages...");
+    console.log("✅ Waiting for messages...");
 
     channel.consume(QUEUE, (msg) => {
-      console.log("listening");
+      console.log("📩 Listening...");
 
       if (msg !== null) {
-        const data = JSON.parse(msg.content.toString());
-        console.log("Received:", data);
-        processCallback(data);
-        channel.ack(msg);
+        try {
+          const data = JSON.parse(msg.content.toString());
+          console.log("📥 Received:", data);
+          processCallback(data);
+          channel.ack(msg);
+        } catch (err) {
+          console.error("Failed to process message:", err.message);
+          // Optionally nack the message or log it somewhere
+          channel.nack(msg, false, false);
+        }
       }
     });
   } catch (error) {
-    console.error("RabbitMQ connection error:", error);
+    console.error("🚨 RabbitMQ initial connection error:", error.message);
+    setTimeout(startConsumer, 5000); // Try reconnecting after 5 seconds
   }
 }
 
 async function processCallback(data) {
+  console.log("Processing callback data:", data.action);
+  
   switch (data.action) {
     case 1001:
       console.log(`Device ${data.deviceUuid} is ${data.state == 1 ? "Online" : "Offline"}`);
