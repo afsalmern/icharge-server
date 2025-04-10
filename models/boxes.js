@@ -67,6 +67,13 @@ module.exports = (sequelize, DataTypes) => {
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     });
+
+    Box.hasMany(models.powerbanks, {
+      foreignKey: "box_id",
+      as: "powerbanks",
+      onDelete: "SET NULL", // or "CASCADE" if you want to delete power banks when the box is deleted
+      onUpdate: "CASCADE",
+    });
   };
 
   return Box;

@@ -74,41 +74,96 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
   }
 });
 
+// exports.verifyOtp = asyncWrapper(async (req, res) => {
+//   const { mobile, otp } = req.body;
+//   const otpData = await Otp.findOne({ where: { mobile } });
+
+//   if (!otpData) {
+//     throw new ApiError(400, "Otp not found");
+//   }
+
+//   if (otpData.otp !== otp) {
+//     throw new ApiError(400, "Invalid OTP");
+//   }
+
+//   const otpCreatedAt = new Date(otpData.createdAt).getTime();
+//   if (Date.now() - otpCreatedAt > 60000) {
+//     await Otp.destroy({ where: { mobile } });
+//     throw new ApiError(400, "Otp expired");
+//   }
+
+//   const [user, created] = await User.findOrCreate({
+//     where: { mobile },
+//     defaults: {},
+//   });
+
+//   const kyc_status = await KycDetails.findOne({ where: { user_id: user.id }, attributes: ["status", "id"] });
+
+//   // Generate token and return response
+//   const token = generateToken(user);
+//   await Otp.destroy({ where: { mobile } });
+
+//   sendSuccess(
+//     res,
+//     "Otp verified successfully",
+//     { token, user, isGuest: created, kyc_status: kyc_status ? kyc_status.status : null },
+//     200
+//   );
+// });
+
 exports.verifyOtp = asyncWrapper(async (req, res) => {
-  const { mobile, otp } = req.body;
+  const { mobile, otp, fcm_token } = req.body;
+
+  // Step 1: Validate input
+  if (!mobile || !otp || !fcm_token) {
+    throw new ApiError(400, "Mobile, OTP, and FCM token are required");
+  }
+
+  // Step 2: Fetch OTP record
   const otpData = await Otp.findOne({ where: { mobile } });
 
   if (!otpData) {
-    throw new ApiError(400, "Otp not found");
+    throw new ApiError(404, "OTP not found for this mobile number");
   }
 
   if (otpData.otp !== otp) {
-    throw new ApiError(400, "Invalid OTP");
+    throw new ApiError(401, "Invalid OTP");
   }
 
-  const otpCreatedAt = new Date(otpData.createdAt).getTime();
-  if (Date.now() - otpCreatedAt > 60000) {
+  const isExpired = Date.now() - new Date(otpData.createdAt).getTime() > 60 * 1000;
+  if (isExpired) {
     await Otp.destroy({ where: { mobile } });
-    throw new ApiError(400, "Otp expired");
+    throw new ApiError(410, "OTP expired");
   }
 
-  const [user, created] = await User.findOrCreate({
+  // Step 3: Find or create user
+  const [user, isNewUser] = await User.findOrCreate({
     where: { mobile },
     defaults: {},
   });
 
-  const kyc_status = await KycDetails.findOne({ where: { user_id: user.id }, attributes: ["status", "id"] });
+  // Step 4: Invalidate old FCM token and update with new one
+  await user.update({ fcm_token });
 
-  // Generate token and return response
+  // Optional: Fetch KYC status
+  const kycDetails = await KycDetails.findOne({
+    where: { user_id: user.id },
+    attributes: ["status", "id"],
+  });
+
+  // Step 5: Generate auth token
   const token = generateToken(user);
+
+  // Step 6: Cleanup OTP
   await Otp.destroy({ where: { mobile } });
 
-  sendSuccess(
-    res,
-    "Otp verified successfully",
-    { token, user, isGuest: created, kyc_status: kyc_status ? kyc_status.status : null },
-    200
-  );
+  // Step 7: Return success response
+  return sendSuccess(res, "OTP verified successfully", {
+    token,
+    user,
+    isGuest: isNewUser,
+    kyc_status: kycDetails?.status || null,
+  });
 });
 
 exports.loginAdmin = asyncWrapper(async (req, res) => {

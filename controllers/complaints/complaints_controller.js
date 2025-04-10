@@ -77,7 +77,7 @@ exports.getAllComplaints = async (req, res, next) => {
     // Generate full image URLs for each complaint
     const complaintsWithImages = complaints.map((complaint) => ({
       ...complaint.toJSON(),
-      imageUrl: complaint.attachment ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}` : null,
+      imageUrl: complaint.attachment ? `${req.protocol}://${req.get("host")}/icharge/uploads/complaints/${complaint.attachment}` : null,
     }));
 
     sendSuccess(res, "Complaints fetched successfully", { complaints: complaintsWithImages }, 200);
@@ -97,11 +97,10 @@ exports.getComplaintsByUserId = async (req, res, next) => {
     if (!complaints.length) {
       return sendSuccess(res, "No complaints found,", { complaints: [] }, 200);
     }
-
     // Generate full image URLs for each complaint
     const complaintsWithImages = complaints.map((complaint) => ({
       ...complaint.toJSON(),
-      imageUrl: complaint.attachment ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}` : null,
+      imageUrl: complaint.attachment ? `${req.protocol}://${req.get("host")}/icharge/uploads/complaints/${complaint.attachment}` : null,
     }));
 
     sendSuccess(res, "Complaints fetched successfully", { complaints: complaintsWithImages }, 200);
@@ -133,7 +132,7 @@ exports.getComplaintById = async (req, res, next) => {
 
     // Generate full image URL dynamically
     const imageUrl = complaint.attachment
-      ? `${req.protocol}://${req.get("host")}/uploads/complaints/${complaint.attachment}`
+      ? `${req.protocol}://${req.get("host")}/icharge/uploads/complaints/${complaint.attachment}`
       : null;
 
     sendSuccess(

@@ -100,7 +100,18 @@ exports.getHome = async (req, res, next) => {
         nest: true, // Keep nested structure for includes
       }),
       User.findByPk(user_id, {
-        attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified"],
+        attributes: [
+          "id",
+          "name",
+          "email",
+          "mobile",
+          "avatar",
+          "deposit_amount",
+          "outstanding_amount",
+          "block_status",
+          "status",
+          "is_verified",
+        ],
         include: {
           model: KycDetail,
           as: "kyc_details",
@@ -152,6 +163,12 @@ exports.getHome = async (req, res, next) => {
         notifications: notificationsData,
         steps: stepsData,
         userStatus: userData,
+        verification_methods: { //handle dynamic logic here
+          kyc_enable: true,
+          deposit_enable: true,
+          deposit_amount: 1500,
+          user_preferred_method: "kyc",
+        },
       },
       200
     );

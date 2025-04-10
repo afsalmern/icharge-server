@@ -76,17 +76,17 @@ const getDeviceInfoByUuid = async (deviceUuid) => {
       return { success: false, message: "Device is not active", code: 200 };
     }
 
-    if (device?.deviceSignal === "0") {
-      return { success: false, message: "Device is not connected", code: 200 };
-    }
+    // if (device?.deviceSignal === "0") {
+    //   return { success: false, message: "Device is not connected", code: 200 };
+    // }
 
-    if (device?.networkType === "WIFI" && device?.networkOperator === "Unknown") {
-      return { success: false, message: "Device is connected to Wi-Fi but has no internet access", code: 200 };
-    }
+    // if (device?.networkType === "WIFI" && device?.networkOperator === "Unknown") {
+    //   return { success: false, message: "Device is connected to Wi-Fi but has no internet access", code: 200 };
+    // }
 
-    if (!device?.deviceIP || device?.deviceIP === "/") {
-      return { success: false, message: "Device has no valid IP address", code: 200 };
-    }
+    // if (!device?.deviceIP || device?.deviceIP === "/") {
+    //   return { success: false, message: "Device has no valid IP address", code: 200 };
+    // }
 
     // Check if powerbanks are available
     if (!device?.powerbankList || device?.powerbankList.length === 0) {
