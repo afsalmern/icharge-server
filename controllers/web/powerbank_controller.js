@@ -36,7 +36,7 @@ exports.getAllPowerBanks = async (req, res, next) => {
 // Create PowerBank
 exports.addPowerBank = async (req, res, next) => {
   try {
-    const { box_id, unique_id, status, battery_level, health_status, slot_number, last_back_time } = req.body;
+    const { box_id, unique_id, status, battery_level, health_status, slot_number } = req.body;
 
     const powerbank = await PowerBanks.create({
       box_id,
@@ -45,7 +45,6 @@ exports.addPowerBank = async (req, res, next) => {
       battery_level,
       health_status,
       slot_number,
-      last_back_time,
       last_synced_at: new Date(),
     });
 
