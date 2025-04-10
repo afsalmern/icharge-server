@@ -68,15 +68,7 @@ module.exports = (sequelize, DataTypes) => {
       device_token: {
         type: DataTypes.STRING,
         allowNull: true,
-      },
-      device_id: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-      device_platform: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
+      }
     },
     {
       timestamps: true,
