@@ -18,14 +18,27 @@ exports.getDropDownDatas = async (req, res, next) => {
     const { type } = req.query;
     const data = {};
 
-    if (type == "locations") {
-      const locations = await Locations.findAll({
-        attributes: [
-          ["id", "value"],
-          ["name", "label"],
-        ],
-      });
-      data["locations"] = locations;
+    switch (type) {
+      case "locations":
+        const locations = await Locations.findAll({
+          attributes: [
+            ["id", "value"],
+            ["name", "label"],
+          ],
+        });
+        data["locations"] = locations;
+        break;
+      case "users":
+        const users = await Users.findAll({
+          attributes: [
+            ["id", "value"],
+            ["name", "label"],
+          ],
+        });
+        data["users"] = users;
+        break;
+      default:
+        break;
     }
     sendSuccess(res, "Drop down data fetched successfully", { data }, 200);
   } catch (error) {
@@ -137,7 +150,7 @@ exports.addPackage = async (req, res, next) => {
       description,
       price: isFree ? 0 : price,
       duration,
-      swap : isFree ? 0 : swap,
+      swap: isFree ? 0 : swap,
       image: package_image,
       hourly_price,
       type,
