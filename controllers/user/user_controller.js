@@ -163,7 +163,8 @@ exports.getHome = async (req, res, next) => {
         notifications: notificationsData,
         steps: stepsData,
         userStatus: userData,
-        verification_methods: { //handle dynamic logic here
+        verification_methods: {
+          //handle dynamic logic here
           kyc_enable: true,
           deposit_enable: true,
           deposit_amount: 1500,
@@ -241,7 +242,6 @@ exports.getPackages = async (req, res, next) => {
 
     packages = await Packages.findAll({
       attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
-      order: [["created_at", "DESC"]],
     });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
   } catch (error) {

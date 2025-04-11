@@ -9,6 +9,6 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeColumn("users", "device_platform");
+    await queryInterface.removeColumn("users", "device_token");
   },
 };
