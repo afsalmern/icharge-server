@@ -11,6 +11,7 @@ const Users = db.users;
 const Packages = db.packages;
 const Boxes = db.boxes;
 const Locations = db.locations;
+const ChecksAndAmounts = db.checks_and_amounts;
 
 //Data for Drop down
 exports.getDropDownDatas = async (req, res, next) => {
@@ -338,5 +339,43 @@ exports.updateBox = async (req, res, next) => {
     console.error(error);
     await transaction.rollback();
     next(error);
+  }
+};
+
+exports.getChecksAndAmount = async (req, res, next) => {
+  try {
+    const checks_data = await ChecksAndAmounts.findAll({
+      attributes: ["id", "is_kyc_enabled", "is_deposit_enabled", "deposit_amount"],
+    });
+    return sendSuccess(res, "Checks data fetched successfully", { checks_data }, 200);
+  } catch (error) {
+    console.error(error);
+    return next(error);
+  }
+};
+
+exports.updateChecksAndAmount = async (req, res, next) => {
+  const { deposit_amount, is_kyc_enabled, is_deposit_enabled } = req.body;
+
+  const transaction = await db.sequelize.transaction();
+  try {
+    const existingRecord = await ChecksAndAmounts.findOne({ transaction });
+
+    let updatedBox;
+
+    if (!existingRecord) {
+      updatedBox = await ChecksAndAmounts.create({ deposit_amount, is_kyc_enabled, is_deposit_enabled }, { transaction });
+    } else {
+      await existingRecord.update({ deposit_amount, is_kyc_enabled, is_deposit_enabled }, { transaction });
+      updatedBox = existingRecord;
+    }
+
+    await transaction.commit();
+
+    return sendSuccess(res, "New changes updated successfully", { updatedBox }, 200);
+  } catch (error) {
+    await transaction.rollback();
+    console.error(error);
+    return next(error);
   }
 };

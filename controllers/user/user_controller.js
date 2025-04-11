@@ -8,6 +8,7 @@ const Locations = db.locations;
 const Packages = db.packages;
 const KycDetail = db.kyc_details;
 const disputes = db.disputes;
+const Checks = db.checks_and_amounts;
 
 const stepsData = [
   {
@@ -51,7 +52,7 @@ exports.getHome = async (req, res, next) => {
   }
 
   try {
-    const [devices, onGoingRental, userData] = await Promise.all([
+    const [devices, onGoingRental, userData, checks] = await Promise.all([
       Boxes.findAll({
         attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"]],
         include: {
@@ -100,18 +101,7 @@ exports.getHome = async (req, res, next) => {
         nest: true, // Keep nested structure for includes
       }),
       User.findByPk(user_id, {
-        attributes: [
-          "id",
-          "name",
-          "email",
-          "mobile",
-          "avatar",
-          "deposit_amount",
-          "outstanding_amount",
-          "block_status",
-          "status",
-          "is_verified",
-        ],
+        attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified"],
         include: {
           model: KycDetail,
           as: "kyc_details",
@@ -121,7 +111,12 @@ exports.getHome = async (req, res, next) => {
         raw: true,
         nest: true,
       }),
+      Checks.findAll({
+        attributes: ["id", "is_kyc_enabled", "is_deposit_enabled", "deposit_amount"],
+      }),
     ]);
+
+    const { deposit_amount, is_kyc_enabled, is_deposit_enabled } = checks[0];
 
     const notificationsData = onGoingRental
       ? {
@@ -165,9 +160,9 @@ exports.getHome = async (req, res, next) => {
         userStatus: userData,
         verification_methods: {
           //handle dynamic logic here
-          kyc_enable: true,
-          deposit_enable: true,
-          deposit_amount: 1500,
+          kyc_enable: is_kyc_enabled,
+          deposit_enable: is_deposit_enabled,
+          deposit_amount,
           user_preferred_method: "kyc",
         },
       },
