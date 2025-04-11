@@ -37,6 +37,15 @@ exports.getDropDownDatas = async (req, res, next) => {
         });
         data["users"] = users;
         break;
+      case "devices":
+        const devices = await Boxes.findAll({
+          attributes: [
+            ["id", "value"],
+            ["device_id", "label"],
+          ],
+        });
+        data["devices"] = devices;
+        break;
       default:
         break;
     }
@@ -292,11 +301,11 @@ exports.getLocationWiseBoxes = async (req, res, next) => {
 
 exports.deleteBoxes = async (req, res, next) => {
   const { id } = req.params;
-  const box = await Boxes.findByPk(id);
-  if (!box) {
-    throw new ApiError(404, "Box not found");
-  }
   try {
+    const box = await Boxes.findByPk(id);
+    if (!box) {
+      throw new ApiError(404, "Box not found");
+    }
     await box.destroy();
     sendSuccess(res, "Box deleted successfully", {}, 200);
   } catch (error) {
