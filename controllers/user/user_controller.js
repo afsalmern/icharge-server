@@ -162,7 +162,7 @@ exports.getHome = async (req, res, next) => {
           //handle dynamic logic here
           kyc_enable: is_kyc_enabled,
           deposit_enable: is_deposit_enabled,
-          deposit_amount,
+          deposit_amount: Number(deposit_amount),
           user_preferred_method: "kyc",
         },
       },
