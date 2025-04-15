@@ -82,4 +82,24 @@ const calculateTotalPrice = (passedDate, duration, pricePerHour) => {
   };
 };
 
-module.exports = { calculatePriceOnRentals, getHourlyPrice, calculateTotalPrice };
+const getEndTime = (start_date, duration, type) => {
+  const startDate = new Date(start_date);
+
+  switch (type) {
+    case "hourly":
+      return new Date(startDate.getTime() + duration * 60 * 60 * 1000); // duration in hours
+
+    case "weekly":
+      return new Date(startDate.getTime() + duration * 7 * 24 * 60 * 60 * 1000); // duration in weeks
+
+    case "monthly":
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + duration); // adds months
+      return endDate;
+
+    default:
+      throw new Error("Invalid type. Valid types are: hourly, weekly, monthly.");
+  }
+};
+
+module.exports = { calculatePriceOnRentals, getHourlyPrice, calculateTotalPrice, getEndTime };

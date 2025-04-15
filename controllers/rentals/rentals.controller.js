@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, calculateTotalPrice } = require("../../helpers/calculatePrices");
+const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, calculateTotalPrice, getEndTime } = require("../../helpers/calculatePrices");
 const { startRent, getDeviceInfoByUuid } = require("../../helpers/externalCalls");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
@@ -316,7 +316,7 @@ exports.rentItem = async (req, res, next) => {
         attributes: ["id", "unique_id", "status", "available_powerbanks"],
       }),
       Packages.findByPk(package_id, {
-        attributes: ["id"],
+        attributes: ["id", "type", "duration"],
       }),
     ]);
 
@@ -339,6 +339,9 @@ exports.rentItem = async (req, res, next) => {
     }
 
     const { machineUuid, powerNo, positionUuid } = data.data;
+    const { type, duration } = rentalPackage;
+    const start_time = new Date().toISOString();
+    const endTime = getEndTime(start_time, duration, type);
 
     const createdRental = await db.sequelize.transaction(async (t) => {
       const rental = await Rentals.create(
@@ -346,7 +349,8 @@ exports.rentItem = async (req, res, next) => {
           box_id: box.id,
           package_id,
           user_id,
-          start_time: new Date().toISOString(),
+          start_time,
+          end_time: endTime,
           power_number: powerNo,
           machine_id: machineUuid,
           position_id: positionUuid,
@@ -360,7 +364,7 @@ exports.rentItem = async (req, res, next) => {
         where: { unique_id: powerNo },
         transaction: t,
       });
-      
+
       if (powerbank) {
         await powerbank.update(
           {
@@ -373,7 +377,6 @@ exports.rentItem = async (req, res, next) => {
       } else {
         console.warn(`Power bank with unique_id ${powerNo} not found`);
       }
-      
 
       return rental;
     });

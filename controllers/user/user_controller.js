@@ -1,6 +1,7 @@
 const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { Op } = require("sequelize");
+const { getEndTime } = require("../../helpers/calculatePrices");
 
 const User = db.users;
 const Boxes = db.boxes;
@@ -75,6 +76,7 @@ exports.getHome = async (req, res, next) => {
           ["id", "order_id"], // Alias id as order_id
           "box_id",
           "start_time",
+          "end_time",
           "status",
           [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
         ],
@@ -117,8 +119,11 @@ exports.getHome = async (req, res, next) => {
     ]);
 
     const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks[0];
+    const { end_time = null} = onGoingRental;
 
-    const notificationsData = onGoingRental
+    const isTimeElapsed = end_time ? new Date(end_time).getTime() < new Date().getTime() : false;
+
+    const notificationsData = isTimeElapsed
       ? {
           title: "Overdue",
           sub_title: "You have an overdue rental, please return the box to continue using it",
@@ -128,7 +133,7 @@ exports.getHome = async (req, res, next) => {
 
     const rentalsModified = onGoingRental
       ? (() => {
-          const { order_id, start_time, status, rented_package, rented_user, start_on, disputes } = onGoingRental;
+          const { order_id, start_time, status, rented_package, rented_user, start_on, disputes, end_time } = onGoingRental;
           const { hourly_price, price, duration } = rented_package || {};
           const { name, mobile } = rented_user || {};
           const { reason } = disputes || {};
