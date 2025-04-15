@@ -119,7 +119,7 @@ exports.getHome = async (req, res, next) => {
     ]);
 
     const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks[0];
-    const { end_time = null} = onGoingRental;
+    const end_time = onGoingRental?.end_time || null;
 
     const isTimeElapsed = end_time ? new Date(end_time).getTime() < new Date().getTime() : false;
 
