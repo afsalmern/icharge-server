@@ -65,7 +65,7 @@ exports.updateLocation = async (req, res, next) => {
 
 exports.getLocations = async (req, res) => {
   try {
-    const locations = await Location.findAll({ attributes: ["id", "name", "latitude", "longitude", "address", "starting_hour", "ending_hour"] });
+    const locations = await Location.findAll({ attributes: ["id", "name", "latitude", "longitude", "address", "starting_hour", "ending_hour", "is_active"] });
     return res.status(200).json({ message: "Locations fetched successfully", data: locations });
   } catch (error) {
     console.error(error);
