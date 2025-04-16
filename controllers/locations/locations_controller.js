@@ -31,7 +31,7 @@ exports.addLocation = async (req, res, next) => {
 };
 
 exports.updateLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour } = req.body;
+  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active } = req.body;
   const { id } = req.params;
 
   const location = await Location.findByPk(id);
@@ -49,6 +49,7 @@ exports.updateLocation = async (req, res, next) => {
         address,
         starting_hour,
         ending_hour,
+        is_active
       },
       { returning: true },
       { transaction }
