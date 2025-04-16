@@ -6,10 +6,17 @@ const { ApiError } = require("../../middlewares/error");
 const Users = db.users;
 const Transactions = db.user_transactions;
 const WithDrawRequests = db.withdraw_requests;
+const ChecksAndAmount = db.checks_and_amounts;
 
 exports.addDepositAmount = async (req, res, next) => {
   const { user_id } = req;
-  const deposit_amount = 500.0;
+  // const deposit_amount = 500.0;
+
+  const amount = await ChecksAndAmount.findAll({
+    attributes: ["deposit_amount"],
+  });
+
+  const deposit_amount = amount?.[0].deposit_amount || 5.0;
 
   const transaction = await db.sequelize.transaction();
 
@@ -23,6 +30,7 @@ exports.addDepositAmount = async (req, res, next) => {
       {
         deposit_amount,
         is_verified: true,
+        user_preferred_method: "deposit",
       },
       {
         where: { id: user_id },

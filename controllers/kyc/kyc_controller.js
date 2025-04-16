@@ -52,6 +52,10 @@ exports.uploadKyc = async (req, res, next) => {
   const photo = (req.files && req.files?.["photo"]?.[0]?.filename) || null;
 
   try {
+    const user = await Users.findByPk(user_id);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
     if (!kyc_id) {
       const existingKyc = await KycDetails.findOne({
         where: {
@@ -74,6 +78,7 @@ exports.uploadKyc = async (req, res, next) => {
         submitted_at: new Date(),
         verified_at: null,
       });
+      await Users.update({ user_preferred_method: "kyc" }, { where: { id: user_id } });
       return sendSuccess(res, "Kyc details updated successfully", { kyc }, 200);
     } else {
       const currentKyc = await KycDetails.findByPk(kyc_id);
@@ -104,6 +109,7 @@ exports.uploadKyc = async (req, res, next) => {
         if (proof_front) await deleteFile(currentKyc.proof_front);
         if (proof_back) await deleteFile(currentKyc.proof_back);
         if (photo) await deleteFile(currentKyc.photo);
+        await Users.update({ user_preferred_method: "kyc" }, { where: { id: user_id } });
         return sendSuccess(res, "Kyc details updated successfully", { kyc: updatedKyc }, 200);
       }
     }
