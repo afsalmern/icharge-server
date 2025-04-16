@@ -52,6 +52,8 @@ exports.getHome = async (req, res, next) => {
     return next(new ApiError(400, "User ID is required"));
   }
 
+ 
+
   try {
     const [devices, onGoingRental, userData, checks] = await Promise.all([
       Boxes.findAll({
@@ -103,7 +105,7 @@ exports.getHome = async (req, res, next) => {
         nest: true, // Keep nested structure for includes
       }),
       User.findByPk(user_id, {
-        attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified"],
+        attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified","user_preferred_method"],
         include: {
           model: KycDetail,
           as: "kyc_details",
@@ -164,11 +166,9 @@ exports.getHome = async (req, res, next) => {
         steps: stepsData,
         userStatus: userData,
         verification_methods: {
-          //handle dynamic logic here
           kyc_enable: is_kyc_enabled,
           deposit_enable: is_deposit_enabled,
-          deposit_amount: Number(deposit_amount),
-          user_preferred_method: "kyc",
+          deposit_amount: Number(deposit_amount)
         },
       },
       200
