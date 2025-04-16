@@ -4,7 +4,7 @@ const db = require("../../models");
 const Location = db.locations;
 
 exports.addLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour } = req.body;
+  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active } = req.body;
   const transaction = await db.sequelize.transaction();
   try {
     const addedLocation = await Location.create(
@@ -15,6 +15,7 @@ exports.addLocation = async (req, res, next) => {
         address,
         starting_hour,
         ending_hour,
+        is_active
       },
       { transaction }
     );
