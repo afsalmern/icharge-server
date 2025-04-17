@@ -34,6 +34,12 @@ const router = express.Router();
 
 const complaintController = require("../../controllers/complaints/complaints_controller");
 const powerbankController = require("../../controllers/web/powerbank_controller");
+const { getDashboard, getYearWiseData } = require("../../controllers/web/dashboard_controller");
+
+//dashboard
+router.get("/dashboard", verifyToken, checkRole("admin"), getDashboard);
+router.get("/year-wise-data", verifyToken, checkRole("admin"), getYearWiseData);
+
 const { generateRentalReport } = require("../../controllers/web/reports_controller");
 
 //Checks and deposit deposit_amount

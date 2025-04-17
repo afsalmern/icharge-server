@@ -68,7 +68,12 @@ module.exports = (sequelize, DataTypes) => {
       device_token: {
         type: DataTypes.STRING,
         allowNull: true,
-      }
+      },
+      user_preferred_method: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: null,
+      },
     },
     {
       timestamps: true,
