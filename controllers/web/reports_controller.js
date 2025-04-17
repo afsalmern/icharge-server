@@ -11,6 +11,8 @@ exports.generateRentalReport = async (req, res, next) => {
   try {
     const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId } = req.query;
 
+    console.log("Query parameters:", req.query);
+
     // Build filter conditions
     const where = {};
 
@@ -58,7 +60,7 @@ exports.generateRentalReport = async (req, res, next) => {
             {
               model: db.locations,
               as: "location",
-              attributes: ["name"],
+              attributes: ["name", "id"],
             },
           ],
         },
@@ -70,7 +72,7 @@ exports.generateRentalReport = async (req, res, next) => {
         {
           model: db.locations,
           as: "return_location",
-          attributes: ["name"],
+          attributes: ["name", "id"],
           required: false,
         },
         {
@@ -86,8 +88,7 @@ exports.generateRentalReport = async (req, res, next) => {
 
     // Transform data for report
     const report = rentals.map((rental) => {
-      const duration =
-        rental.end_time && rental.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
+      const duration = rental.end_time && rental.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
 
       // Calculate swap count (simplified; assumes power_number change = swap)
       const swapCount = rental.power_number ? 1 : 0; // TODO: Confirm swap count logic
@@ -123,5 +124,89 @@ exports.generateRentalReport = async (req, res, next) => {
   } catch (error) {
     console.error("Error generating rental report:", error);
     next(new ApiError(500, "Failed to generate rental report", error.message));
+  }
+};
+
+exports.generateLocationsReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId } = req.query;
+
+    const report = await db.sequelize.query(
+      `
+      SELECT 
+  l.name AS location_name,
+  l.address,
+  COUNT(DISTINCT b.id) AS total_devices,
+  COALESCE(SUM(b.available_powerbanks), 0) AS total_slot,
+  COUNT(r.id) AS total_rentals
+FROM 
+  locations l
+LEFT JOIN 
+  boxes b ON b.location_id = l.id
+LEFT JOIN 
+  rentals r ON r.box_id = b.id
+GROUP BY 
+  l.id, l.name, l.address
+ORDER BY
+  total_rentals DESC
+  ;`,
+      {
+        type: db.sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    const rentals = await Rentals.findAll({
+      include: [
+        {
+          model: db.users,
+          as: "rented_user",
+          attributes: ["name"],
+        },
+        {
+          model: db.boxes,
+          as: "rented_box",
+          attributes: ["id", "location_id"],
+          include: [
+            {
+              model: db.locations,
+              as: "location",
+              attributes: ["name", "id"],
+            },
+          ],
+        },
+        {
+          model: db.locations,
+          as: "return_location",
+          attributes: ["name", "id"],
+          required: false,
+        },
+        {
+          model: db.disputes,
+          as: "disputes",
+          attributes: ["id"],
+          required: false,
+        },
+      ],
+      attributes: ["id", "start_time", "end_time", "status"],
+      order: [["start_time", "DESC"]],
+    });
+
+    const locationWiseReport = rentals.map((rental) => {
+      return {
+        rentedFrom: rental.rented_box?.location?.name || "N/A",
+        userName: rental.rented_user?.name || "N/A",
+        returnedTo: rental.return_location?.name || "N/A",
+        rentedAt: rental.start_time,
+        returnedAt: rental.end_time,
+        rentalStatus: rental.status,
+      };
+    });
+
+    console.log("report", report);
+
+    sendSuccess(res, "Location report generated successfully", { report, locationWiseReport }, 200);
+  } catch (error) {
+    console.error("Error generating location report:", error);
+    next(new ApiError(500, "Failed to generate location report", error.message));
   }
 };

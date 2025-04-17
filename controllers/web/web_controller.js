@@ -16,40 +16,58 @@ const ChecksAndAmounts = db.checks_and_amounts;
 //Data for Drop down
 exports.getDropDownDatas = async (req, res, next) => {
   try {
-    const { type } = req.query;
+    let { type } = req.query;
     const data = {};
 
-    switch (type) {
-      case "locations":
-        const locations = await Locations.findAll({
-          attributes: [
-            ["id", "value"],
-            ["name", "label"],
-          ],
-        });
-        data["locations"] = locations;
-        break;
-      case "users":
-        const users = await Users.findAll({
-          attributes: [
-            ["id", "value"],
-            ["name", "label"],
-          ],
-        });
-        data["users"] = users;
-        break;
-      case "devices":
-        const devices = await Boxes.findAll({
-          attributes: [
-            ["id", "value"],
-            ["device_id", "label"],
-          ],
-        });
-        data["devices"] = devices;
-        break;
-      default:
-        break;
+    let types = type.split(",").map((t) => t.trim());
+
+    for (const t of types) {
+      switch (t) {
+        case "locations":
+          const locations = await Locations.findAll({
+            attributes: [
+              ["id", "value"],
+              ["name", "label"],
+            ],
+          });
+          data["locations"] = locations;
+          break;
+
+        case "users":
+          const users = await Users.findAll({
+            attributes: [
+              ["id", "value"],
+              ["name", "label"],
+            ],
+          });
+          data["users"] = users;
+          break;
+
+        case "devices":
+          const devices = await Boxes.findAll({
+            attributes: [
+              ["id", "value"],
+              ["device_id", "label"],
+            ],
+          });
+          data["devices"] = devices;
+          break;
+
+        case "packages":
+          const packages = await Packages.findAll({
+            attributes: [
+              ["id", "value"],
+              ["type", "label"],
+            ],
+          });
+          data["packages"] = packages;
+          break;
+
+        default:
+          break;
+      }
     }
+
     sendSuccess(res, "Drop down data fetched successfully", { data }, 200);
   } catch (error) {
     console.log(error);

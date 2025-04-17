@@ -15,24 +15,28 @@ const getCardData = async () => {
         label: "Total Rentals",
         icon: "clock", // ⏰ Feather icon for time/rentals
         bg: "warning-subtle", // Yellow background tone
+        iconColor: "warning",
         value: cardData?.rentals,
       },
       {
         label: "Active Users",
         icon: "user-check", // ✅ Represents verified/active users
         bg: "success-subtle", // Green tone for active/healthy status
+        iconColor: "success",
         value: cardData?.activeUsers,
       },
       {
         label: "Locations",
         icon: "map-pin", // 📍 Common icon for locations
         bg: "info-subtle", // Blue tone for geography/info
+        iconColor: "info",
         value: cardData?.locations,
       },
       {
         label: "Total Revenue",
         icon: "dollar-sign", // 💰 Revenue icon
-        bg: "primary-subtle", // Strong primary tone for importance
+        bg: "purple-subtle", // Strong primary tone for importance
+        iconColor: "purple",
         value: cardData?.totalRevenue,
       },
     ];
