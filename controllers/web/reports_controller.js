@@ -146,7 +146,10 @@ LEFT JOIN
 LEFT JOIN 
   rentals r ON r.box_id = b.id
 GROUP BY 
-  l.id, l.name, l.address;`,
+  l.id, l.name, l.address
+ORDER BY
+  total_rentals DESC
+  ;`,
       {
         type: db.sequelize.QueryTypes.SELECT,
       }
