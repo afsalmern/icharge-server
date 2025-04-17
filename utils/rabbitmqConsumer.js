@@ -6,7 +6,6 @@ const sendFCMNotification = require("../utils/sendFCMNotification");
 const RABBITMQ_URL = "amqp://guest:guest@47.84.188.80:5672"; // Update if needed
 const QUEUE = "POWER_SERVER_QUEUE"; // Replace with actual queue name
 
-
 async function startConsumer() {
   try {
     const connection = await amqp.connect(RABBITMQ_URL);
@@ -56,7 +55,7 @@ async function startConsumer() {
 
 async function processCallback(data) {
   console.log("Processing callback data:", data.action);
-  
+
   switch (data.action) {
     case 1001:
       console.log(`Device ${data.deviceUuid} is ${data.state == 1 ? "Online" : "Offline"}`);
@@ -102,38 +101,123 @@ async function processCallback(data) {
           power_number: data.powerNo,
           status: "ongoing",
         },
-        include: [{ model: db.users, as: "rented_user" }],
+        include: [
+          { model: db.users, as: "rented_user" },
+          { model: db.packages, as: "rented_package" },
+        ],
       });
 
       if (rental) {
-        await rental.update({
-          end_time: new Date(),
-          return_time: new Date().toISOString(),
-          status: "completed",
-        });
+        const currentTime = new Date();
+        const returnTime = currentTime.toISOString();
+        let extraHours = 0;
+        let extraCharge = 0;
 
-        console.log(`Rental ${rental.id} completed for powerbank ${data.powerNo}.`);
+        if (currentTime > rental.end_time) {
+          extraHours = Math.ceil((currentTime - rental.end_time) / (1000 * 60 * 60));
+          extraCharge = extraHours * parseFloat(rental.rented_package.hourly_price);
+        }
 
-        // ✅ Send FCM Notification
-        const user = rental.rented_user;
-        console.log(" user ===========>", user);
-
-        if (user?.device_token) {
-          await sendFCMNotification(
-            user.device_token,
-            "Powerbank Returned",
-            "Thank you! Your powerbank has been returned successfully.",
+        await db.sequelize.transaction(async (t) => {
+          // completed rental
+          await rental.update(
             {
+              return_time: returnTime,
+              extra_hours: extraHours,
+              extra_charge: extraCharge,
+              status: "completed",
+              return_location_id: box.location_id,
+            },
+            { transaction: t }
+          );
+
+          const user = rental.user_id;
+
+          await user.update({ outstanding_amount: extraCharge }, { transaction: t });
+
+          console.log(`Rental ${rental.id} completed for powerbank ${data.powerNo}.`);
+
+          if (user?.device_token) {
+            const notificationMessage =
+              extraCharge > 0
+                ? `Powerbank returned. A fine of $${extraCharge} has been added for ${extraHours} extra hours.`
+                : "Thank you! Your powerbank has been returned successfully.";
+
+            await sendFCMNotification(user.device_token, "Powerbank Returned", notificationMessage, {
               powerbank: data.powerNo,
               slot: data.positionUuid.toString(),
-            }
-          );
-        }
+              extraCharge: extraCharge.toString(),
+            });
+          }
+        });
       } else {
         console.warn(`No ongoing rental found for powerbank ${data.powerNo}.`);
       }
-
       break;
+    // case 1004:
+    //   console.log(`Power bank ${data.powerNo} returned to position ${data.positionUuid} with power level ${data.powerAd}`);
+
+    //   const box = await db.boxes.findOne({ where: { unique_id: data.deviceUuid } });
+    //   if (!box) {
+    //     console.warn(`Box not found for deviceUuid: ${data.deviceUuid}`);
+    //     break;
+    //   }
+
+    //   const powerbank = await db.powerbanks.findOne({ where: { unique_id: data.powerNo } });
+    //   if (!powerbank) {
+    //     console.warn(`Power bank ${data.powerNo} not found in DB.`);
+    //     break;
+    //   }
+
+    //   await powerbank.update({
+    //     status: "available",
+    //     battery_level: parseFloat(data.powerAd),
+    //     slot_number: parseInt(data.positionUuid),
+    //     last_back_time: new Date(),
+    //     last_synced_at: new Date(),
+    //     box_id: box.id,
+    //   });
+
+    //   console.log(`Power bank ${data.powerNo} updated successfully.`);
+
+    //   const rental = await db.rentals.findOne({
+    //     where: {
+    //       power_number: data.powerNo,
+    //       status: "ongoing",
+    //     },
+    //     include: [{ model: db.users, as: "rented_user" }],
+    //   });
+
+    //   if (rental) {
+    //     await rental.update({
+    //       end_time: new Date(),
+    //       return_time: new Date().toISOString(),
+    //       status: "completed",
+    //       return_location_id: box.location_id
+    //     });
+
+    //     console.log(`Rental ${rental.id} completed for powerbank ${data.powerNo}.`);
+
+    //     // ✅ Send FCM Notification
+    //     const user = rental.rented_user;
+    //     console.log(" user ===========>", user);
+
+    //     if (user?.device_token) {
+    //       await sendFCMNotification(
+    //         user.device_token,
+    //         "Powerbank Returned",
+    //         "Thank you! Your powerbank has been returned successfully.",
+    //         {
+    //           powerbank: data.powerNo,
+    //           slot: data.positionUuid.toString(),
+    //         }
+    //       );
+    //     }
+    //   } else {
+    //     console.warn(`No ongoing rental found for powerbank ${data.powerNo}.`);
+    //   }
+
+    //   break;
 
     default:
       console.log("Unknown action:", data);
