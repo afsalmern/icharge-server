@@ -40,6 +40,7 @@ const { getDashboard, getYearWiseData } = require("../../controllers/web/dashboa
 router.get("/dashboard", verifyToken, checkRole("admin"), getDashboard);
 router.get("/year-wise-data", verifyToken, checkRole("admin"), getYearWiseData);
 
+const { generateRentalReport } = require("../../controllers/web/reports_controller");
 
 //Checks and deposit deposit_amount
 router.get("/checks-and-amount", verifyToken, checkRole("admin"), getChecksAndAmount);
@@ -97,5 +98,7 @@ router.get("/powerbank", powerbankController.getAllPowerBanks);
 router.post("/powerbank", powerbankController.addPowerBank);
 router.put("/powerbank/:id", powerbankController.updatePowerBank);
 router.delete("/powerbank/:id", powerbankController.deletePowerBank);
+
+router.get("/rental-report", generateRentalReport);
 
 module.exports = router;
