@@ -246,17 +246,17 @@ exports.generateRevenewReport = async (req, res, next) => {
               model: db.boxes,
               as: "rented_box",
               attributes: ["id", "location_id"],
+              ...(locationId !== "all" && {
+                where: {
+                  location_id: locationId,
+                },
+              }),
               include: [
                 {
                   model: db.locations,
                   as: "location",
                   attributes: ["name"],
                   required: true,
-                  ...(locationId !== "all" && {
-                    where: {
-                      name: locationId,
-                    },
-                  }),
                 },
               ],
             },
