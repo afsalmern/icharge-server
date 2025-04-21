@@ -22,6 +22,7 @@ const {
 } = require("../../controllers/payments/payments_controller");
 const router = express.Router();
 const complaintController = require("../../controllers/complaints/complaints_controller");
+const { createOrder } = require("../../controllers/payments/razorpay_controller");
 
 //Home
 router.get("/home", verifyToken, checkRole("user"), getHome);
@@ -45,6 +46,10 @@ router.post("/start-rent", verifyToken, checkRole("user"), rentItem);
 router.post("/return-item", verifyToken, checkRole("user"), returnItem);
 router.get("/validate-device", verifyToken, checkRole("user"), checkIsDeviceValid);
 router.post("/add-dispute", verifyToken, checkRole("user"), validateDisputeData, validate, addReasonForDispute);
+
+//Payments
+router.post("/create-order", verifyToken, checkRole("user"), createOrder);
+router.post("/verify-order", verifyToken, checkRole("user"), createOrder);
 
 //Transactions
 router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount);

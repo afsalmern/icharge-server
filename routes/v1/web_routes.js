@@ -92,6 +92,7 @@ router.get("/withdraw-request", verifyToken, checkRole("admin"), getAllWithdrawR
 router.get("/complaints", verifyToken, complaintController.getAllComplaints);
 router.get("/complaints/:id", verifyToken, complaintController.getComplaintById);
 router.patch("/complaints/:id", verifyToken, uploadComplaints, complaintController.updateComplaint);
+router.patch("/complaints-status/:id", verifyToken,complaintController.updateComplaintStatus);
 router.delete("/complaints/:id", verifyToken, complaintController.deleteComplaint);
 
 router.get("/powerbank", powerbankController.getAllPowerBanks);

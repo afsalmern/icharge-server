@@ -70,10 +70,6 @@ exports.getAllComplaints = async (req, res, next) => {
     // Fetch all complaints from DB
     const complaints = await Complaint.findAll();
 
-    if (!complaints.length) {
-      throw new ApiError(404, "No complaints found");
-    }
-
     // Generate full image URLs for each complaint
     const complaintsWithImages = complaints.map((complaint) => ({
       ...complaint.toJSON(),
@@ -131,9 +127,7 @@ exports.getComplaintById = async (req, res, next) => {
     if (!complaint) throw new ApiError(404, "Complaint not found");
 
     // Generate full image URL dynamically
-    const imageUrl = complaint.attachment
-      ? `${req.protocol}://${req.get("host")}/icharge/uploads/complaints/${complaint.attachment}`
-      : null;
+    const imageUrl = complaint.attachment ? `${req.protocol}://${req.get("host")}/icharge/uploads/complaints/${complaint.attachment}` : null;
 
     sendSuccess(
       res,
@@ -189,6 +183,21 @@ exports.updateComplaint = async (req, res, next) => {
     await complaint.update(updatedData);
 
     sendSuccess(res, "Complaint updated successfully", { complaint }, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateComplaintStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const complaint = await Complaint.findByPk(id);
+    if (!complaint) {
+      throw new ApiError(404, "Complaint not found");
+    }
+    await complaint.update({ status });
+    sendSuccess(res, "Complaint status updated successfully", { complaint }, 200);
   } catch (error) {
     next(error);
   }
