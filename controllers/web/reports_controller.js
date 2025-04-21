@@ -251,6 +251,7 @@ exports.generateRevenewReport = async (req, res, next) => {
                   model: db.locations,
                   as: "location",
                   attributes: ["id","name"],
+                  required: true,
                   ...(locationId !== "all" && {
                     where: {
                       id: locationId,
@@ -263,6 +264,7 @@ exports.generateRevenewReport = async (req, res, next) => {
               model: db.packages,
               as: "rented_package",
               attributes: ["type"],
+              required: true,
               ...(packageType !== "all" && {
                 where: {
                   type: packageType,
