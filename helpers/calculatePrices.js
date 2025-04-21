@@ -86,6 +86,8 @@ const getEndTime = (start_date, duration, type) => {
   const startDate = new Date(start_date);
 
   switch (type) {
+    case "free":
+      return new Date(startDate.getTime() + duration * 60 * 60 * 1000); // duration in hours
     case "hourly":
       return new Date(startDate.getTime() + duration * 60 * 60 * 1000); // duration in hours
 
