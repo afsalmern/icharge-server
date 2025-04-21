@@ -66,9 +66,15 @@ exports.createComplaint = async (req, res, next) => {
 // };
 
 exports.getAllComplaints = async (req, res, next) => {
+  const { issueType = "all" } = req.query;
+
   try {
     // Fetch all complaints from DB
-    const complaints = await Complaint.findAll();
+    const complaints = await Complaint.findAll({
+      where: {
+        ...(issueType !== "all" && { issue_type: issueType }),
+      },
+    });
 
     // Generate full image URLs for each complaint
     const complaintsWithImages = complaints.map((complaint) => ({
