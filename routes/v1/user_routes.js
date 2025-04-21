@@ -47,9 +47,9 @@ router.post("/return-item", verifyToken, checkRole("user"), returnItem);
 router.get("/validate-device", verifyToken, checkRole("user"), checkIsDeviceValid);
 router.post("/add-dispute", verifyToken, checkRole("user"), validateDisputeData, validate, addReasonForDispute);
 
-//Payments
-router.post("/create-order", verifyToken, checkRole("user"), createOrder);
-router.post("/verify-order", verifyToken, checkRole("user"), createOrder);
+// //Payments
+// router.post("/create-order", verifyToken, checkRole("user"), createOrder);
+// router.post("/verify-order", verifyToken, checkRole("user"), createOrder);
 
 //Transactions
 router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount);

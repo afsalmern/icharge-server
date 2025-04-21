@@ -88,7 +88,8 @@ exports.generateRentalReport = async (req, res, next) => {
 
     // Transform data for report
     const report = rentals.map((rental) => {
-      const duration = rental.end_time && rental.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
+      const duration =
+        rental.end_time && rental.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
 
       // Calculate swap count (simplified; assumes power_number change = swap)
       const swapCount = rental.power_number ? 1 : 0; // TODO: Confirm swap count logic
@@ -208,5 +209,152 @@ ORDER BY
   } catch (error) {
     console.error("Error generating location report:", error);
     next(new ApiError(500, "Failed to generate location report", error.message));
+  }
+};
+
+exports.generateRevenewReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate, locationId, packageType } = req.query;
+
+    console.log("Query parameters:", req.query);
+
+    // Build filter conditions for rental_payments
+    const where = {};
+
+    // Date filter for payment creation time
+    if (startDate && endDate) {
+      where.created_at = {
+        [Op.between]: [moment(startDate).startOf("day").toDate(), moment(endDate).endOf("day").toDate()],
+      };
+    }
+
+    // Build filter conditions for joined rental table
+    const rentalWhere = {};
+
+    // Location filter (from boxes via rentals)
+    if (locationId) {
+      rentalWhere["$rental.rented_box.location_id$"] = locationId;
+    }
+
+    // Package type filter (from packages via rentals)
+    if (packageType) {
+      rentalWhere["$rental.rented_package.type$"] = packageType;
+    }
+
+    // Fetch payments with associated models
+    const payments = await db.rental_payments.findAll({
+      where,
+      include: [
+        {
+          model: db.rentals,
+          as: "rental",
+          where: rentalWhere,
+          attributes: ["id", "start_time", "end_time", "status", "extra_charge"],
+          required: true, // Ensure rental exists
+          include: [
+            {
+              model: db.users,
+              as: "rented_user",
+              attributes: ["name"],
+            },
+            {
+              model: db.boxes,
+              as: "rented_box",
+              attributes: ["location_id"],
+              include: [
+                {
+                  model: db.locations,
+                  as: "location",
+                  attributes: ["name"],
+                },
+              ],
+            },
+            {
+              model: db.packages,
+              as: "rented_package",
+              attributes: ["type"],
+            },
+          ],
+        },
+      ],
+      attributes: ["id", "amount", "status", "created_at"],
+    });
+
+    // Transform data for report
+    const report = payments.map((payment, index) => {
+      const rental = payment.rental;
+
+      // Log for debugging
+      if (!rental) {
+        console.warn(`Payment ${payment.id} at index ${index} has no associated rental`);
+      }
+
+      const duration =
+        rental?.end_time && rental?.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
+
+      // Calculate amounts with safeguards
+      const rentedAmount = payment.status === "success" && payment.amount != null ? Number(payment.amount) : 0;
+      const extraAmount = rental?.extra_charge != null ? Number(rental.extra_charge) : 0;
+      const totalAmount = rentedAmount + extraAmount;
+
+      // Log problematic amounts
+      if (isNaN(totalAmount)) {
+        console.warn(`Invalid totalAmount for payment ${payment.id}: rentedAmount=${rentedAmount}, extraAmount=${extraAmount}`);
+      }
+
+      // Determine overdue status based on end_time
+      let overdue = "No";
+      if (rental && rental.end_time) {
+        const isOverdue = moment().isAfter(moment(rental.end_time));
+        overdue = isOverdue ? "Yes" : "No";
+        if (isOverdue) {
+          console.log(`Rental ${rental.id} is overdue: end_time=${rental.end_time}, current_time=${moment().toISOString()}`);
+        }
+      } else if (rental && !rental.end_time) {
+        console.log(`Rental ${rental.id} has no end_time, marking overdue as No`);
+      } else {
+        console.warn(`Payment ${payment.id} has no rental, marking overdue as No`);
+      }
+
+      // Map payment status
+      let paymentStatus;
+      switch (payment.status) {
+        case "success":
+          paymentStatus = "Paid";
+          break;
+        case "pending":
+          paymentStatus = "Unpaid";
+          break;
+        case "failed":
+          paymentStatus = "Failed";
+          break;
+        default:
+          paymentStatus = "Unknown";
+      }
+
+      return {
+        rentalId: rental?.id || "N/A",
+        userName: rental?.rented_user?.name || "N/A",
+        rentalLocation: rental?.rented_box?.location?.name || "N/A",
+        totalDurationUsed: duration ? `${duration} hours` : "Ongoing",
+        packageType: rental?.rented_package?.type || "N/A",
+        rentedAmount: Number(rentedAmount.toFixed(2)),
+        overdue,
+        totalRevenue: Number(totalAmount.toFixed(2)),
+        paymentStatus,
+      };
+    });
+
+    // Sort by totalRevenue (highest to lowest)
+    report.sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    // Calculate sum of total amount and format to two decimal places
+    const sumTotalAmount =
+      report.length > 0 ? report.reduce((sum, item) => sum + (item.totalRevenue || 0), 0).toFixed(2) : "0.00";
+
+    sendSuccess(res, "Revenue report generated successfully", { report, sumTotalAmount }, 200);
+  } catch (error) {
+    console.error("Error generating revenue report:", error);
+    next(new ApiError(500, "Failed to generate revenue report", error.message));
   }
 };
