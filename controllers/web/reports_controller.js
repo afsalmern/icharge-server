@@ -234,7 +234,7 @@ exports.generateRevenewReport = async (req, res, next) => {
         {
           model: db.rentals,
           as: "rental",
-          // where: rentalWhere,
+          required: true,
           attributes: ["id", "start_time", "end_time", "status", "extra_charge"],
           include: [
             {
