@@ -55,6 +55,8 @@ const getCompalaintsList = async () => {
           attributes: ["name", "email", "mobile"],
         },
       ],
+      order: [["created_at", "DESC"]],
+      limit: 10,
     });
 
     return complaints;
@@ -122,6 +124,10 @@ const getPowerBankCounts = async () => {
 
     const labels = ["Total Power Banks", "In Use", "Available"];
     const series = [counts.totalCount, counts.inUse, counts.available];
+
+    console.log("statusCounts", statusCounts);
+    console.log("statusCounts", labels);
+    console.log("statusCounts", series);
 
     return { labels, series };
   } catch (error) {
