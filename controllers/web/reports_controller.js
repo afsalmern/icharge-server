@@ -250,11 +250,11 @@ exports.generateRevenewReport = async (req, res, next) => {
                 {
                   model: db.locations,
                   as: "location",
-                  attributes: ["id","name"],
+                  attributes: ["name"],
                   required: true,
                   ...(locationId !== "all" && {
                     where: {
-                      id: locationId,
+                      name: locationId,
                     },
                   }),
                 },
