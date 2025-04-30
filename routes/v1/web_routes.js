@@ -101,7 +101,7 @@ router.put("/powerbank/:id", powerbankController.updatePowerBank);
 router.delete("/powerbank/:id", powerbankController.deletePowerBank);
 
 router.get("/rental-report", generateRentalReport);
-router.get("/revenew-report", generateRevenewReport);
+router.get("/revenue-report", generateRevenewReport);
 router.get("/location-report", generateLocationsReport);
 
 module.exports = router;

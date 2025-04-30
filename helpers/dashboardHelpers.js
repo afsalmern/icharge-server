@@ -12,34 +12,31 @@ const getCardData = async () => {
 
     const metaData = [
       {
-        label: "Total Rentals",
-        icon: "clock", // ⏰ Feather icon for time/rentals
-        bg: "warning-subtle", // Yellow background tone
-        iconColor: "warning",
-        value: cardData?.rentals,
+        variant: "warning",
+        description: "Total Rentals",
+        stats: String(cardData?.rentals),
+        icon: "fe-clock",
       },
       {
-        label: "Active Users",
-        icon: "user-check", // ✅ Represents verified/active users
-        bg: "success-subtle", // Green tone for active/healthy status
-        iconColor: "success",
-        value: cardData?.activeUsers,
+        variant: "success",
+        description: "Active Users",
+        stats: String(cardData?.activeUsers),
+        icon: "fe-user-check",
       },
       {
-        label: "Locations",
-        icon: "map-pin", // 📍 Common icon for locations
-        bg: "info-subtle", // Blue tone for geography/info
-        iconColor: "info",
-        value: cardData?.locations,
+        variant: "info",
+        description: "Locations",
+        stats: String(cardData?.locations),
+        icon: "fe-map-pin",
       },
       {
-        label: "Total Revenue",
-        icon: "dollar-sign", // 💰 Revenue icon
-        bg: "purple-subtle", // Strong primary tone for importance
-        iconColor: "purple",
-        value: cardData?.totalRevenue,
+        variant: "warning",
+        description: "Total Revenue",
+        stats: String(cardData?.totalRevenue),
+        icon: "fe-dollar-sign",
       },
     ];
+
     return metaData;
   } catch (error) {
     console.log("error in getting card data", error);
@@ -58,6 +55,8 @@ const getCompalaintsList = async () => {
           attributes: ["name", "email", "mobile"],
         },
       ],
+      order: [["created_at", "DESC"]],
+      limit: 10,
     });
 
     return complaints;
@@ -123,7 +122,14 @@ const getPowerBankCounts = async () => {
       if (status === "available") counts.available += parseInt(count);
     });
 
-    return [counts];
+    const labels = ["Total Power Banks", "In Use", "Available"];
+    const series = [counts.totalCount, counts.inUse, counts.available];
+
+    console.log("statusCounts", statusCounts);
+    console.log("statusCounts", labels);
+    console.log("statusCounts", series);
+
+    return { labels, series };
   } catch (error) {
     console.log("Error in getting power bank counts");
     throw error;
@@ -163,4 +169,32 @@ const getAllCounts = async () => {
   }
 };
 
-module.exports = { getCardData, getCompalaintsList, getYearWiseReveue, getPowerBankCounts };
+const getLocationWiseRentalsCount = async () => {
+  try {
+    const locationWiseCount = await db.sequelize.query(
+      `
+      SELECT 
+  l.name AS label,
+  COUNT(r.id) AS value
+FROM 
+  rentals r
+JOIN 
+  boxes b ON r.box_id = b.id
+JOIN 
+  locations l ON b.location_id = l.id
+GROUP BY 
+  l.name;
+      `,
+      {
+        type: db.sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    return locationWiseCount;
+  } catch (error) {
+    console.log("error in getting location wise rentals count", error);
+    throw error;
+  }
+};
+
+module.exports = { getCardData, getCompalaintsList, getYearWiseReveue, getPowerBankCounts, getLocationWiseRentalsCount };

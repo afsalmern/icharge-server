@@ -88,8 +88,7 @@ exports.generateRentalReport = async (req, res, next) => {
 
     // Transform data for report
     const report = rentals.map((rental) => {
-      const duration =
-        rental.end_time && rental.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
+      const duration = rental.end_time && rental.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
 
       // Calculate swap count (simplified; assumes power_number change = swap)
       const swapCount = rental.power_number ? 1 : 0; // TODO: Confirm swap count logic
@@ -214,7 +213,7 @@ ORDER BY
 
 exports.generateRevenewReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, locationId, packageType } = req.query;
+    const { startDate, endDate, locationId = "all", packageType = "all" } = req.query;
 
     console.log("Query parameters:", req.query);
 
@@ -228,19 +227,6 @@ exports.generateRevenewReport = async (req, res, next) => {
       };
     }
 
-    // Build filter conditions for joined rental table
-    const rentalWhere = {};
-
-    // Location filter (from boxes via rentals)
-    if (locationId) {
-      rentalWhere["$rental.rented_box.location_id$"] = locationId;
-    }
-
-    // Package type filter (from packages via rentals)
-    if (packageType) {
-      rentalWhere["$rental.rented_package.type$"] = packageType;
-    }
-
     // Fetch payments with associated models
     const payments = await db.rental_payments.findAll({
       where,
@@ -248,9 +234,8 @@ exports.generateRevenewReport = async (req, res, next) => {
         {
           model: db.rentals,
           as: "rental",
-          where: rentalWhere,
+          required: true,
           attributes: ["id", "start_time", "end_time", "status", "extra_charge"],
-          required: true, // Ensure rental exists
           include: [
             {
               model: db.users,
@@ -260,12 +245,18 @@ exports.generateRevenewReport = async (req, res, next) => {
             {
               model: db.boxes,
               as: "rented_box",
-              attributes: ["location_id"],
+              attributes: ["id", "location_id"],
+              ...(locationId !== "all" && {
+                where: {
+                  location_id: locationId,
+                },
+              }),
               include: [
                 {
                   model: db.locations,
                   as: "location",
                   attributes: ["name"],
+                  required: true,
                 },
               ],
             },
@@ -273,6 +264,12 @@ exports.generateRevenewReport = async (req, res, next) => {
               model: db.packages,
               as: "rented_package",
               attributes: ["type"],
+              required: true,
+              ...(packageType !== "all" && {
+                where: {
+                  type: packageType,
+                },
+              }),
             },
           ],
         },
@@ -289,8 +286,7 @@ exports.generateRevenewReport = async (req, res, next) => {
         console.warn(`Payment ${payment.id} at index ${index} has no associated rental`);
       }
 
-      const duration =
-        rental?.end_time && rental?.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
+      const duration = rental?.end_time && rental?.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
 
       // Calculate amounts with safeguards
       const rentedAmount = payment.status === "success" && payment.amount != null ? Number(payment.amount) : 0;
@@ -349,8 +345,7 @@ exports.generateRevenewReport = async (req, res, next) => {
     report.sort((a, b) => b.totalRevenue - a.totalRevenue);
 
     // Calculate sum of total amount and format to two decimal places
-    const sumTotalAmount =
-      report.length > 0 ? report.reduce((sum, item) => sum + (item.totalRevenue || 0), 0).toFixed(2) : "0.00";
+    const sumTotalAmount = report.length > 0 ? report.reduce((sum, item) => sum + (item.totalRevenue || 0), 0).toFixed(2) : "0.00";
 
     sendSuccess(res, "Revenue report generated successfully", { report, sumTotalAmount }, 200);
   } catch (error) {

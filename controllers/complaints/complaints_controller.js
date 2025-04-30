@@ -74,6 +74,7 @@ exports.getAllComplaints = async (req, res, next) => {
       where: {
         ...(issueType !== "all" && { issue_type: issueType }),
       },
+      order: [["created_at", "DESC"]],
     });
 
     // Generate full image URLs for each complaint
