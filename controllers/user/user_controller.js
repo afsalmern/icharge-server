@@ -1,6 +1,6 @@
 const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { Op } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 const { getEndTime } = require("../../helpers/calculatePrices");
 
 const User = db.users;
@@ -45,19 +45,156 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration) => 
   };
 };
 
+// exports.getHome = async (req, res, next) => {
+//   const { user_id } = req;
+
+//   if (!user_id) {
+//     return next(new ApiError(400, "User ID is required"));
+//   }
+
+//   try {
+//     const [devices, onGoingRental, userData, checks] = await Promise.all([
+//       Boxes.findAll({
+//         attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"]],
+//         include: {
+//           model: Locations,
+//           as: "location",
+//           attributes: [
+//             "id",
+//             "name",
+//             "address",
+//             "latitude",
+//             "longitude",
+//             [db.Sequelize.literal(`TO_CHAR("location"."starting_hour", 'HH12:MI AM')`), "start_time"],
+//             [db.Sequelize.literal(`TO_CHAR("location"."ending_hour", 'HH12:MI AM')`), "end_time"],
+//           ],
+//         },
+//         lock: false,
+//       }),
+//       db.rentals.findOne({
+//         attributes: [
+//           ["id", "order_id"], // Alias id as order_id
+//           "box_id",
+//           "start_time",
+//           "end_time",
+//           "status",
+//           [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
+//         ],
+//         where: { status: "ongoing", user_id },
+//         include: [
+//           {
+//             model: Packages,
+//             as: "rented_package",
+//             attributes: ["id", "hourly_price", "price", "duration"],
+//           },
+//           {
+//             model: User,
+//             as: "rented_user",
+//             attributes: ["id", "name", "mobile"],
+//           },
+//           {
+//             model: disputes,
+//             as: "disputes",
+//             attributes: ["id", "reason"],
+//           },
+//         ],
+//         lock: false,
+//         raw: true, // Return plain object for main query
+//         nest: true, // Keep nested structure for includes
+//       }),
+//       User.findByPk(user_id, {
+//         attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified","user_preferred_method"],
+//         include: {
+//           model: KycDetail,
+//           as: "kyc_details",
+//           attributes: ["id", "status", "reject_remarks"],
+//         },
+//         lock: false,
+//         raw: true,
+//         nest: true,
+//       }),
+//       Checks.findAll({
+//         attributes: ["id", "is_kyc_enabled", "is_deposit_enabled", "deposit_amount"],
+//       }),
+//     ]);
+
+//     const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks[0];
+//     const end_time = onGoingRental?.end_time || null;
+
+//     const isTimeElapsed = end_time ? new Date(end_time).getTime() < new Date().getTime() : false;
+
+//     const notificationsData = isTimeElapsed
+//       ? {
+//           title: "Overdue",
+//           sub_title: "You have an overdue rental, please return the box to continue using it",
+//           status: "ongoing",
+//         }
+//       : null;
+
+//     const rentalsModified = onGoingRental
+//       ? (() => {
+//           const { order_id, start_time, status, rented_package, rented_user, start_on, disputes, end_time } = onGoingRental;
+//           const { hourly_price, price, duration } = rented_package || {};
+//           const { name, mobile } = rented_user || {};
+//           const { reason } = disputes || {};
+
+//           const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
+
+//           return {
+//             order_id,
+//             start_time,
+//             start_on,
+//             status,
+//             name,
+//             mobile,
+//             net_amount: price,
+//             disputes: reason,
+//             ...cost_details, // Includes elapsed_hours, total_hours, current_cost
+//           };
+//         })()
+//       : null;
+
+//     sendSuccess(
+//       res,
+//       "Home details fetched successfully",
+//       {
+//         devices,
+//         onGoingRental: rentalsModified,
+//         notifications: notificationsData,
+//         steps: stepsData,
+//         userStatus: userData,
+//         verification_methods: {
+//           kyc_enable: is_kyc_enabled,
+//           deposit_enable: is_deposit_enabled,
+//           deposit_amount: Number(deposit_amount)
+//         },
+//       },
+//       200
+//     );
+//   } catch (error) {
+//     console.error("Error in getHome:", error);
+//     next(error);
+//   }
+// };
+
 exports.getHome = async (req, res, next) => {
   const { user_id } = req;
 
   if (!user_id) {
-    return next(new ApiError(400, "User ID is required"));
+    return next(new ApiError("User ID is required", 400));
   }
-
- 
 
   try {
     const [devices, onGoingRental, userData, checks] = await Promise.all([
       Boxes.findAll({
-        attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"]],
+        attributes: [
+          "id",
+          "location_id",
+          "status",
+          ["total_powerbanks", "batteries"],
+          ["available_powerbanks", "slots"],
+          "unique_id",
+        ],
         include: {
           model: Locations,
           as: "location",
@@ -71,15 +208,17 @@ exports.getHome = async (req, res, next) => {
             [db.Sequelize.literal(`TO_CHAR("location"."ending_hour", 'HH12:MI AM')`), "end_time"],
           ],
         },
+        where: { status: "active", available_powerbanks: { [Sequelize.Op.gt]: 0 } },
         lock: false,
       }),
       db.rentals.findOne({
         attributes: [
-          ["id", "order_id"], // Alias id as order_id
+          ["id", "order_id"],
           "box_id",
           "start_time",
           "end_time",
           "status",
+          "power_number",
           [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
         ],
         where: { status: "ongoing", user_id },
@@ -87,7 +226,7 @@ exports.getHome = async (req, res, next) => {
           {
             model: Packages,
             as: "rented_package",
-            attributes: ["id", "hourly_price", "price", "duration"],
+            attributes: ["id", "name", "hourly_price", "price", "duration", "swap", "type"],
           },
           {
             model: User,
@@ -95,17 +234,32 @@ exports.getHome = async (req, res, next) => {
             attributes: ["id", "name", "mobile"],
           },
           {
-            model: disputes,
+            model: db.disputes,
             as: "disputes",
             attributes: ["id", "reason"],
           },
         ],
         lock: false,
-        raw: true, // Return plain object for main query
-        nest: true, // Keep nested structure for includes
+        raw: true,
+        nest: true,
       }),
       User.findByPk(user_id, {
-        attributes: ["id", "name", "email", "mobile", "avatar", "deposit_amount", "outstanding_amount", "block_status", "status", "is_verified","user_preferred_method"],
+        attributes: [
+          "id",
+          "name",
+          "email",
+          "mobile",
+          "avatar",
+          "deposit_amount",
+          "outstanding_amount",
+          "block_status",
+          "status",
+          "is_verified",
+          "user_preferred_method",
+          "swaps_used",
+          "swaps_remaining",
+          "can_swap",
+        ],
         include: {
           model: KycDetail,
           as: "kyc_details",
@@ -120,9 +274,13 @@ exports.getHome = async (req, res, next) => {
       }),
     ]);
 
-    const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks[0];
-    const end_time = onGoingRental?.end_time || null;
+    if (!userData) throw new ApiError("User not found", 404);
+    if (!userData.is_verified) throw new ApiError("User not verified", 400);
+    if (userData.block_status) throw new ApiError("User is blocked", 403);
+    if (userData.status !== "active") throw new ApiError("User is inactive", 403);
 
+    const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks[0] || {};
+    const end_time = onGoingRental?.end_time || null;
     const isTimeElapsed = end_time ? new Date(end_time).getTime() < new Date().getTime() : false;
 
     const notificationsData = isTimeElapsed
@@ -135,10 +293,17 @@ exports.getHome = async (req, res, next) => {
 
     const rentalsModified = onGoingRental
       ? (() => {
-          const { order_id, start_time, status, rented_package, rented_user, start_on, disputes, end_time } = onGoingRental;
-          const { hourly_price, price, duration } = rented_package || {};
-          const { name, mobile } = rented_user || {};
+          const { order_id, start_time, start_on, status, power_number, end_time, rented_package, rented_user, disputes } =
+            onGoingRental;
+          const { name, hourly_price, price, duration, swap, type } = rented_package || {};
+          const { name: userName, mobile } = rented_user || {};
           const { reason } = disputes || {};
+
+          // Use user table fields, validate can_swap
+          const swapsUsed = userData.swaps_used;
+          const swapsRemaining = userData.swaps_remaining === null ? "unlimited" : userData.swaps_remaining;
+          const canSwap =
+            userData.can_swap && !isTimeElapsed && userData.is_verified && !userData.block_status && userData.status === "active";
 
           const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
 
@@ -147,11 +312,22 @@ exports.getHome = async (req, res, next) => {
             start_time,
             start_on,
             status,
-            name,
+            power_number,
+            end_time,
+            name: userName,
             mobile,
             net_amount: price,
             disputes: reason,
-            ...cost_details, // Includes elapsed_hours, total_hours, current_cost
+            package: {
+              name,
+              type,
+              duration,
+              swap_limit: type === "monthly" ? "unlimited" : swap,
+            },
+            swaps_used: swapsUsed,
+            swaps_remaining: swapsRemaining,
+            can_swap: canSwap,
+            ...cost_details,
           };
         })()
       : null;
@@ -163,12 +339,12 @@ exports.getHome = async (req, res, next) => {
         devices,
         onGoingRental: rentalsModified,
         notifications: notificationsData,
-        steps: stepsData,
+        steps: [], // Define or remove
         userStatus: userData,
         verification_methods: {
           kyc_enable: is_kyc_enabled,
           deposit_enable: is_deposit_enabled,
-          deposit_amount: Number(deposit_amount)
+          deposit_amount: Number(deposit_amount),
         },
       },
       200

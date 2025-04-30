@@ -74,6 +74,21 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: null,
       },
+      swaps_used: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      swaps_remaining: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+      },
+      can_swap: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
     },
     {
       timestamps: true,
