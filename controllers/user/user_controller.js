@@ -187,14 +187,7 @@ exports.getHome = async (req, res, next) => {
   try {
     const [devices, onGoingRental, userData, checks] = await Promise.all([
       Boxes.findAll({
-        attributes: [
-          "id",
-          "location_id",
-          "status",
-          ["total_powerbanks", "batteries"],
-          ["available_powerbanks", "slots"],
-          "unique_id",
-        ],
+        attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"], "unique_id"],
         include: {
           model: Locations,
           as: "location",
@@ -293,17 +286,15 @@ exports.getHome = async (req, res, next) => {
 
     const rentalsModified = onGoingRental
       ? (() => {
-          const { order_id, start_time, start_on, status, power_number, end_time, rented_package, rented_user, disputes } =
-            onGoingRental;
-          const { name, hourly_price, price, duration, swap, type } = rented_package || {};
+          const { order_id, start_time, start_on, status, power_number, end_time, rented_package, rented_user, disputes } = onGoingRental;
+          const { id: package_id, name, hourly_price, price, duration, swap, type } = rented_package || {};
           const { name: userName, mobile } = rented_user || {};
           const { reason } = disputes || {};
 
           // Use user table fields, validate can_swap
           const swapsUsed = userData.swaps_used;
           const swapsRemaining = userData.swaps_remaining === null ? "unlimited" : userData.swaps_remaining;
-          const canSwap =
-            userData.can_swap && !isTimeElapsed && userData.is_verified && !userData.block_status && userData.status === "active";
+          const canSwap = userData.can_swap && !isTimeElapsed && userData.is_verified && !userData.block_status && userData.status === "active";
 
           const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
 
@@ -319,6 +310,7 @@ exports.getHome = async (req, res, next) => {
             net_amount: price,
             disputes: reason,
             package: {
+              package_id,
               name,
               type,
               duration,
