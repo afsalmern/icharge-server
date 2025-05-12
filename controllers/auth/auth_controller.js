@@ -78,7 +78,7 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
   const { mobile } = req.body;
 
   // Define a test phone number and a fixed OTP for testing
-  const TEST_PHONE_NUMBER = "+91 9999999999";
+  const TEST_PHONE_NUMBER = "9999999999";
   const FIXED_TEST_OTP = "1234";
 
   // Clean up previous OTPs
