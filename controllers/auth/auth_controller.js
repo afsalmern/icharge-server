@@ -12,13 +12,85 @@ const User = db.users;
 const Admins = db.admins;
 const KycDetails = db.kyc_details;
 
+// exports.sendOtp = asyncWrapper(async (req, res, next) => {
+//   const { mobile } = req.body;
+
+//   // Clean up previous OTPs
+//   const previousOtps = await Otp.findAll({ where: { mobile } });
+//   if (previousOtps) {
+//     await Otp.destroy({ where: { mobile } });
+//   }
+
+//   // Generate OTP
+//   const otp = generateOtp();
+//   const user = await User.findOne({
+//     attributes: ["id", "status", "block_status"],
+//     where: { mobile },
+//   });
+
+//   if (user && user.block_status) {
+//     throw new ApiError(400, "User is blocked");
+//   }
+//   if (!otp) {
+//     throw new ApiError(500, "Otp not generated");
+//   }
+
+//   try {
+//     // Send OTP via Fast2SMS
+//     const smsResponse = await axios.post(
+//       process.env.FAST2SMS_URL,
+//       {
+//         route: "otp",
+//         variables_values: otp, // The OTP value
+//         numbers: mobile, // Mobile number
+//       },
+//       {
+//         headers: {
+//           authorization: process.env.FAST2SMS_API_KEY,
+//           "Content-Type": "application/json",
+//         },
+//       }
+//     );
+
+//     // Check if SMS was sent successfully
+//     if (smsResponse.data.return !== true) {
+//       throw new ApiError(500, "Failed to send OTP via SMS");
+//     }
+
+//     // Store OTP in database
+//     const otpData = {
+//       mobile,
+//       otp,
+//     };
+//     await Otp.create(otpData);
+
+//     sendSuccess(res, "Otp sent successfully", { otp }, 200);
+//   } catch (error) {
+//     if (error.response) {
+//       // Handle Fast2SMS specific errors
+//       throw new ApiError(500, `SMS sending failed: ${error.response.data.message}`);
+//     }
+//     throw new ApiError(500, "Error sending OTP");
+//   }
+// });
+
 exports.sendOtp = asyncWrapper(async (req, res, next) => {
   const { mobile } = req.body;
+
+  // Define a test phone number and a fixed OTP for testing
+  const TEST_PHONE_NUMBER = "+91 9999999999";
+  const FIXED_TEST_OTP = "1234";
 
   // Clean up previous OTPs
   const previousOtps = await Otp.findAll({ where: { mobile } });
   if (previousOtps) {
     await Otp.destroy({ where: { mobile } });
+  }
+
+  // Check if the mobile number is the test number
+  if (mobile === TEST_PHONE_NUMBER) {
+    await Otp.create({ mobile, otp: FIXED_TEST_OTP });
+    return sendSuccess(res, "Otp sent successfully (test)", { otp: FIXED_TEST_OTP }, 200);
   }
 
   // Generate OTP
@@ -73,6 +145,7 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
     throw new ApiError(500, "Error sending OTP");
   }
 });
+
 
 // exports.verifyOtp = asyncWrapper(async (req, res) => {
 //   const { mobile, otp } = req.body;
