@@ -2,6 +2,7 @@ const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { Op, Sequelize } = require("sequelize");
 const { getEndTime } = require("../../helpers/calculatePrices");
+const { ApiError } = require("../../middlewares/error");
 
 const User = db.users;
 const Boxes = db.boxes;
