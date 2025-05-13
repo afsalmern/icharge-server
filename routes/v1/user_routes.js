@@ -1,5 +1,5 @@
 const express = require("express");
-const { getHome, updatUserProfile, getUserProfile, getPackages } = require("../../controllers/user/user_controller");
+const { getHome, updatUserProfile, getUserProfile, getPackages, deleteUser } = require("../../controllers/user/user_controller");
 const { verifyToken } = require("../../middlewares/auth");
 const { checkIsKycSubmitted, verifyUserExist } = require("../../middlewares/check_user");
 const { checkRole } = require("../../middlewares/role_check");
@@ -32,6 +32,7 @@ router.get("/packages", verifyToken, getPackages);
 
 //User profile
 router.get("/profile", verifyToken, checkRole("user"), verifyUserExist, getUserProfile);
+router.delete("/profile/:id", deleteUser);
 router.put("/profile", verifyToken, checkRole("user"), verifyUserExist, upload, updatUserProfile);
 
 //Kyc details

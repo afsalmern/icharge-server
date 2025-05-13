@@ -418,3 +418,22 @@ exports.getPackages = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.deleteUser = async (req, res, next) => {
+  try {
+    const { id: user_id } = req.params;
+    console.log(user_id);
+    const user = await User.findByPk(user_id,{
+      attributes: ["id", "name"],
+    });
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    const username = user.name;
+    await user.destroy();
+    sendSuccess(res, `User ${username} deleted successfully`, {}, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
