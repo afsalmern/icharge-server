@@ -96,9 +96,14 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
   // Generate OTP
   const otp = generateOtp();
   const user = await User.findOne({
-    attributes: ["id", "status", "block_status"],
+    attributes: ["id", "status", "block_status", "deleted_at"],
     where: { mobile },
+    paranoid: false,
   });
+
+  if (user && user?.dataValues?.deleted_at) {
+    throw new ApiError(403, "This account has been permanently deleted and can no longer be used to access the app");
+  }
 
   if (user && user.block_status) {
     throw new ApiError(400, "User is blocked");
@@ -145,7 +150,6 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
     throw new ApiError(500, "Error sending OTP");
   }
 });
-
 
 // exports.verifyOtp = asyncWrapper(async (req, res) => {
 //   const { mobile, otp } = req.body;

@@ -421,9 +421,9 @@ exports.getPackages = async (req, res, next) => {
 
 exports.deleteUser = async (req, res, next) => {
   try {
-    const { id: user_id } = req.params;
-    console.log(user_id);
-    const user = await User.findByPk(user_id,{
+    const { user_id } = req;
+
+    const user = await User.findByPk(user_id, {
       attributes: ["id", "name"],
     });
     if (!user) {

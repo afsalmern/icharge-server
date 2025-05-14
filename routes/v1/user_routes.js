@@ -32,7 +32,7 @@ router.get("/packages", verifyToken, getPackages);
 
 //User profile
 router.get("/profile", verifyToken, checkRole("user"), verifyUserExist, getUserProfile);
-router.delete("/profile/:id", deleteUser);
+router.delete("/profile", verifyToken, checkRole("user"), deleteUser);
 router.put("/profile", verifyToken, checkRole("user"), verifyUserExist, upload, updatUserProfile);
 
 //Kyc details

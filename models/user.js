@@ -92,7 +92,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       timestamps: true,
-      underscored: true, // Converts createdAt → created_at, updatedAt → updated_at
+      underscored: true,
+      paranoid: true,
     }
   );
 
