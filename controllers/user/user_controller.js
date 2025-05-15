@@ -269,7 +269,7 @@ exports.getHome = async (req, res, next) => {
     ]);
 
     if (!userData) throw new ApiError("User not found", 404);
-    if (!userData.is_verified) throw new ApiError("User not verified", 403);
+    // if (!userData.is_verified) throw new ApiError("User not verified", 403);
     if (userData.block_status) throw new ApiError("User is blocked", 403);
     if (userData.status !== "active") throw new ApiError("User is inactive", 403);
 
