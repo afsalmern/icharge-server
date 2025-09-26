@@ -7,15 +7,12 @@ const authRouter = require("./routes/v1/auth_route");
 const userRouter = require("./routes/v1/user_routes");
 const webRouter = require("./routes/v1/web_routes");
 const { errorHandler } = require("./middlewares/error");
-const { startConsumer } = require("./utils/rabbitmqConsumer");
 
 dotenv.config();
 
 const port = process.env.PORT || 3000;
 
 const app = express();
-
-startConsumer();
 
 app.use(cors());
 
