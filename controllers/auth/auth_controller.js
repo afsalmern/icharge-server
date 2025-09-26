@@ -118,7 +118,7 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
       process.env.FAST2SMS_URL,
       {
         route: "otp",
-        variables_values: otp, // The OTP value
+        variables_values: otp,
         numbers: mobile, // Mobile number
       },
       {

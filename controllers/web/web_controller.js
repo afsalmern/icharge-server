@@ -293,7 +293,9 @@ exports.addBoxes = async (req, res, next) => {
 
     const box = await Boxes.create({ unique_id, device_id, location_id, total_powerbanks, available_powerbanks });
 
-    const deviceId = box.id;
+    const deviceId = box.device_id;
+
+    console.log(deviceId);
 
     const generateQrCode = await generateCode(deviceId);
 
