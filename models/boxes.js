@@ -61,6 +61,13 @@ module.exports = (sequelize, DataTypes) => {
       onUpdate: "CASCADE",
     });
 
+    Box.hasOne(models.qr_codes, {
+      foreignKey: "device_id",
+      as: "qr_code",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+
     Box.hasMany(models.rentals, {
       foreignKey: "box_id",
       as: "rentals",

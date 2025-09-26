@@ -6,12 +6,14 @@ const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 const machineSave = require("../../helpers/externalCalls");
 const { getHourlyPrice } = require("../../helpers/calculatePrices");
+const generateCode = require("../../helpers/generateQrCode");
 
 const Users = db.users;
 const Packages = db.packages;
 const Boxes = db.boxes;
 const Locations = db.locations;
 const ChecksAndAmounts = db.checks_and_amounts;
+const QRCode = db.qr_codes;
 
 //Data for Drop down
 exports.getDropDownDatas = async (req, res, next) => {
@@ -254,6 +256,11 @@ exports.getBoxes = async (req, res, next) => {
           attributes: ["name"],
           as: "location",
         },
+        {
+          model: db.qr_codes,
+          attributes: ["code"],
+          as: "qr_code",
+        },
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -286,8 +293,13 @@ exports.addBoxes = async (req, res, next) => {
 
     const box = await Boxes.create({ unique_id, device_id, location_id, total_powerbanks, available_powerbanks });
 
-    // const saveDeviceToCloud = await machineSave(unique_id, device_id);
-    // console.log(saveDeviceToCloud);
+    const deviceId = box.id;
+
+    const generateQrCode = await generateCode(deviceId);
+
+    if (generateQrCode) {
+      await QRCode.create({ device_id: box.id, code: generateQrCode });
+    }
 
     sendSuccess(res, "Box added successfully", { box }, 200);
   } catch (error) {

@@ -14,6 +14,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(255),
         allowNull: false,
       },
+      phone: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      },
       latitude: {
         type: DataTypes.DECIMAL(10, 8),
         allowNull: false,
