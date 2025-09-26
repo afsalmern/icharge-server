@@ -4,7 +4,7 @@ const db = require("../../models");
 const Location = db.locations;
 
 exports.addLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active } = req.body;
+  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
   const transaction = await db.sequelize.transaction();
   try {
     const addedLocation = await Location.create(
@@ -15,7 +15,8 @@ exports.addLocation = async (req, res, next) => {
         address,
         starting_hour,
         ending_hour,
-        is_active
+        is_active,
+        phone,
       },
       { transaction }
     );
@@ -31,7 +32,7 @@ exports.addLocation = async (req, res, next) => {
 };
 
 exports.updateLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active } = req.body;
+  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
   const { id } = req.params;
 
   const location = await Location.findByPk(id);
@@ -49,7 +50,8 @@ exports.updateLocation = async (req, res, next) => {
         address,
         starting_hour,
         ending_hour,
-        is_active
+        is_active,
+        phone,
       },
       { returning: true },
       { transaction }
@@ -66,7 +68,9 @@ exports.updateLocation = async (req, res, next) => {
 
 exports.getLocations = async (req, res) => {
   try {
-    const locations = await Location.findAll({ attributes: ["id", "name", "latitude", "longitude", "address", "starting_hour", "ending_hour", "is_active"] });
+    const locations = await Location.findAll({
+      attributes: ["id", "name", "latitude", "longitude", "address", "starting_hour", "ending_hour", "is_active", "phone"],
+    });
     return res.status(200).json({ message: "Locations fetched successfully", data: locations });
   } catch (error) {
     console.error(error);

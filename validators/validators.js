@@ -23,6 +23,7 @@ const locationDataValidation = [
     .withMessage("Longitude is not valid"),
 
   body("address").not().isEmpty().withMessage("Address is required"),
+  body("phone").not().isEmpty().withMessage("Phone number is required"),
 ];
 
 const mobileNumberValidation = [
