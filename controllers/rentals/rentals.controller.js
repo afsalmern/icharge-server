@@ -1,14 +1,10 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const {
-  getCostOnHours,
-  getCostOnWeeks,
-  calculatePriceOnRentals,
-  calculateTotalPrice,
-  getEndTime,
-} = require("../../helpers/calculatePrices");
+const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, calculateTotalPrice, getEndTime } = require("../../helpers/calculatePrices");
 const { startRent, getDeviceInfoByUuid } = require("../../helpers/externalCalls");
+const { sendOtp } = require("../../helpers/OtpHelper");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
+const { generateOtp } = require("../../utils/generateOtp");
 
 const Boxes = db.boxes;
 const Users = db.users;
@@ -18,6 +14,45 @@ const Rentals = db.rentals;
 const Disputes = db.disputes;
 const Powerbanks = db.powerbanks;
 const RentalPayments = db.rental_payments;
+
+// exports.checkIsDeviceValid = async (req, res, next) => {
+//   try {
+//     const { device_id } = req.query;
+
+//     // Validate request input
+//     if (!device_id) {
+//       return sendSuccess(res, "Device ID is required", { is_scan_valid: false }, 400);
+//     }
+
+//     // Fetch the box by device_id
+//     const box = await Boxes.findOne({
+//       where: { device_id },
+//     });
+
+//     // If no box is found, return "Device is not valid"
+//     if (!box) {
+//       return sendSuccess(res, "Device is not valid", { is_scan_valid: false }, 200);
+//     }
+
+//     // Check if available_powerbanks is 0 or less
+//     if (box.available_powerbanks <= 0) {
+//       return sendSuccess(res, "No powerbanks available in this device", { is_scan_valid: false }, 200);
+//     }
+
+//     // External operation
+//     const deviceResponse = await getDeviceInfoByUuid(box?.unique_id);
+
+//     if (!deviceResponse.success) {
+//       return sendSuccess(res, deviceResponse.message, { is_scan_valid: false }, deviceResponse.code);
+//     }
+
+//     // If box exists and has available powerbanks, return success
+//     sendSuccess(res, "Device is valid", { is_scan_valid: true }, 200);
+//   } catch (error) {
+//     console.log(error);
+//     next(error);
+//   }
+// };
 
 exports.checkIsDeviceValid = async (req, res, next) => {
   try {
@@ -33,25 +68,20 @@ exports.checkIsDeviceValid = async (req, res, next) => {
       where: { device_id },
     });
 
+    const location = await box.getLocation({ attributes: ["id", "name", "phone"] });
+
     // If no box is found, return "Device is not valid"
     if (!box) {
       return sendSuccess(res, "Device is not valid", { is_scan_valid: false }, 200);
     }
+    const otp = generateOtp();
+    const isOtpSend = await sendOtp(otp, location.phone, "7994552488");
 
-    // Check if available_powerbanks is 0 or less
-    if (box.available_powerbanks <= 0) {
-      return sendSuccess(res, "No powerbanks available in this device", { is_scan_valid: false }, 200);
+    if (isOtpSend) {
+      console.log("OTP sent successfully");
     }
 
-    // External operation
-    const deviceResponse = await getDeviceInfoByUuid(box?.unique_id);
-
-    if (!deviceResponse.success) {
-      return sendSuccess(res, deviceResponse.message, { is_scan_valid: false }, deviceResponse.code);
-    }
-
-    // If box exists and has available powerbanks, return success
-    sendSuccess(res, "Device is valid", { is_scan_valid: true }, 200);
+    sendSuccess(res, "Device is valid", location, 200);
   } catch (error) {
     console.log(error);
     next(error);
