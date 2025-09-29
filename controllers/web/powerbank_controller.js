@@ -38,23 +38,29 @@ exports.addPowerBank = async (req, res, next) => {
   try {
     const { box_id, unique_id, status, battery_level, health_status, slot_number } = req.body;
 
-    const powerbank = await PowerBanks.create({
-      box_id,
-      unique_id,
-      status,
-      battery_level,
-      health_status,
-      slot_number,
-      last_synced_at: new Date(),
+    // Check for existing powerbank and create in a single transaction
+    const [powerbank, created] = await PowerBanks.findOrCreate({
+      where: { unique_id },
+      defaults: {
+        box_id,
+        unique_id,
+        status,
+        battery_level,
+        health_status,
+        slot_number,
+        last_synced_at: new Date(),
+      }
     });
 
-    sendSuccess(res, "PowerBank added successfully", { powerbank }, 200);
+    if (!created) {
+      throw new ApiError(400, "Powerbank with this id already exists");
+    }
+
+    return sendSuccess(res, "PowerBank added successfully", { powerbank }, 200);
   } catch (error) {
-    console.error(error);
     next(error);
   }
 };
-
 // Update PowerBank
 exports.updatePowerBank = async (req, res, next) => {
   const { id } = req.params;
