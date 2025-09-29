@@ -38,18 +38,6 @@ module.exports = (sequelize, DataTypes) => {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      power_number: {
-        type: DataTypes.STRING(100),
-        allowNull: true, //powerbank uuid
-      },
-      machine_id: {
-        type: DataTypes.STRING(100),
-        allowNull: true,
-      }, //Box uuid
-      position_id: {
-        type: DataTypes.STRING(100),
-        allowNull: true,
-      },
       start_time: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -62,7 +50,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      return_location_id: {
+      location_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
         references: {
@@ -117,7 +105,7 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Rental.belongsTo(models.locations, {
-      foreignKey: "return_location_id",
+      foreignKey: "location_id",
       as: "return_location",
       onDelete: "SET NULL",
       onUpdate: "CASCADE",

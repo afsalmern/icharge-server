@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { calculatePriceOnRentals, calculateTotalPrice, getEndTime } = require("../../helpers/calculatePrices");
+const { getCostOnHours, getCostOnWeeks, calculatePriceOnRentals, calculateTotalPrice, getEndTime } = require("../../helpers/calculatePrices");
 const { startRent, getDeviceInfoByUuid } = require("../../helpers/externalCalls");
 const { sendOtp } = require("../../helpers/OtpHelper");
 const { ApiError } = require("../../middlewares/error");
@@ -209,6 +209,124 @@ exports.buyItem = async (req, res, next) => {
   }
 };
 
+// exports.rentItem = async (req, res, next) => {
+//   const { user_id } = req;
+//   const { box_id, battery, package_id } = req.body;
+
+//   if (!user_id || !box_id || !package_id) {
+//     return next(new ApiError("User ID, Box ID, and Package ID are required", 400));
+//   }
+
+//   try {
+//     const [user, box, rentalPackage] = await Promise.all([
+//       Users.findByPk(user_id, {
+//         attributes: ["id", "is_verified", "block_status", "status", "outstanding_amount", "deposit_amount"],
+//       }),
+//       Boxes.findOne({
+//         where: { device_id: box_id },
+//         attributes: ["id", "unique_id", "status", "available_powerbanks"],
+//       }),
+//       Packages.findByPk(package_id, {
+//         attributes: ["id", "type", "duration", "price", "hourly_price"],
+//       }),
+//     ]);
+
+//     if (!user) throw new ApiError("User not found", 404);
+//     if (!user.is_verified) throw new ApiError("User not verified", 400);
+//     if (user.block_status) throw new ApiError("User is blocked", 403);
+//     if (user.status !== "active") throw new ApiError("User is inactive", 403);
+
+//     if (!box) throw new ApiError("Box not found", 404);
+//     if (!rentalPackage) throw new ApiError("Package not found", 404);
+//     if (box.status !== "active") throw new ApiError("This box is not active", 400);
+//     if (box.available_powerbanks <= 0) throw new ApiError("No powerbanks available", 400);
+
+//     const userRentals = await Rentals.findOne({
+//       where: { user_id, status: "ongoing" },
+//       attributes: ["id"],
+//     });
+//     if (userRentals) throw new ApiError("You already have an ongoing rental", 400);
+
+//     const paymentAmount = parseFloat(rentalPackage.price) + parseFloat(user.outstanding_amount);
+
+//     // Placeholder for payment gateway
+//     // const paymentIntent = await processPayment(user_id, paymentAmount, `Rental payment #${package_id}`);
+//     // if (paymentIntent.status !== 'succeeded') throw new ApiError('Payment failed', 402);
+
+//     const data = await startRent(box.unique_id, battery);
+//     if (data?.code !== 200) {
+//       return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
+//     }
+
+//     const { machineUuid, powerNo, positionUuid } = data.data;
+//     const { type, duration } = rentalPackage;
+//     const start_time = new Date();
+//     const endTime = getEndTime(start_time, duration, type);
+
+//     const createdRental = await db.sequelize.transaction(async (t) => {
+//       const rental = await Rentals.create(
+//         {
+//           box_id: box.id,
+//           package_id,
+//           user_id,
+//           start_time,
+//           end_time: endTime,
+//           power_number: powerNo,
+//           machine_id: machineUuid,
+//           position_id: positionUuid,
+//           status: "ongoing",
+//           extra_charge: 0.0,
+//         },
+//         { transaction: t }
+//       );
+
+//       await RentalPayments.create(
+//         {
+//           rental_id: rental.id,
+//           user_id,
+//           amount: paymentAmount,
+//           status: "success",
+//         },
+//         { transaction: t }
+//       );
+
+//       const powerbank = await Powerbanks.findOne({
+//         where: { unique_id: powerNo },
+//         transaction: t,
+//       });
+
+//       if (powerbank) {
+//         await powerbank.update(
+//           {
+//             status: "rented",
+//             last_synced_at: new Date(),
+//             box_id: null,
+//           },
+//           { transaction: t }
+//         );
+//       } else {
+//         console.warn(`Power bank with unique_id ${powerNo} not found`);
+//       }
+
+//       await user.update({ outstanding_amount: 0 }, { transaction: t });
+
+//       return rental;
+//     });
+
+//     const rentalData = {
+//       order_id: createdRental.id,
+//       power_bank: powerNo,
+//       start_time: createdRental.start_time,
+//       payment_amount: paymentAmount,
+//     };
+
+//     sendSuccess(res, "Rental added successfully", rentalData, 201);
+//   } catch (error) {
+//     console.error("Error in rentItem:", error);
+//     next(error);
+//   }
+// };
+
 exports.rentItem = async (req, res, next) => {
   const { user_id } = req;
   const { box_id, battery, package_id } = req.body;
@@ -259,7 +377,87 @@ exports.rentItem = async (req, res, next) => {
     });
 
     if (ongoingRental) {
-      sendSuccess(res, "Rental is ongoing", {}, 200);
+      const { rented_package } = ongoingRental;
+      const { swap: swapLimit, type: planType } = rented_package;
+
+      const isSwapEligible =
+        (!ongoingRental.end_time || new Date(ongoingRental.end_time) > new Date()) &&
+        user.is_verified &&
+        !user.block_status &&
+        user.status === "active" &&
+        (planType === "monthly" || (swapLimit !== null && user.swaps_used < swapLimit));
+
+      if (!isSwapEligible) {
+        throw new ApiError("Not eligible for swap", 400);
+      }
+
+      const swapData = await startRent(box.unique_id, battery);
+      if (swapData?.code !== 200) {
+        throw new ApiError(swapData?.msg || "Failed to initiate swap", swapData?.code || 500);
+      }
+
+      const { machineUuid, powerNo, positionUuid } = swapData.data;
+
+      const newSwapsUsed = user.swaps_used + 1;
+      const newSwapsRemaining = planType === "monthly" ? null : Math.max(0, swapLimit - newSwapsUsed);
+      const newCanSwap =
+        (planType === "monthly" || (swapLimit !== null && newSwapsUsed < swapLimit)) &&
+        user.is_verified &&
+        !user.block_status &&
+        user.status === "active";
+
+      await db.sequelize.transaction(async (t) => {
+        await ongoingRental.update(
+          {
+            power_number: powerNo,
+            machine_id: machineUuid,
+            position_id: positionUuid,
+          },
+          { transaction: t }
+        );
+
+        const powerbank = await db.powerbanks.findOne({
+          where: { unique_id: powerNo },
+          transaction: t,
+        });
+
+        if (powerbank) {
+          await powerbank.update(
+            {
+              status: "rented",
+              last_synced_at: new Date(),
+              box_id: null,
+            },
+            { transaction: t }
+          );
+        } else {
+          console.warn(`Power bank with unique_id ${powerNo} not found`);
+        }
+
+        await box.update(
+          {
+            available_powerbanks: db.sequelize.literal("available_powerbanks - 1"),
+          },
+          { transaction: t }
+        );
+
+        await user.update(
+          {
+            swaps_used: newSwapsUsed,
+            swaps_remaining: newSwapsRemaining,
+            can_swap: newCanSwap,
+          },
+          { transaction: t }
+        );
+      });
+
+      const swapDataResponse = {
+        order_id: ongoingRental.id,
+        power_bank: powerNo,
+        swap_count: newSwapsUsed,
+      };
+
+      sendSuccess(res, "Powerbank swapped successfully", swapDataResponse, 200);
     } else {
       if (!package_id) {
         throw new ApiError("Package ID is required for new rental", 400);
@@ -273,6 +471,12 @@ exports.rentItem = async (req, res, next) => {
 
       const paymentAmount = parseFloat(rentalPackage.price) + parseFloat(user.outstanding_amount);
 
+      const data = await startRent(box.unique_id, battery);
+      if (data?.code !== 200) {
+        return sendSuccess(res, data?.msg, { power_bank: null }, data?.code);
+      }
+
+      const { machineUuid, powerNo, positionUuid } = data.data;
       const { type, duration, swap } = rentalPackage;
       const start_time = new Date();
       const endTime = getEndTime(start_time, duration, type);
@@ -285,6 +489,9 @@ exports.rentItem = async (req, res, next) => {
             user_id,
             start_time,
             end_time: endTime,
+            power_number: powerNo,
+            machine_id: machineUuid,
+            position_id: positionUuid,
             status: "ongoing",
             extra_charge: 0.0,
           },
@@ -300,6 +507,24 @@ exports.rentItem = async (req, res, next) => {
           },
           { transaction: t }
         );
+
+        const powerbank = await db.powerbanks.findOne({
+          where: { unique_id: powerNo },
+          transaction: t,
+        });
+
+        if (powerbank) {
+          await powerbank.update(
+            {
+              status: "rented",
+              last_synced_at: new Date(),
+              box_id: null,
+            },
+            { transaction: t }
+          );
+        } else {
+          console.warn(`Power bank with unique_id ${powerNo} not found`);
+        }
 
         await box.update(
           {
@@ -323,6 +548,7 @@ exports.rentItem = async (req, res, next) => {
 
       const rentalData = {
         order_id: createdRental.id,
+        power_bank: powerNo,
         start_time: createdRental.start_time,
         payment_amount: paymentAmount,
       };

@@ -1,11 +1,7 @@
 const { default: axios } = require("axios");
 
-const sendOtp = async (otp, mobile1, mobile2) => {
-  const numbers = [mobile1, mobile2].join(",");
-
-  if (numbers.length === 0) {
-    throw new Error("No mobile numbers provided");
-  }
+const sendOtp = async (otp, number) => {
+  console.log("Sending OTP:", otp, "to numbers:", number);
 
   try {
     const smsResponse = await axios.post(
@@ -13,7 +9,7 @@ const sendOtp = async (otp, mobile1, mobile2) => {
       {
         route: "otp",
         variables_values: otp,
-        numbers,
+        numbers: number, // Mobile number",
       },
       {
         headers: {
@@ -29,6 +25,7 @@ const sendOtp = async (otp, mobile1, mobile2) => {
     }
     return true;
   } catch (error) {
+    console.error("Error sending OTP via SMS:", error?.data);
     throw new Error(error);
   }
 };
