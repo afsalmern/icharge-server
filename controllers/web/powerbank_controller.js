@@ -10,18 +10,7 @@ const Boxes = db.boxes;
 exports.getAllPowerBanks = async (req, res, next) => {
   // unique_id is powerNo
   try {
-    const { status = "all", keyword } = req.query;
-    const whereClause = {
-      ...(status !== "all" ? { status } : {}),
-      ...(keyword
-        ? {
-            [Op.or]: [{ unique_id: { [Op.iLike]: `%${keyword}%` } }],
-          }
-        : {}),
-    };
-
     const powerbanks = await PowerBanks.findAll({
-      where: whereClause,
       include: [{ model: Boxes, as: "box", attributes: ["id", "unique_id", "device_id"] }],
       order: [["created_at", "DESC"]],
     });
@@ -64,12 +53,21 @@ exports.addPowerBank = async (req, res, next) => {
 // Update PowerBank
 exports.updatePowerBank = async (req, res, next) => {
   const { id } = req.params;
+  const {unique_id, ...otherData} = req.body;
   try {
     const powerbank = await PowerBanks.findByPk(id);
     if (!powerbank) throw new ApiError(404, "Powerbank not found");
 
+    if(unique_id && unique_id !== powerbank.unique_id) {
+      const existingPowerbank = await PowerBanks.findOne({ where: { unique_id } });
+      if (existingPowerbank) {
+        throw new ApiError(400, "Powerbank with this id already exists");
+      }
+    }
+
     const updated = await powerbank.update({
-      ...req.body,
+      unique_id: unique_id || powerbank.unique_id,
+      ...otherData,
       last_synced_at: new Date(),
     });
 
