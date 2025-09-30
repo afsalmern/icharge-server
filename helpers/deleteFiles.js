@@ -1,21 +1,21 @@
+const fs = require("fs").promises;
 const path = require("path");
-const fs = require("fs");
 
-const deleteFile = async (filename) => {
-  if (!filename) return;
+const deleteFile = async (relativePath) => {
+  if (!relativePath) return;
 
-  // It's a local file, delete from server storage
-  const localFilePath = path.join(__dirname, "..", "uploads", filename);
-  console.log("localFilePath", localFilePath);
+  const localFilePath = path.join(process.cwd(), relativePath);
 
-  if (fs.existsSync(localFilePath)) {
-    fs.unlink(localFilePath, (err) => {
-      if (err) {
-        console.error(`Failed to delete local file: ${localFilePath}`, err);
-      } else {
-        console.log(`Successfully deleted local file: ${localFilePath}`);
-      }
-    });
+  try {
+    await fs.access(localFilePath); // check existence
+    await fs.unlink(localFilePath);
+    console.log(`Successfully deleted file: ${localFilePath}`);
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      console.log(`File does not exist: ${localFilePath}`);
+    } else {
+      console.error(`Failed to delete file: ${localFilePath}`, err);
+    }
   }
 };
 

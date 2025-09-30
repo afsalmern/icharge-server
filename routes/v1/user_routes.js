@@ -12,6 +12,7 @@ const {
   addReasonForDispute,
   sendRentalsOtp,
   verfiyRentalsOtp,
+  deleteRental,
 } = require("../../controllers/rentals/rentals.controller");
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate, validateDisputeData } = require("../../validators/validators");
@@ -46,6 +47,7 @@ router.patch("/kyc-details", verifyToken, upload, validateKycDataUpdate, validat
 router.get("/rentals-history", verifyToken, verifyUserExist, getRentalHistory);
 router.post("/buy-item", verifyToken, checkRole("user"), buyItem);
 router.post("/start-rent", verifyToken, checkRole("user"), rentItem);
+router.delete("/rentals-history", verifyToken, checkRole("user"), deleteRental);
 router.post("/return-item", verifyToken, checkRole("user"), returnItem);
 router.get("/validate-device", verifyToken, checkRole("user"), checkIsDeviceValid);
 router.post("/add-dispute", verifyToken, checkRole("user"), validateDisputeData, validate, addReasonForDispute);

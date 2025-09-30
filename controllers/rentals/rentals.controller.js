@@ -335,6 +335,22 @@ exports.rentItem = async (req, res, next) => {
   }
 };
 
+exports.deleteRental = async (req, res, next) => {
+  const { rental_id } = req.body;
+
+  try {
+    const rentalItem = await Rentals.findByPk(rental_id);
+    if (!rentalItem) throw new ApiError(404, "Rental not found");
+
+    await rentalItem.destroy();
+
+    return sendSuccess(res, "Rental deleted successfully", {}, 200);
+  } catch (error) {
+    console.error("Error in deleteRental:", error);
+    next(error);
+  }
+};
+
 exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
   const { rental_id, location_id } = req.body;

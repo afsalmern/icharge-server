@@ -1,12 +1,10 @@
 const { Op } = require("sequelize");
 const db = require("../../models");
-const path = require("path");
-const fs = require("fs");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
-const machineSave = require("../../helpers/externalCalls");
 const { getHourlyPrice } = require("../../helpers/calculatePrices");
 const generateCode = require("../../helpers/generateQrCode");
+const deleteFile = require("../../helpers/deleteFiles");
 
 const Users = db.users;
 const Packages = db.packages;
@@ -272,6 +270,8 @@ exports.getBoxes = async (req, res, next) => {
 };
 
 exports.addBoxes = async (req, res, next) => {
+  const transaction = await db.sequelize.transaction();
+  let tempFileName = null;
   try {
     const { unique_id, device_id, location_id, total_powerbanks, available_powerbanks } = req.body;
 
@@ -291,21 +291,24 @@ exports.addBoxes = async (req, res, next) => {
       throw new ApiError(409, "Box with this device id already exists,choose another device id for box");
     }
 
-    const box = await Boxes.create({ unique_id, device_id, location_id, total_powerbanks, available_powerbanks });
+    const box = await Boxes.create({ unique_id, device_id, location_id, total_powerbanks, available_powerbanks }, { transaction });
 
     const deviceId = box.device_id;
 
-    console.log(deviceId);
-
-    const generateQrCode = await generateCode(deviceId);
-
-    if (generateQrCode) {
-      await QRCode.create({ device_id: box.id, code: generateQrCode });
+    const generatedQrCode = await generateCode(deviceId);
+    tempFileName = generatedQrCode?.fileName || null;
+    if (generatedQrCode) {
+      await QRCode.create({ device_id: box.id, code: generatedQrCode?.filePath }, { transaction });
     }
 
+    await transaction.commit();
     sendSuccess(res, "Box added successfully", { box }, 200);
   } catch (error) {
     console.log(error);
+    if (tempFileName) {
+      deleteFile(tempFileName);
+    }
+    await transaction.rollback();
     next(error);
   }
 };
@@ -334,10 +337,18 @@ exports.getLocationWiseBoxes = async (req, res, next) => {
 
 exports.deleteBoxes = async (req, res, next) => {
   const { id } = req.params;
+
   try {
     const box = await Boxes.findByPk(id);
+
     if (!box) {
       throw new ApiError(404, "Box not found");
+    }
+
+    const qrCode = await QRCode.findOne({ attributes: ["id", "code"], where: { device_id: box.id } });
+
+    if (qrCode) {
+      await deleteFile(qrCode.code);
     }
     await box.destroy();
     sendSuccess(res, "Box deleted successfully", {}, 200);
