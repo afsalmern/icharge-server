@@ -236,14 +236,42 @@ exports.processWithdrawRequest = async (req, res, next) => {
   }
 };
 
+exports.withDrawRequestStatusUpdate = async (req, res, next) => {
+  const { status } = req.body;
+  const { id } = req.params;
+  const transaction = await db.sequelize.transaction();
+  try {
+    const requestedItem = await WithDrawRequests.findByPk(id, { transaction });
+    if (!requestedItem) {
+      throw new ApiError(404, "Withdraw request not found");
+    }
+
+    await requestedItem.update({ status }, { transaction });
+
+    await transaction.commit();
+    sendSuccess(res, "Withdraw request status updated successfully", {}, 200);
+  } catch (error) {
+    console.error(error);
+    await transaction.rollback();
+    next(error);
+  }
+};
+
 exports.getAllWithdrawRequests = async (req, res, next) => {
+  const { status = "all" } = req.query;
+  const whereClause = {};
+
+  if (status !== "all") {
+    whereClause.status = status;
+  }
   try {
     const withDrawRequests = await WithDrawRequests.findAll({
+      where: whereClause,
       attributes: ["id", "amount", "status", "remarks", "user_id", "created_at"],
       include: {
         model: Users,
         as: "user",
-        attributes: ["id", "name", "mobile"],
+        attributes: ["id", "name", "mobile", "deposit_amount", "outstanding_amount"],
       },
     });
 

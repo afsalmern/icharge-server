@@ -2,13 +2,7 @@ const express = require("express");
 const { addLocation, getLocations, updateLocation, deleteLocation } = require("../../controllers/locations/locations_controller");
 const { verifyToken } = require("../../middlewares/auth");
 const { checkRole } = require("../../middlewares/role_check");
-const {
-  locationDataValidation,
-  validate,
-  validateId,
-  validatePackagesData,
-  validateBoxesData,
-} = require("../../validators/validators");
+const { locationDataValidation, validate, validateId, validatePackagesData, validateBoxesData } = require("../../validators/validators");
 const {
   getAllUsers,
   blockOrUnblockUser,
@@ -29,7 +23,7 @@ const {
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
 const { getAllRentals } = require("../../controllers/rentals/rentals.controller");
-const { processWithdrawRequest, getAllWithdrawRequests } = require("../../controllers/payments/payments_controller");
+const { processWithdrawRequest, getAllWithdrawRequests, withDrawRequestStatusUpdate } = require("../../controllers/payments/payments_controller");
 const router = express.Router();
 
 const complaintController = require("../../controllers/complaints/complaints_controller");
@@ -85,14 +79,15 @@ router.patch("/kyc/:id", verifyToken, checkRole("admin"), updateKycStatus);
 router.get("/rentals", verifyToken, checkRole("admin"), getAllRentals);
 
 //Transactions
-router.patch("/withdraw-request", verifyToken, checkRole("admin"), processWithdrawRequest);
-router.get("/withdraw-request", verifyToken, checkRole("admin"), getAllWithdrawRequests);
+// router.patch("/withdraw-request", verifyToken, checkRole("admin"), processWithdrawRequest);
+router.patch("/withdraw-request/:id", verifyToken, checkRole("admin"), withDrawRequestStatusUpdate);
+router.get("/withdraw-request", verifyToken, getAllWithdrawRequests);
 
 // Complaints Routes
 router.get("/complaints", verifyToken, complaintController.getAllComplaints);
 router.get("/complaints/:id", verifyToken, complaintController.getComplaintById);
 router.patch("/complaints/:id", verifyToken, uploadComplaints, complaintController.updateComplaint);
-router.patch("/complaints-status/:id", verifyToken,complaintController.updateComplaintStatus);
+router.patch("/complaints-status/:id", verifyToken, complaintController.updateComplaintStatus);
 router.delete("/complaints/:id", verifyToken, complaintController.deleteComplaint);
 
 router.get("/powerbank", powerbankController.getAllPowerBanks);
