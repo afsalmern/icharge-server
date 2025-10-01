@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { calculatePriceOnRentals, calculateTotalPrice, getEndTime } = require("../../helpers/calculatePrices");
+const { calculatePriceOnRentals, getEndTime, calculateRentalCharge } = require("../../helpers/calculatePrices");
 const { startRent, getDeviceInfoByUuid } = require("../../helpers/externalCalls");
 const { sendOtp } = require("../../helpers/OtpHelper");
 const { ApiError } = require("../../middlewares/error");
@@ -112,7 +112,7 @@ exports.getAllRentals = async (req, res, next) => {
         ["id", "order_id"],
         "box_id",
         "package_id",
-        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
+        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY')`), "start_on"],
         "start_time",
         "end_time",
         "status",
@@ -131,16 +131,31 @@ exports.getAllRentals = async (req, res, next) => {
         {
           model: Packages,
           as: "rented_package",
-          attributes: ["id", "hourly_price", "price"],
+          attributes: ["id", "hourly_price", "price", "type", "duration"],
         },
       ],
     });
 
+    const getDuration = (type, duration) => {
+      switch (type) {
+        case "hourly":
+          return `${duration} hour(s)`;
+        case "weekly":
+          return `${duration} week(s)`;
+        case "monthly":
+          return `${duration} month(s)`;
+        default:
+          return "N/A";
+      }
+    };
+
     const rentals_history = userRentals?.map((rental) => {
       const { id: order_id, start_time, status, rented_package, rented_user } = rental;
-      const { hourly_price, price } = rented_package || {};
+      const { hourly_price, price, type, duration } = rented_package || {};
       const { name, mobile } = rented_user || {};
       const start_on = rental?.get("start_on");
+
+      console.log(start_on);
 
       const cost_details = calculatePriceOnRentals(start_time, hourly_price);
 
@@ -152,6 +167,8 @@ exports.getAllRentals = async (req, res, next) => {
         name,
         mobile,
         net_amount: price,
+        type,
+        duration: getDuration(type, duration),
         ...cost_details,
       };
     });
@@ -211,7 +228,7 @@ exports.buyItem = async (req, res, next) => {
 
 exports.rentItem = async (req, res, next) => {
   const { user_id } = req;
-  const { box_id, battery, package_id } = req.body;
+  const { box_id, package_id } = req.body;
 
   if (!user_id || !box_id) {
     return next(new ApiError("User ID and Box ID are required", 400));
@@ -234,18 +251,18 @@ exports.rentItem = async (req, res, next) => {
       }),
       db.boxes.findOne({
         where: { device_id: box_id },
-        attributes: ["id", "unique_id", "status", "available_powerbanks"],
+        attributes: ["id", "unique_id", "status", "available_powerbanks", "location_id"],
       }),
     ]);
 
-    if (!user) throw new ApiError("User not found", 404);
-    if (!user.is_verified) throw new ApiError("User not verified", 400);
-    if (user.block_status) throw new ApiError("User is blocked", 403);
-    if (user.status !== "active") throw new ApiError("User is inactive", 403);
+    if (!user) throw new ApiError(404, "User not found");
+    if (user?.status !== "active") throw new ApiError(403, "User is inactive");
+    if (user?.block_status) throw new ApiError(403, "User is blocked");
+    if (!user?.is_verified) throw new ApiError(400, "User not verified");
 
-    if (!box) throw new ApiError("Box not found", 404);
-    if (box.status !== "active") throw new ApiError("This box is not active", 400);
-    if (box.available_powerbanks <= 0) throw new ApiError("No powerbanks available", 400);
+    if (box?.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
+    if (box?.status !== "active") throw new ApiError(400, "This box is not active");
+    if (!box) throw new ApiError(404, "Box not found");
 
     const ongoingRental = await db.rentals.findOne({
       where: { user_id, status: "ongoing" },
@@ -277,10 +294,13 @@ exports.rentItem = async (req, res, next) => {
       const start_time = new Date();
       const endTime = getEndTime(start_time, duration, type);
 
+      const location = await box.getLocation({ attributes: ["id", "name", "phone"] });
+
       const createdRental = await db.sequelize.transaction(async (t) => {
         const rental = await db.rentals.create(
           {
             box_id: box.id,
+            location_id: location.id,
             package_id,
             user_id,
             start_time,
@@ -353,46 +373,72 @@ exports.deleteRental = async (req, res, next) => {
 
 exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
-  const { rental_id, location_id } = req.body;
+  const { rental_id } = req.body;
 
   const transaction = await db.sequelize.transaction();
   try {
-    const user = await Users.findByPk(user_id);
-    if (!user) throw new ApiError(404, "User not found");
-    const location = await Locations.findByPk(location_id);
-    if (!location) throw new ApiError(404, "Location not found");
-
-    const rentalItem = await Rentals.findByPk(rental_id, {
-      attributes: ["id", "box_id", "package_id", "start_time"],
+    const rental = await db.rentals.findOne({
+      where: { id: rental_id, user_id, status: "ongoing" },
+      include: [
+        { model: db.users, as: "rented_user" },
+        { model: db.packages, as: "rented_package" },
+        { model: db.boxes, as: "rented_box" },
+      ],
     });
-    if (!rentalItem) throw new ApiError(404, "Rental not found");
 
-    const box_id = rentalItem?.get("box_id");
-    const package_id = rentalItem?.get("package_id");
-    const started_on = rentalItem?.get("start_time");
+    if (!rental) throw new ApiError(404, "Ongoing rental not found");
 
-    const box = await Boxes.findByPk(box_id);
-    if (!box) throw new ApiError(404, "Box not found");
-    const package = await Packages.findByPk(package_id);
-    if (!package) throw new ApiError(404, "Package not found");
+    const returnTime = new Date();
 
-    const {} = calculateTotalPrice();
+    const { totalHours, extraHours, extraCharge, usedTime: usedTimeStr, allowedTime: allowedTimeStr } = calculateRentalCharge(rental, returnTime);
 
+    await rental.update(
+      {
+        return_time: returnTime,
+        extra_hours: extraHours,
+        extra_charge: extraCharge,
+        status: "completed",
+        location_id: rental.location_id, // or box.location_id if you fetch box
+      },
+      { transaction }
+    );
+    console.log(
+      `Total Hours: ${totalHours}, Extra Hours: ${extraHours}, Extra Charge: ${extraCharge}, Used Time: ${usedTimeStr}, Allowed Time: ${allowedTimeStr},`
+    );
+
+    const currentOutstanding = parseFloat(rental.rented_user.outstanding_amount) || 0;
+    const outStandAmountToUpdate = currentOutstanding + extraCharge;
+
+    console.log(`Current Outstanding: ${currentOutstanding}, Updated Outstanding: ${outStandAmountToUpdate}`);
+
+    // Update user outstanding_amount (add extra charge)
+    const user = rental.rented_user;
+    await user.update({ outstanding_amount: outStandAmountToUpdate }, { transaction });
+
+    // Update box available_powerbanks
+    const box = rental.rented_box;
     await box.update({ available_powerbanks: box.available_powerbanks + 1 }, { transaction });
 
+    // Send notification
+    if (user?.device_token) {
+      const notificationMessage =
+        extraCharge > 0
+          ? `Powerbank returned. A fine of $${extraCharge.toFixed(2)} has been added for ${extraHours.toFixed(2)} extra hours.`
+          : "Thank you! Your powerbank has been returned successfully.";
+
+      await sendFCMNotification(user.device_token, "Powerbank Returned", notificationMessage, {
+        powerbank: rental.powerbank.powerNo,
+        slot: rental.powerbank.positionUuid.toString(),
+        extraCharge: extraCharge.toFixed(2),
+      });
+    }
+
     await transaction.commit();
-    return sendSuccess(
-      res,
-      "Power bank returned successfully",
-      {
-        power_bank: {
-          rentalItem,
-        },
-      },
-      201
-    );
+
+    return sendSuccess(res, "Power bank returned successfully", { hoursUsed: totalHours, extraCharge, extraHours }, 201);
   } catch (error) {
-    console.error("Error in rentItem:", error);
+    await transaction.rollback();
+    console.error("Error in returnItem:", error);
     next(error);
   }
 };
@@ -501,4 +547,82 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
     console.error("Error in rentItem:", error);
     next(error);
   }
+};
+
+exports.test = async (req, res, next) => {
+  const returnItem = new Date();
+  const { id } = req.body;
+
+  const rental = await Rentals.findByPk(id, {
+    include: [{ model: Packages, as: "rented_package" }],
+  });
+
+  // 1️⃣ Total hours used
+  let totalHours = (returnItem - rental.start_time) / (1000 * 60 * 60); // ms → hours
+  totalHours = Math.ceil(totalHours); // round up
+
+  // 2️⃣ Convert package duration to hours
+  let packageHours;
+  let packageType = rental.rented_package.type;
+  switch (packageType) {
+    case "hourly":
+      packageHours = rental.rented_package.duration;
+      break;
+    case "weekly":
+      packageHours = rental.rented_package.duration * 7 * 24;
+      break;
+    case "monthly":
+      packageHours = rental.rented_package.duration * 30 * 24; // approximate
+      break;
+    default:
+      throw new Error("Unknown package type: " + packageType);
+  }
+
+  // 3️⃣ Calculate extra hours
+  let extraHours = totalHours - packageHours;
+  extraHours = extraHours > 0 ? extraHours : 0;
+
+  // 4️⃣ Calculate extra charge
+  const extraCharge = extraHours * rental.rented_package.hourly_price;
+
+  // 5️⃣ User-friendly breakdown
+  let usedTimeStr;
+  switch (packageType) {
+    case "hourly":
+      usedTimeStr = `${totalHours} hour(s) used`;
+      break;
+    case "weekly":
+      usedTimeStr = `${Math.floor(totalHours / 24 / 7)} week(s) and ${totalHours % (24 * 7)} hour(s) used`;
+      break;
+    case "monthly":
+      usedTimeStr = `${Math.floor(totalHours / (24 * 30))} month(s) and ${totalHours % (24 * 30)} hour(s) used`;
+      break;
+  }
+
+  let allowedTimeStr;
+  switch (packageType) {
+    case "hourly":
+      allowedTimeStr = `${packageHours} hour(s) allowed`;
+      break;
+    case "weekly":
+      allowedTimeStr = `${rental.rented_package.duration} week(s) allowed`;
+      break;
+    case "monthly":
+      allowedTimeStr = `${rental.rented_package.duration} month(s) allowed`;
+      break;
+  }
+
+  sendSuccess(
+    res,
+    "Test successful",
+    {
+      totalHours,
+      packageHours,
+      extraHours,
+      extraCharge,
+      usedTime: usedTimeStr,
+      allowedTime: allowedTimeStr,
+    },
+    200
+  );
 };

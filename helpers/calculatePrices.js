@@ -3,13 +3,8 @@ const calculatePriceOnRentals = (started_on, price) => {
   const startTime = new Date(started_on);
   const currentTime = new Date();
 
-  console.log(startTime);
-  console.log(currentTime);
-
   // Calculate total elapsed time in milliseconds
   const elapsedMs = currentTime - startTime;
-
-  console.log(elapsedMs);
 
   // Convert elapsed time to minutes, hours, or days
   const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
@@ -54,34 +49,6 @@ const getHourlyPrice = (type, price) => {
   return formattedCost;
 };
 
-const calculateTotalPrice = (passedDate, duration, pricePerHour) => {
-  // Convert the passed date to a Date object
-  const givenDate = new Date(passedDate);
-
-  // Get the current date and time
-  const currentDate = new Date();
-
-  // Calculate the difference in milliseconds
-  const diffInMs = currentDate - givenDate;
-
-  // Convert milliseconds to hours
-  const totalHours = diffInMs / (1000 * 60 * 60);
-
-  // Check if extra hours are used
-  const isExtraHour = totalHours > duration;
-
-  // Calculate price
-  const totalPrice = isExtraHour
-    ? duration * pricePerHour + (totalHours - duration) * pricePerHour * 1.5 // 1.5x rate for extra hours
-    : totalHours * pricePerHour;
-
-  return {
-    totalHours: totalHours.toFixed(2),
-    totalPrice: totalPrice.toFixed(2),
-    isExtraHour,
-  };
-};
-
 const getEndTime = (start_date, duration, type) => {
   const startDate = new Date(start_date);
 
@@ -104,4 +71,69 @@ const getEndTime = (start_date, duration, type) => {
   }
 };
 
-module.exports = { calculatePriceOnRentals, getHourlyPrice, calculateTotalPrice, getEndTime };
+function calculateRentalCharge(rental, returnTime = new Date()) {
+  // 1️⃣ Total hours used
+  let totalHours = (returnTime - rental.start_time) / (1000 * 60 * 60); // ms → hours
+  totalHours = Math.ceil(totalHours); // round up
+
+  // 2️⃣ Convert package duration to hours
+  let packageHours;
+  let packageType = rental.rented_package.type;
+  switch (packageType) {
+    case "hourly":
+      packageHours = rental.rented_package.duration;
+      break;
+    case "weekly":
+      packageHours = rental.rented_package.duration * 7 * 24;
+      break;
+    case "monthly":
+      packageHours = rental.rented_package.duration * 30 * 24; // approximate
+      break;
+    default:
+      throw new Error("Unknown package type: " + packageType);
+  }
+
+  // 3️⃣ Calculate extra hours
+  let extraHours = totalHours - packageHours;
+  extraHours = extraHours > 0 ? extraHours : 0;
+
+  // 4️⃣ Calculate extra charge
+  const extraCharge = extraHours * rental.rented_package.hourly_price;
+
+  // 5️⃣ User-friendly breakdown
+  let usedTimeStr;
+  switch (packageType) {
+    case "hourly":
+      usedTimeStr = `${totalHours} hour(s) used`;
+      break;
+    case "weekly":
+      usedTimeStr = `${Math.floor(totalHours / 24 / 7)} week(s) and ${totalHours % (24 * 7)} hour(s) used`;
+      break;
+    case "monthly":
+      usedTimeStr = `${Math.floor(totalHours / (24 * 30))} month(s) and ${totalHours % (24 * 30)} hour(s) used`;
+      break;
+  }
+
+  let allowedTimeStr;
+  switch (packageType) {
+    case "hourly":
+      allowedTimeStr = `${packageHours} hour(s) allowed`;
+      break;
+    case "weekly":
+      allowedTimeStr = `${rental.rented_package.duration} week(s) allowed`;
+      break;
+    case "monthly":
+      allowedTimeStr = `${rental.rented_package.duration} month(s) allowed`;
+      break;
+  }
+
+  return {
+    totalHours,
+    extraHours,
+    extraCharge,
+    usedTime: usedTimeStr,
+    allowedTime: allowedTimeStr,
+  };
+}
+
+module.exports = { calculatePriceOnRentals, getHourlyPrice, getEndTime, calculateRentalCharge };

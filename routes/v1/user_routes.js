@@ -13,6 +13,7 @@ const {
   sendRentalsOtp,
   verfiyRentalsOtp,
   deleteRental,
+  test,
 } = require("../../controllers/rentals/rentals.controller");
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate, validateDisputeData } = require("../../validators/validators");
@@ -53,6 +54,8 @@ router.get("/validate-device", verifyToken, checkRole("user"), checkIsDeviceVali
 router.post("/add-dispute", verifyToken, checkRole("user"), validateDisputeData, validate, addReasonForDispute);
 router.post("/rent-start-otp", verifyToken, checkRole("user"), sendRentalsOtp);
 router.put("/verify-rental-otp", verifyToken, checkRole("user"), verfiyRentalsOtp);
+
+router.post("/test", verifyToken, checkRole("user"), test);
 
 // //Payments
 // router.post("/create-order", verifyToken, checkRole("user"), createOrder);

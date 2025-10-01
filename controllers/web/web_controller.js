@@ -109,7 +109,7 @@ exports.getAllUsers = async (req, res, next) => {
 
   try {
     const { rows, count } = await Users.findAndCountAll({
-      attributes: ["id", "name", "mobile", "email", "avatar", "status", "block_status", "created_at"],
+      attributes: ["id", "name", "mobile", "email", "avatar", "status", "block_status", "created_at", "deposit_amount", "outstanding_amount"],
       where: whereClause,
       limit: parsedLimit,
       offset,

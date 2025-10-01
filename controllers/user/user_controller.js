@@ -393,25 +393,21 @@ exports.getPackages = async (req, res, next) => {
       },
     });
 
-    let packages = null;
+    const queryOptions = {
+      attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
+      order: [["created_at", "DESC"]],
+    };
 
     if (rentals.length > 0) {
-      packages = await Packages.findAll({
-        attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
-        where: {
-          type: {
-            [Op.notIn]: ["free"],
-          },
-        },
-        order: [["created_at", "DESC"]],
-      });
-      return sendSuccess(res, "Packages fetched successfully", { packages }, 200);
+      queryOptions.where = {
+        type: { [Op.notIn]: ["free"] }, // exclude free packages
+      };
     }
 
-    packages = await Packages.findAll({
-      attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
-    });
-    sendSuccess(res, "Packages fetched successfully", { packages }, 200);
+    const packages = await Packages.findAll(queryOptions);
+    const outstandingAmount = parseFloat(user.outstanding_amount) || 0;
+
+    sendSuccess(res, "Packages fetched successfully", { packages, outstandingAmount }, 200);
   } catch (error) {
     console.log(error);
     next(error);

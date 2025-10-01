@@ -106,9 +106,9 @@ exports.uploadKyc = async (req, res, next) => {
       );
 
       if (updatedKyc) {
-        if (proof_front) await deleteFile(currentKyc.proof_front);
-        if (proof_back) await deleteFile(currentKyc.proof_back);
-        if (photo) await deleteFile(currentKyc.photo);
+        if (proof_front) await deleteFile(`uploads/${currentKyc.proof_front}`);
+        if (proof_back) await deleteFile(`uploads/${currentKyc.proof_back}`);
+        if (photo) await deleteFile(`uploads/${currentKyc.photo}`);
         await Users.update({ user_preferred_method: "kyc" }, { where: { id: user_id } });
         return sendSuccess(res, "Kyc details updated successfully", { kyc: updatedKyc }, 200);
       }
@@ -126,10 +126,6 @@ exports.updateKyc = async (req, res, next) => {
     const proof_front = (req.files && req.files?.["proof_front"]?.[0]?.filename) || null;
     const proof_back = (req.files && req.files?.["proof_back"]?.[0]?.filename) || null;
     const photo = (req.files && req.files?.["photo"]?.[0]?.filename) || null;
-
-    console.log(proof_back);
-    console.log(proof_front);
-    console.log(photo);
 
     const existingKyc = await KycDetails.findByPk(kyc_id);
 
@@ -152,9 +148,9 @@ exports.updateKyc = async (req, res, next) => {
       status: "pending",
     });
 
-    if (proof_back) await deleteFile(oldProofBack);
-    if (proof_front) await deleteFile(oldProofFront);
-    if (photo) await deleteFile(oldPhoto);
+    if (proof_back) await deleteFile(`uploads/${oldProofBack}`);
+    if (proof_front) await deleteFile(`uploads/${oldProofFront}`);
+    if (photo) await deleteFile(`uploads/${oldPhoto}`);
 
     sendSuccess(res, "Kyc details updated successfully", { kyc }, 200);
   } catch (error) {
