@@ -222,6 +222,11 @@ exports.getHome = async (req, res, next) => {
             attributes: ["id", "name", "hourly_price", "price", "duration", "swap", "type"],
           },
           {
+            model: Boxes,
+            as: "rented_box",
+            attributes: ["id", "status", "device_id"],
+          },
+          {
             model: User,
             as: "rented_user",
             attributes: ["id", "name", "mobile"],
@@ -286,10 +291,11 @@ exports.getHome = async (req, res, next) => {
 
     const rentalsModified = onGoingRental
       ? (() => {
-          const { order_id, start_time, start_on, status, end_time, rented_package, rented_user, disputes, box_id } = onGoingRental;
+          const { order_id, start_time, start_on, status, end_time, rented_package, rented_user, rented_box, disputes } = onGoingRental;
           const { id: package_id, name, hourly_price, price, duration, swap, type } = rented_package || {};
           const { name: userName, mobile } = rented_user || {};
           const { reason } = disputes || {};
+          const { device_id } = rented_box || {};
 
           // Use user table fields, validate can_swap
           const swapsUsed = userData.swaps_used;
@@ -303,7 +309,7 @@ exports.getHome = async (req, res, next) => {
             start_time,
             start_on,
             status,
-            device_id: box_id,
+            device_id,
             end_time,
             name: userName,
             mobile,
