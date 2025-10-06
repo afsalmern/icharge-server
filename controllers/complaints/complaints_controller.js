@@ -51,6 +51,7 @@ exports.createComplaint = async (req, res, next) => {
     // Send success response
     sendSuccess(res, "Complaint created successfully", { complaint }, 201);
   } catch (error) {
+    console.error("Error creating complaint:", error);
     next(error); // Pass the error to the error handler
   }
 };
