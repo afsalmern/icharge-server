@@ -2,6 +2,7 @@ const RazorPay = require("razorpay");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const crypto = require("crypto");
 const { startRent } = require("../../helpers/rentalsHelper");
+const db = require("../../models");
 
 const razorpayInstance = new RazorPay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -86,6 +87,38 @@ exports.webhookHandler = async (req, res, next) => {
 
     const event = req.body.event;
     const payload = req.body.payload;
+
+    switch (event) {
+      case "payment.authorized":
+        console.log("Payment authorized:", payload);
+        break;
+      case "payment.captured":
+        console.log("Payment captured:", payload);
+        const paymentEntity = payload.payment.entity;
+        const order_id = paymentEntity.order_id;
+        const paymentsData = await db.rental_payments.findOne({ where: { order_id } });
+        await paymentsData.update({ status: "success" });
+        break;
+      case "payment.failed":
+        console.log("Payment failed:", payload);
+        const paymentFailed = payload.payment.entity;
+        const order_id_failed = paymentFailed.order_id;
+        const paymentsDataFailed = await db.rental_payments.findOne({ where: { order_id: order_id_failed } });
+        await paymentsDataFailed.update({ status: "failed" });
+
+        const rentalData = paymentsDataFailed?.rental_id;
+        if (rentalData) {
+          const rental = await db.rentals.findOne({ where: { id: rentalData } });
+          if (rental) {
+            await rental.update({ status: "cancelled" });
+          }
+        }
+
+        break;
+      default:
+        console.log(`Unhandled event: ${event}`);
+    }
+    sendSuccess(res, "Webhook received successfully", {}, 200);
   } catch (error) {
     console.log("error in webhook", error);
     next(error);

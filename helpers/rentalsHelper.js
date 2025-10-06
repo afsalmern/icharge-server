@@ -10,6 +10,7 @@ const startRent = async (user_id, box_id, package_id, order_id) => {
   const transaction = await db.sequelize.transaction();
 
   try {
+    // Fetch user and box simultaneously, lock box row for update
     const [user, box] = await Promise.all([
       db.users.findByPk(user_id, {
         attributes: [
@@ -23,22 +24,26 @@ const startRent = async (user_id, box_id, package_id, order_id) => {
           "swaps_remaining",
           "can_swap",
         ],
+        transaction,
       }),
       db.boxes.findOne({
         where: { device_id: box_id },
         attributes: ["id", "unique_id", "status", "available_powerbanks", "location_id"],
+        transaction,
       }),
     ]);
 
+    // Validations
     if (!user) throw new ApiError(404, "User not found");
-    if (user?.status !== "active") throw new ApiError(403, "User is inactive");
-    if (user?.block_status) throw new ApiError(403, "User is blocked");
-    if (!user?.is_verified) throw new ApiError(400, "User not verified");
+    if (user.status !== "active") throw new ApiError(403, "User is inactive");
+    if (user.block_status) throw new ApiError(403, "User is blocked");
+    if (!user.is_verified) throw new ApiError(400, "User is not verified");
 
-    if (box?.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
-    if (box?.status !== "active") throw new ApiError(400, "This box is not active");
     if (!box) throw new ApiError(404, "Box not found");
+    if (box.status !== "active") throw new ApiError(400, "This box is not active");
+    if (box.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
 
+    // Check for ongoing rental
     const ongoingRental = await db.rentals.findOne({
       where: { user_id, status: "ongoing" },
       include: [
@@ -48,91 +53,85 @@ const startRent = async (user_id, box_id, package_id, order_id) => {
           attributes: ["id", "type", "swap", "hourly_price"],
         },
       ],
+      transaction,
     });
 
     if (ongoingRental) {
-      await transaction.commit();
-
-      return {
-        message: "Rental is ongoing",
-        data: {},
-      };
-    } else {
-      if (!package_id) {
-        throw new ApiError(400, "Package ID is required for new rental");
-      }
-
-      const rentalPackage = await db.packages.findByPk(package_id, {
-        attributes: ["id", "type", "duration", "price", "hourly_price", "swap"],
-      });
-
-      if (!rentalPackage) throw new ApiError(404, "Package not found");
-
-      const paymentAmount = parseFloat(rentalPackage.price) + parseFloat(user.outstanding_amount);
-
-      const { type, duration, swap } = rentalPackage;
-      const start_time = new Date();
-      const endTime = getEndTime(start_time, duration, type);
-
-      const location = await box.getLocation({ attributes: ["id", "name", "phone"] });
-
-      const createdRental = await db.sequelize.transaction(async (t) => {
-        const rental = await db.rentals.create(
-          {
-            box_id: box.id,
-            location_id: location.id,
-            package_id,
-            user_id,
-            start_time,
-            end_time: endTime,
-            status: "ongoing",
-            extra_charge: 0.0,
-          },
-          { transaction: t }
-        );
-
-        await db.rental_payments.create(
-          {
-            rental_id: rental.id,
-            user_id,
-            amount: paymentAmount,
-            status: "pending",
-            order_id: order_id,
-          },
-          { transaction: t }
-        );
-
-        await box.update(
-          {
-            available_powerbanks: db.sequelize.literal("available_powerbanks - 1"),
-          },
-          { transaction: t }
-        );
-
-        await user.update(
-          {
-            outstanding_amount: 0,
-            swaps_used: 0,
-            swaps_remaining: type === "monthly" ? null : swap,
-            can_swap: (type === "monthly" || swap > 0) && user.is_verified && !user.block_status && user.status === "active",
-          },
-          { transaction: t }
-        );
-
-        return rental;
-      });
-
-      const rentalData = {
-        order_id: createdRental.id,
-        start_time: createdRental.start_time,
-        payment_amount: paymentAmount,
-      };
-
-      return { message: "Rental started successfully", data: rentalData };
+      await transaction.rollback();
+      return { message: "Rental is ongoing", data: {} };
     }
+
+    // Ensure package ID is provided
+    if (!package_id) throw new ApiError(400, "Package ID is required for new rental");
+
+    const rentalPackage = await db.packages.findByPk(package_id, {
+      attributes: ["id", "type", "duration", "price", "hourly_price", "swap"],
+      transaction,
+    });
+
+    if (!rentalPackage) throw new ApiError(404, "Package not found");
+
+    // Calculate total payment amount
+    const paymentAmount = parseFloat(rentalPackage.price) + parseFloat(user.outstanding_amount || 0);
+    const { type, duration, swap } = rentalPackage;
+    const start_time = new Date();
+    const end_time = getEndTime(start_time, duration, type);
+
+    // Fetch location for the box
+    const location = await box.getLocation({ attributes: ["id", "name"], transaction });
+
+    // Create rental, payment, update user and box atomically
+    const rental = await db.rentals.create(
+      {
+        box_id: box.id,
+        location_id: location.id,
+        package_id,
+        user_id,
+        start_time,
+        end_time,
+        status: "ongoing",
+        extra_charge: 0.0,
+      },
+      { transaction }
+    );
+
+    await db.rental_payments.create(
+      {
+        rental_id: rental.id,
+        user_id,
+        amount: paymentAmount,
+        status: "pending",
+        order_id, // Razorpay / generated order id
+      },
+      { transaction }
+    );
+
+    await box.update({ available_powerbanks: db.sequelize.literal("available_powerbanks - 1") }, { transaction });
+
+    await user.update(
+      {
+        outstanding_amount: 0,
+        swaps_used: 0,
+        swaps_remaining: type === "monthly" ? null : swap,
+        can_swap: (type === "monthly" || swap > 0) && user.is_verified && !user.block_status && user.status === "active",
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    return {
+      message: "Rental started successfully",
+      data: {
+        rental_id: rental.id,
+        start_time: rental.start_time,
+        payment_amount: paymentAmount,
+        order_id, // returned as-is
+      },
+    };
   } catch (error) {
-    console.error("Error in rentItem:", error);
     await transaction.rollback();
+    console.error("Error in startRent:", error);
     throw error;
   }
 };
