@@ -64,6 +64,7 @@ exports.verifyOrder = async (req, res, next) => {
     if (razorpay_signature === generatedSignature) {
       const rentalsData = await startRent(user_id, box_id, package_id, razorpay_order_id);
       const { message, data } = rentalsData;
+      console.log("Order verified successfully");
       sendSuccess(res, message, data, 200);
     } else {
       throw new Error("Order verification failed");
@@ -82,11 +83,15 @@ exports.webhookHandler = async (req, res, next) => {
     const generatedSignature = crypto.createHmac("sha256", webhookSecret).update(JSON.stringify(req.body)).digest("hex");
 
     if (generatedSignature !== signature) {
+      console.log("Invalid signature");
       return res.status(400).json({ message: "Invalid signature" });
     }
 
     const event = req.body.event;
     const payload = req.body.payload;
+
+    console.log("Event:", event);
+    console.log("Payload:", payload);
 
     switch (event) {
       case "payment.authorized":
