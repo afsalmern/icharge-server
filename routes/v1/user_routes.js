@@ -26,7 +26,7 @@ const {
 } = require("../../controllers/payments/payments_controller");
 const router = express.Router();
 const complaintController = require("../../controllers/complaints/complaints_controller");
-const { createOrder } = require("../../controllers/payments/razorpay_controller");
+const { createOrder, verifyOrder, webhookHandler } = require("../../controllers/payments/razorpay_controller");
 
 //Home
 router.get("/home", verifyToken, checkRole("user"), getHome);
@@ -58,8 +58,9 @@ router.put("/verify-rental-otp", verifyToken, checkRole("user"), verfiyRentalsOt
 router.post("/test", verifyToken, checkRole("user"), test);
 
 // //Payments
-// router.post("/create-order", verifyToken, checkRole("user"), createOrder);
-// router.post("/verify-order", verifyToken, checkRole("user"), createOrder);
+router.post("/razor-webhhook", verifyToken, checkRole("user"), webhookHandler);
+router.post("/create-order", verifyToken, checkRole("user"), createOrder);
+router.post("/verify-order", verifyToken, checkRole("user"), verifyOrder);
 
 //Transactions
 router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount);
