@@ -25,8 +25,17 @@ const sendOtp = async (otp, number) => {
     }
     return true;
   } catch (error) {
-    console.error("Error sending OTP via SMS:", error?.data);
-    throw new Error(error);
+    // Check if the error is from Fast2SMS with spam detection code
+    if (error.response && error.response.data) {
+      const errData = error.response.data;
+      // Fast2SMS spam detection error code is 995 (HTTP 400)
+      if (errData.response_code === 995) {
+        console.error("Spamming detected: Multiple OTP to same number are blocked");
+        throw new Error("Spamming detected: please wait before requesting another OTP.");
+      }
+    }
+    console.error("Error sending OTP via SMS:", error.response?.data || error.message);
+    throw new Error("Failed to send OTP via SMS.");
   }
 };
 
