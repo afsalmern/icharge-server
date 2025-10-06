@@ -12,7 +12,7 @@ const razorpayInstance = new RazorPay({
 exports.createOrder = async (req, res, next) => {
   const { amount, box_id } = req.body;
 
-  const box = await db.boxes.findOne({ attributes: ["id", "unique_id"], where: { id: box_id } });
+  const box = await db.boxes.findOne({ attributes: ["id", "unique_id"], where: { unique_id: box_id } });
   const user_id = req.user_id;
   const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });
 
@@ -61,13 +61,13 @@ exports.verifyOrder = async (req, res, next) => {
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    // if (razorpay_signature === generatedSignature) {
-    const rentalsData = await startRent(user_id, box_id, package_id, razorpay_order_id);
-    const { message, data } = rentalsData;
-    sendSuccess(res, message, data, 200);
-    // } else {
-    //   throw new Error("Order verification failed");
-    // }
+    if (razorpay_signature === generatedSignature) {
+      const rentalsData = await startRent(user_id, box_id, package_id, razorpay_order_id);
+      const { message, data } = rentalsData;
+      sendSuccess(res, message, data, 200);
+    } else {
+      throw new Error("Order verification failed");
+    }
   } catch (error) {
     console.log("error verifiying order", error);
     next(error);
