@@ -136,6 +136,67 @@ const startRent = async (user_id, box_id, package_id, order_id) => {
   }
 };
 
+const updateRentalPaymentStatus = async (db, payload, status, type = "default") => {
+  try {
+    const paymentEntity = payload.payment.entity;
+    const order_id = paymentEntity.order_id;
+    const paymentsData = await db.findOne({ where: { order_id } });
+    await paymentsData.update({ status });
+
+    if (type == "rental") {
+      const rentalData = paymentsData?.rental_id;
+      if (rentalData) {
+        const rental = await db.rentals.findOne({ where: { id: rentalData } });
+        if (rental) {
+          await rental.update({ status: "cancelled" });
+        }
+      }
+    }
+
+    return {
+      payment_id: paymentEntity.id,
+      user_id: paymentsData.user_id,
+    };
+  } catch (error) {
+    console.error("Error updating rental payment status:", error);
+    throw error;
+  }
+};
+
+const initiateRefund = async (payment_id, user_id, type) => {
+  try {
+    const paymentDetails = await razorpayInstance.payments.fetch(payment_id);
+
+    const paymentStatus = paymentDetails?.status;
+    const order_id = paymentDetails?.order_id;
+    const amount = paymentDetails?.amount / 100;
+
+    if (paymentStatus === "captured") {
+      await razorpayInstance.payments.refund(payment_id, {
+        amount,
+        speed: "normal",
+        notes: {
+          reason: "Payment failed refund",
+          payment_id: payment_id,
+        },
+      });
+
+      const refundData = await db.refunds.create({
+        order_id,
+        amount,
+        status: "pending",
+        type,
+        user_id,
+      });
+    }
+  } catch (error) {
+    console.log("Error in initiating refund", error);
+    throw error;
+  }
+};
+
 module.exports = {
   startRent,
+  updateRentalPaymentStatus,
+  initiateRefund,
 };
