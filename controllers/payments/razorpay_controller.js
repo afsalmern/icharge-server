@@ -114,6 +114,23 @@ exports.webhookHandler = async (req, res, next) => {
           }
         }
 
+        //Refund
+
+        const paymentDetails = await razorpayInstance.payments.fetch(paymentFailed.id);
+
+        const paymentStatus = paymentDetails?.status;
+
+        if (paymentStatus === "captured") {
+          const refund = await razorpayInstance.payments.refund(paymentFailed.id, {
+            amount: paymentFailed.amount,
+            speed: "normal",
+            notes: {
+              reason: "Payment failed refund",
+              payment_id: paymentFailed.id,
+            },
+          });
+        }
+
         break;
       default:
         console.log(`Unhandled event: ${event}`);
