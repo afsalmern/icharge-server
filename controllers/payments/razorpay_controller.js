@@ -62,7 +62,7 @@ exports.verifyOrder = async (req, res, next) => {
 exports.webhookHandler = async (req, res, next) => {
   console.log("WEBHOOK ===========>");
   try {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_RENTAL;
+    const webhookSecret = process.env.WEBHOOK_SECRET;
     const signature = req.headers["x-razorpay-signature"];
     const dataStringified = JSON.stringify(req.body);
 

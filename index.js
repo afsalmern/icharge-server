@@ -7,7 +7,6 @@ const authRouter = require("./routes/v1/auth_route");
 const userRouter = require("./routes/v1/user_routes");
 const webRouter = require("./routes/v1/web_routes");
 const { errorHandler } = require("./middlewares/error");
-const { webhookHandler, depositWebhook } = require("./controllers/payments/razorpay_controller");
 
 dotenv.config();
 
@@ -16,8 +15,6 @@ const port = process.env.PORT || 3000;
 const app = express();
 
 app.use(cors());
-
-app.post("/razor-webhook", express.raw({ type: "application/json" }), webhookHandler);
 
 // ⚠️ Then normal parsers for your regular APIs
 app.use(express.json({ limit: "20mb" }));
