@@ -3,6 +3,8 @@ const { startRent, initiateRefund, addDepositAmount, revertDepositAmount } = req
 const db = require("../../models");
 const { initiateOrder, verifySignature } = require("../../helpers/razorPayHelpers");
 
+const ChecksAndAmount = db.checks_and_amounts;
+
 exports.createOrder = async (req, res, next) => {
   const { amount, box_id } = req.body;
 
