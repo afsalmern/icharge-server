@@ -118,6 +118,8 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
   };
   await Otp.create(otpData);
 
+  console.log("OTP", otp);
+
   sendSuccess(res, "Otp sent successfully", { otp }, 200);
 
   // try {
