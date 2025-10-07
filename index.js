@@ -17,6 +17,8 @@ const app = express();
 
 app.use(cors());
 
+app.post("/razor-webhook", express.raw({ type: "application/json" }), webhookHandler);
+
 // ⚠️ Then normal parsers for your regular APIs
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true }));
