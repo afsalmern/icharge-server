@@ -202,7 +202,7 @@ const addDepositAmount = async (user_id, deposit_amount, order_id) => {
 
   try {
     // 1️⃣ Update user
-    const [updatedCount] = await db.Users.update(
+    const [updatedCount] = await Users.update(
       {
         deposit_amount,
         is_verified: true,
@@ -219,7 +219,7 @@ const addDepositAmount = async (user_id, deposit_amount, order_id) => {
     }
 
     // 2️⃣ Fetch user instance for association methods
-    const user = await db.Users.findByPk(user_id, { transaction });
+    const user = await Users.findByPk(user_id, { transaction });
 
     if (!user) {
       throw new Error("User not found after update");
@@ -263,7 +263,7 @@ const revertDepositAmount = async (user_id, order_id) => {
 
   try {
     // 1️⃣ Reset user deposit info
-    await db.Users.update(
+    await Users.update(
       {
         deposit_amount: 0.0,
         is_verified: false,
