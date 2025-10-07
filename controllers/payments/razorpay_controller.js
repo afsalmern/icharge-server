@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { startRent, initiateRefund, addDepositAmount, revertDepositAmount } = require("../../helpers/rentalsHelper");
+const { startRent, initiateRefund, addDepositAmount, revertDepositAmount, updateRentalPaymentStatus } = require("../../helpers/rentalsHelper");
 const db = require("../../models");
 const { initiateOrder, verifySignature } = require("../../helpers/razorPayHelpers");
 const crypto = require("crypto");
@@ -154,10 +154,11 @@ exports.depositWebhook = async (req, res, next) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_DEPOSIT;
     const signature = req.headers["x-razorpay-signature"];
+    const dataStringified = JSON.stringify(req.body);
 
     const generatedSignature = crypto
       .createHmac("sha256", webhookSecret)
-      .update(req.body) // use the raw Buffer directly
+      .update(dataStringified) // use the raw Buffer directly
       .digest("hex");
 
     if (generatedSignature !== signature) {
@@ -165,8 +166,8 @@ exports.depositWebhook = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid signature" });
     }
 
-    const event = req.body.event;
-    const payload = req.body.payload;
+    const event = dataStringified?.event;
+    const payload = dataStringified?.payload;
 
     const userId = payload?.notes?.user_id;
 

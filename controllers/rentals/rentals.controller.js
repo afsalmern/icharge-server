@@ -390,6 +390,8 @@ exports.returnItem = async (req, res, next) => {
 
     const returnTime = new Date();
 
+    let packageType = rental?.rented_package.type;
+
     const { totalHours, extraHours, extraCharge, usedTime: usedTimeStr, allowedTime: allowedTimeStr } = calculateRentalCharge(rental, returnTime);
 
     await rental.update(

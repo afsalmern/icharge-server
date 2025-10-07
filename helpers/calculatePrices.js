@@ -79,6 +79,8 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
   // 2️⃣ Convert package duration to hours
   let packageHours;
   let packageType = rental.rented_package.type;
+
+  const isFree = packageType === "free";
   switch (packageType) {
     case "hourly":
       packageHours = rental.rented_package.duration;
@@ -89,6 +91,8 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
     case "monthly":
       packageHours = rental.rented_package.duration * 30 * 24; // approximate
       break;
+    case "free":
+      packageHours = 0;
     default:
       throw new Error("Unknown package type: " + packageType);
   }
@@ -112,6 +116,9 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
     case "monthly":
       usedTimeStr = `${Math.floor(totalHours / (24 * 30))} month(s) and ${totalHours % (24 * 30)} hour(s) used`;
       break;
+    case "free":
+      usedTimeStr = "This is a free package";
+      break;
   }
 
   let allowedTimeStr;
@@ -125,12 +132,15 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
     case "monthly":
       allowedTimeStr = `${rental.rented_package.duration} month(s) allowed`;
       break;
+    case "free":
+      allowedTimeStr = "This is a free package";
+      break;
   }
 
   return {
     totalHours,
-    extraHours,
-    extraCharge,
+    extraHours: isFree ? 0 : extraHours,
+    extraCharge: isFree ? 0 : extraCharge,
     usedTime: usedTimeStr,
     allowedTime: allowedTimeStr,
   };
