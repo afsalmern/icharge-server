@@ -115,6 +115,7 @@ exports.createOrderForDeposit = async (req, res, next) => {
     receipt: `IC_reciept-Deposit_${Date.now()}`,
     notes: {
       user: user?.name || "Guest",
+      user_id: user_id,
       type: "deposit",
     },
   };
@@ -172,8 +173,8 @@ exports.depositWebhook = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid signature" });
     }
 
-    const event = dataStringified?.event;
-    const payload = dataStringified?.payload;
+    const event = req.body.event;
+    const payload = req.body.payload;
 
     const userId = payload?.notes?.user_id;
 
