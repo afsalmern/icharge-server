@@ -152,7 +152,7 @@ exports.verifyOrderForDeposit = async (req, res, next) => {
 
 exports.depositWebhook = async (req, res, next) => {
   try {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_RENTAL;
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_DEPOSIT;
     const signature = req.headers["x-razorpay-signature"];
 
     const generatedSignature = crypto

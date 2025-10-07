@@ -17,13 +17,15 @@ const app = express();
 
 app.use(cors());
 
+// ⚠️ Webhooks first, using raw body
+app.post("/razor-webhook", express.raw({ type: "application/json" }), webhookHandler);
+app.post("/deposit-webhook", express.raw({ type: "application/json" }), depositWebhook);
+
+// ⚠️ Then normal parsers for your regular APIs
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/uploads", express.static(path.join("uploads")));
-
-app.post("/razor-webhook", express.raw({ type: "application/json" }), webhookHandler);
-app.post("/deposit-webhook", express.raw({ type: "application/json" }), depositWebhook);
 
 app.use("/api/v1/auth/", authRouter);
 app.use("/api/v1/user/", userRouter);
