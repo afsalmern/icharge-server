@@ -81,6 +81,7 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
   let packageType = rental.rented_package.type;
 
   const isFree = packageType === "free";
+  console.log(packageType);
   switch (packageType) {
     case "hourly":
       packageHours = rental.rented_package.duration;
