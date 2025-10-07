@@ -21,6 +21,7 @@ exports.createOrder = async (req, res, next) => {
     notes: {
       user: user?.name || "Guest",
       box: box?.unique_id || "Not Specified",
+      type: "rental",
     },
   };
 
@@ -62,10 +63,11 @@ exports.webhookHandler = async (req, res, next) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_RENTAL;
     const signature = req.headers["x-razorpay-signature"];
+    const dataStringified = JSON.stringify(req.body);
 
     const generatedSignature = crypto
       .createHmac("sha256", webhookSecret)
-      .update(req.body) // use the raw Buffer directly
+      .update(dataStringified) // use the raw Buffer directly
       .digest("hex");
 
     if (generatedSignature !== signature) {
@@ -75,6 +77,8 @@ exports.webhookHandler = async (req, res, next) => {
 
     const event = req.body.event;
     const payload = req.body.payload;
+    const type = payload?.notes?.type;
+    const userId = payload?.notes?.user_id;
 
     console.log("Event:", event);
     console.log("Payload:", payload);
@@ -85,17 +89,27 @@ exports.webhookHandler = async (req, res, next) => {
         break;
       case "payment.captured":
         console.log("Payment captured:", payload);
-        await updateRentalPaymentStatus(db.rental_payments, payload, "success");
+        if (type == "rental") {
+          await updateRentalPaymentStatus(db.rental_payments, payload, "success");
+        } else {
+          await updateRentalPaymentStatus(db.user_deposits, payload, "success");
+        }
         break;
       case "payment.failed":
         console.log("Payment failed:", payload);
-        const rentalPayment = await updateRentalPaymentStatus(db.rental_payments, payload, "failed", "rental");
-        await initiateRefund(rentalPayment.payment_id, rentalPayment.user_id, "rental");
+        let rentalPayment = null;
+        if (type == "rental") {
+          rentalPayment = await updateRentalPaymentStatus(db.rental_payments, payload, "failed", "rental");
+        } else {
+          rentalPayment = await updateRentalPaymentStatus(db.user_deposits, payload, "failed");
+          await revertDepositAmount(userId, rentalPayment.order_id);
+        }
+        await initiateRefund(rentalPayment.payment_id, rentalPayment.user_id, type);
         break;
       default:
         console.log(`Unhandled event: ${event}`);
     }
-    sendSuccess(res, "Webhook received successfully", {}, 200);
+    res.status(200).json({ status: "success", message: "Webhook received" });
   } catch (error) {
     console.log("error in webhook", error);
     next(error);

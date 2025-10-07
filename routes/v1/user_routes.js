@@ -71,7 +71,6 @@ router.post("/create-deposit-order", verifyToken, checkRole("user"), createOrder
 router.post("/verify-deposit-order", verifyToken, checkRole("user"), verifyOrderForDeposit);
 
 router.post("/razor-webhook", webhookHandler);
-router.post("/deposit-webhook", depositWebhook);
 
 //Transactions
 router.patch("/deposit-amount", verifyToken, checkRole("user"), addDepositAmount);
