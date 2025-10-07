@@ -140,11 +140,10 @@ const startRent = async (user_id, box_id, package_id, order_id) => {
 
 const updateRentalPaymentStatus = async (database, payload, status, type = "default") => {
   try {
-    const test = database.findAll();
-    console.log("test", test);
-
     const paymentEntity = payload.payment.entity;
     const order_id = paymentEntity.order_id;
+    const datas = await database.findAll();
+    console.log("datas", datas);
     const paymentsData = await database.findOne({ where: { order_id } });
     await paymentsData.update({ status });
 
