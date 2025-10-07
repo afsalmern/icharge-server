@@ -108,6 +108,11 @@ module.exports = (sequelize, DataTypes) => {
       as: "kyc_details",
     });
 
+    User.hasOne(models.user_deposits, {
+      foreignKey: "user_id",
+      as: "user_deposits",
+    });
+
     User.hasMany(models.user_transactions, {
       foreignKey: "user_id",
       as: "transactions",

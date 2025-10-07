@@ -2,6 +2,8 @@ const { ApiError } = require("../middlewares/error");
 const db = require("../models");
 const { getEndTime } = require("./calculatePrices");
 
+const Users = db.users;
+
 const startRent = async (user_id, box_id, package_id, order_id) => {
   if (!user_id || !box_id) {
     throw new ApiError("User ID and Box ID are required", 400);
@@ -195,8 +197,116 @@ const initiateRefund = async (payment_id, user_id, type) => {
   }
 };
 
+const addDepositAmount = async (user_id, deposit_amount, order_id) => {
+  const transaction = await db.sequelize.transaction();
+
+  try {
+    // 1️⃣ Update user
+    const [updatedCount] = await db.Users.update(
+      {
+        deposit_amount,
+        is_verified: true,
+        user_preferred_method: "deposit",
+      },
+      {
+        where: { id: user_id },
+        transaction,
+      }
+    );
+
+    if (updatedCount === 0) {
+      throw new Error("Operation failed: user not found");
+    }
+
+    // 2️⃣ Fetch user instance for association methods
+    const user = await db.Users.findByPk(user_id, { transaction });
+
+    if (!user) {
+      throw new Error("User not found after update");
+    }
+
+    // 3️⃣ Create a transaction record
+    await user.createTransaction(
+      {
+        amount: deposit_amount,
+        type: "deposit",
+        transaction_date: new Date(),
+        order_id,
+        transfer_status: "pending",
+      },
+      { transaction }
+    );
+
+    // 4️⃣ Create a user_deposits record
+    await user.createUser_deposits(
+      {
+        amount: deposit_amount,
+        order_id,
+        status: "pending",
+      },
+      { transaction }
+    );
+
+    // 5️⃣ Commit transaction
+    await transaction.commit();
+
+    return { success: true, user };
+  } catch (error) {
+    console.error("Error in addDepositAmount:", error);
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+const revertDepositAmount = async (user_id, order_id) => {
+  const transaction = await db.sequelize.transaction();
+
+  try {
+    // 1️⃣ Reset user deposit info
+    await db.Users.update(
+      {
+        deposit_amount: 0.0,
+        is_verified: false,
+        user_preferred_method: null,
+      },
+      { where: { id: user_id }, transaction }
+    );
+
+    // 2️⃣ Update user transaction status
+    const userTransaction = await db.user_transactions.findOne({
+      where: { order_id },
+      transaction,
+    });
+
+    if (userTransaction) {
+      await userTransaction.update({ transfer_status: "failed" }, { transaction });
+    }
+
+    // 3️⃣ Update user deposit status
+    const userDeposit = await db.user_deposits.findOne({
+      where: { order_id },
+      transaction,
+    });
+
+    if (userDeposit) {
+      await userDeposit.update({ status: "failed" }, { transaction });
+    }
+
+    // 4️⃣ Commit transaction
+    await transaction.commit();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error in revertDepositAmount:", error);
+    await transaction.rollback();
+    throw error;
+  }
+};
+
 module.exports = {
   startRent,
   updateRentalPaymentStatus,
   initiateRefund,
+  addDepositAmount,
+  revertDepositAmount,
 };

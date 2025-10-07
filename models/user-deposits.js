@@ -18,6 +18,10 @@ module.exports = (sequelize, DataTypes) => {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
+      order_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       amount: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
@@ -33,6 +37,15 @@ module.exports = (sequelize, DataTypes) => {
       underscored: true,
     }
   );
+
+  UserDeposits.associate = (models) => {
+    UserDeposits.belongsTo(models.users, {
+      foreignKey: "user_id",
+      as: "user",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+  };
 
   return UserDeposits;
 };

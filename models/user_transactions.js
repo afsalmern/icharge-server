@@ -20,6 +20,10 @@ module.exports = (sequelize, DataTypes) => {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
+      order_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       type: {
         type: DataTypes.ENUM("deposit", "withdraw"),
         allowNull: false,

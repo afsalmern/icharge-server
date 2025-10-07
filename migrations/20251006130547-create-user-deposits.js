@@ -2,7 +2,7 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("user-deposits", {
+    await queryInterface.createTable("user_deposits", {
       id: {
         allowNull: false,
         autoIncrement: true,
@@ -37,6 +37,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("user-deposits");
+    await queryInterface.sequelize.query('DROP TABLE IF EXISTS "user-deposits";');
   },
 };

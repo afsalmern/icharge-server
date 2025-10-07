@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { startRent, initiateRefund } = require("../../helpers/rentalsHelper");
+const { startRent, initiateRefund, addDepositAmount, revertDepositAmount } = require("../../helpers/rentalsHelper");
 const db = require("../../models");
 const { initiateOrder, verifySignature } = require("../../helpers/razorPayHelpers");
 
@@ -57,7 +57,7 @@ exports.verifyOrder = async (req, res, next) => {
 
 exports.webhookHandler = async (req, res, next) => {
   try {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_RENTAL;
     const signature = req.headers["x-razorpay-signature"];
 
     const generatedSignature = crypto
@@ -102,6 +102,14 @@ exports.webhookHandler = async (req, res, next) => {
 exports.createOrderForDeposit = async (req, res, next) => {
   const { amount } = req.body;
 
+  const depositAmount = await ChecksAndAmount.findAll({
+    attributes: ["deposit_amount"],
+  });
+
+  if (amount !== depositAmount?.[0].deposit_amount) {
+    throw new ApiError(400, "Deposit amount is not valid");
+  }
+
   const user_id = req.user_id;
   const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });
 
@@ -131,11 +139,12 @@ exports.createOrderForDeposit = async (req, res, next) => {
 
 exports.verifyOrderForDeposit = async (req, res, next) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
 
     const isSignatureValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
 
     if (isSignatureValid) {
+      await addDepositAmount(req.user_id, amount, razorpay_order_id);
       sendSuccess(res, "Deposit Order verified successfully", {}, 200);
     } else {
       throw new Error("Order verification failed");
@@ -148,7 +157,7 @@ exports.verifyOrderForDeposit = async (req, res, next) => {
 
 exports.depositWebhook = async (req, res, next) => {
   try {
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_RENTAL;
     const signature = req.headers["x-razorpay-signature"];
 
     const generatedSignature = crypto
@@ -163,6 +172,8 @@ exports.depositWebhook = async (req, res, next) => {
 
     const event = req.body.event;
     const payload = req.body.payload;
+
+    const userId = payload?.notes?.user_id;
 
     console.log("Event:", event);
     console.log("Payload:", payload);
@@ -179,6 +190,7 @@ exports.depositWebhook = async (req, res, next) => {
         console.log("Payment failed:", payload);
         const rentalPayment = await updateRentalPaymentStatus(db.user_deposits, payload, "failed");
         await initiateRefund(rentalPayment.payment_id, rentalPayment.user_id, "deposit");
+        await revertDepositAmount(userId, rentalPayment.order_id, db);
         break;
       default:
         console.log(`Unhandled event: ${event}`);
