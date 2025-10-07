@@ -140,6 +140,7 @@ exports.verifyOrderForDeposit = async (req, res, next) => {
 
     if (isSignatureValid) {
       await addDepositAmount(req.user_id, amount, razorpay_order_id);
+      console.log("Order verified successfully Deposit");
       sendSuccess(res, "Deposit Order verified successfully", {}, 200);
     } else {
       throw new Error("Order verification failed");
@@ -156,11 +157,16 @@ exports.depositWebhook = async (req, res, next) => {
     const signature = req.headers["x-razorpay-signature"];
     const dataStringified = JSON.stringify(req.body);
 
+    console.log("DEPOSIT WEBHOOK ===========>");
+    console.log("Data strig", dataStringified);
+    console.log("signature", signature);
+
     const generatedSignature = crypto
       .createHmac("sha256", webhookSecret)
       .update(dataStringified) // use the raw Buffer directly
       .digest("hex");
 
+    console.log("Generated signature", generatedSignature);
     if (generatedSignature !== signature) {
       console.log("Invalid signature");
       return res.status(400).json({ message: "Invalid signature" });
