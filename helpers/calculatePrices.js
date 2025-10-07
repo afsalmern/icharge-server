@@ -94,6 +94,7 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
       break;
     case "free":
       packageHours = 0;
+      break;
     default:
       throw new Error("Unknown package type: " + packageType);
   }
