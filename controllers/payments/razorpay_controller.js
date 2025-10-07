@@ -105,14 +105,6 @@ exports.webhookHandler = async (req, res, next) => {
 exports.createOrderForDeposit = async (req, res, next) => {
   const { amount } = req.body;
 
-  const depositAmount = await ChecksAndAmount.findAll({
-    attributes: ["deposit_amount"],
-  });
-
-  if (amount !== depositAmount?.[0].deposit_amount) {
-    throw new ApiError(400, "Deposit amount is not valid");
-  }
-
   const user_id = req.user_id;
   const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });
 
