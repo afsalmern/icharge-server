@@ -81,6 +81,11 @@ exports.webhookHandler = async (req, res, next) => {
     const type = payload?.payment?.entity?.notes?.type;
     const userId = payload?.payment?.entity?.notes?.user_id;
 
+    console.log("TYPE", payload?.payment?.entity?.notes?.type);
+    console.log("TYPE", payload?.payment?.entity?.notes);
+    console.log("TYPE", payload?.payment?.entity);
+    console.log("TYPE", type);
+
     console.log("Event:", event);
     console.log("Payload:", payload);
 
