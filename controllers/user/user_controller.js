@@ -395,7 +395,7 @@ exports.getPackages = async (req, res, next) => {
     const rentals = await user.getRentals({
       attributes: ["id", "status"],
       where: {
-        status: "ongoing",
+        status: "completed",
       },
     });
 
