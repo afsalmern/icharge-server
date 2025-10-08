@@ -173,7 +173,7 @@ const initiateRefund = async (payment_id, user_id, type) => {
 
     const paymentStatus = paymentDetails?.status;
     const order_id = paymentDetails?.order_id;
-    const amount = paymentDetails?.amount / 100;
+    const amount = paymentDetails?.amount;
 
     if (paymentStatus === "captured") {
       await razorpayInstance.payments.refund(payment_id, {
@@ -187,7 +187,7 @@ const initiateRefund = async (payment_id, user_id, type) => {
 
       const refundData = await db.refunds.create({
         order_id,
-        amount,
+        amount: amount / 100,
         status: "pending",
         type,
         user_id,
