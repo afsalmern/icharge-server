@@ -69,7 +69,7 @@ exports.createOrderForDeposit = async (req, res, next) => {
     notes: {
       user: user?.name || "Guest",
       box: "Not Specified",
-      type: "rental",
+      type: "deposit",
       user_id,
       box_id: null,
       package_id: null,
