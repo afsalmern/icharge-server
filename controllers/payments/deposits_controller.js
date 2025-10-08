@@ -154,6 +154,7 @@ exports.deductDepositAmount = async (req, res, next) => {
 exports.submitWithDrawRequest = async (req, res, next) => {
   const { user_id } = req;
   const { amount_to_withdraw } = req.body;
+  console.log("WITHDRAW AMOUNT", amount_to_withdraw);
   const transaction = await db.sequelize.transaction();
   try {
     const user = await Users.findByPk(user_id, { transaction });
