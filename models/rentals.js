@@ -70,6 +70,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: "ongoing",
       },
+      rental_status: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: "pending",
+      },
       extra_charge: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true,

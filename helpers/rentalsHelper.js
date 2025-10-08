@@ -150,10 +150,22 @@ const updateRentalPaymentStatus = async (database, payload, status, type = "defa
 
     if (type == "rental") {
       const rentalData = paymentsData?.rental_id;
+
+      let updateParams = {
+        rental_status: status == "success" ? "completed" : "failed",
+      };
+
+      if (status == "failed") {
+        updateParams = {
+          ...updateParams,
+          status: "completed",
+        };
+      }
+
       if (rentalData) {
         const rental = await db.rentals.findOne({ where: { id: rentalData } });
         if (rental) {
-          await rental.update({ status: "cancelled" });
+          await rental.update(updateParams);
         }
       }
     }

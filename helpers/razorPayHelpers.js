@@ -43,7 +43,7 @@ const startRefund = async (payment_id, type) => {
     const amount = paymentDetails?.amount;
 
     if (paymentStatus !== "captured") {
-      throw new Error("Payment is not captured");
+      return false;
     }
 
     await razorpayInstance.payments.refund(payment_id, {
