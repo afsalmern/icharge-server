@@ -161,16 +161,8 @@ exports.submitWithDrawRequest = async (req, res, next) => {
       throw new ApiError(404, "User not found");
     }
 
-    if (user.outstanding_amount >= user.deposit_amount) {
-      throw new ApiError(400, `You have a pending amount of ${user.outstanding_amount}, please clear it first`);
-    }
-
     if (amount_to_withdraw > user.deposit_amount) {
       throw new ApiError(400, "Deposit amount is not enough");
-    }
-
-    if (amount_to_withdraw != user.deposit_amount) {
-      throw new ApiError(400, "You are only allowed to withdraw your deposit amount");
     }
 
     const addedRequest = await user.createWithdraw_request(
