@@ -162,6 +162,9 @@ const updateRentalPaymentStatus = async (database, payload, status, type = "defa
         };
       }
 
+      console.log("UPDATE PARAMS", status);
+      console.log("UPDATE PARAMS", updateParams);
+
       if (rentalData) {
         const rental = await db.rentals.findOne({ where: { id: rentalData } });
         if (rental) {

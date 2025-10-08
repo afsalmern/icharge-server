@@ -78,12 +78,14 @@ exports.webhookHandler = async (req, res, next) => {
     const type = payload?.payment?.entity?.notes?.type;
     const userId = payload?.payment?.entity?.notes?.user_id;
 
+    console.log("WEBHHOOK TYPE ==========>", type);
+
     switch (event) {
       case "payment.authorized":
-        console.log("Payment authorized:", payload);
+        console.log("Payment authorized:");
         break;
       case "payment.captured":
-        console.log("Payment captured:", payload);
+        console.log("Payment captured:");
         if (type == "rental") {
           await updateRentalPaymentStatus(db.rental_payments, payload, "success");
         } else {
@@ -91,7 +93,7 @@ exports.webhookHandler = async (req, res, next) => {
         }
         break;
       case "payment.failed":
-        console.log("Payment failed:", payload);
+        console.log("Payment failed:");
         let rentalPayment = null;
         if (type == "rental") {
           rentalPayment = await updateRentalPaymentStatus(db.rental_payments, payload, "failed", "rental");
