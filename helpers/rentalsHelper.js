@@ -148,6 +148,16 @@ const updateRentalPaymentStatus = async (database, payload, status, type = "defa
     const paymentsData = await database.findOne({ where: { order_id } });
     await paymentsData.update({ status });
 
+    if (type == "deposit") {
+      const userTransaction = await db.user_transactions.findOne({
+        where: { order_id },
+      });
+
+      if (userTransaction) {
+        await userTransaction.update({ transfer_status: "success" }, { transaction });
+      }
+    }
+
     if (type == "rental") {
       const rentalData = paymentsData?.rental_id;
 
