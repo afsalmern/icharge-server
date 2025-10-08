@@ -81,8 +81,6 @@ exports.createOrderForDeposit = async (req, res, next) => {
       throw new Error("Amount should be a valid positive number");
     }
     const order = await initiateOrder(options);
-    const razorpay_order_id = order?.orderId;
-    await addDepositAmount(user_id, amount, razorpay_order_id);
     sendSuccess(res, "Order created successfully", { order }, 200);
   } catch (error) {
     console.error(error);
