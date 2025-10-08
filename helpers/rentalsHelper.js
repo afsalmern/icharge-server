@@ -159,6 +159,7 @@ const updateRentalPaymentStatus = async (database, payload, status, type = "defa
     return {
       payment_id: paymentEntity.id,
       user_id: paymentsData.user_id,
+      order_id,
     };
   } catch (error) {
     console.error("Error updating rental payment status:", error);
