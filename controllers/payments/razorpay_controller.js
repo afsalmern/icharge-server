@@ -87,7 +87,7 @@ exports.webhookHandler = async (req, res, next) => {
       case "payment.captured":
         console.log("Payment captured:");
         if (type == "rental") {
-          await updateRentalPaymentStatus(db.rental_payments, payload, "success");
+          await updateRentalPaymentStatus(db.rental_payments, payload, "success", "rental");
         } else {
           await updateRentalPaymentStatus(db.user_deposits, payload, "success");
         }
