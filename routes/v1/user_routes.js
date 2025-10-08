@@ -23,7 +23,7 @@ const {
   getDepositHistories,
   deductDepositAmount,
   submitWithDrawRequest,
-} = require("../../controllers/payments/payments_controller");
+} = require("../../controllers/payments/deposits_controller");
 const router = express.Router();
 const complaintController = require("../../controllers/complaints/complaints_controller");
 const {
@@ -32,8 +32,7 @@ const {
   webhookHandler,
   createOrderForDeposit,
   verifyOrderForDeposit,
-  depositWebhook,
-} = require("../../controllers/payments/razorpay_controller");
+} = require("../../controllers/payments/payments_controller");
 
 //Home
 router.get("/home", verifyToken, checkRole("user"), getHome);

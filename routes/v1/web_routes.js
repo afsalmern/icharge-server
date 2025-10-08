@@ -23,7 +23,7 @@ const {
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
 const { getAllRentals } = require("../../controllers/rentals/rentals.controller");
-const { processWithdrawRequest, getAllWithdrawRequests, withDrawRequestStatusUpdate } = require("../../controllers/payments/payments_controller");
+const { processWithdrawRequest, getAllWithdrawRequests, withDrawRequestStatusUpdate } = require("../../controllers/payments/deposits_controller");
 const router = express.Router();
 
 const complaintController = require("../../controllers/complaints/complaints_controller");

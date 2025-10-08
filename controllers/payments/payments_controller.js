@@ -1,282 +1,160 @@
-const { where } = require("sequelize");
 const { sendSuccess } = require("../../handlers/success_response_handler");
+const { startRent, initiateRefund, addDepositAmount, revertDepositAmount, updateRentalPaymentStatus } = require("../../helpers/rentalsHelper");
 const db = require("../../models");
-const { ApiError } = require("../../middlewares/error");
+const { initiateOrder, verifySignature } = require("../../helpers/razorPayHelpers");
+const crypto = require("crypto");
 
-const Users = db.users;
-const Transactions = db.user_transactions;
-const WithDrawRequests = db.withdraw_requests;
-const ChecksAndAmount = db.checks_and_amounts;
+exports.createOrder = async (req, res, next) => {
+  const { amount, box_id, package_id } = req.body;
 
-exports.addDepositAmount = async (req, res, next) => {
-  const { user_id } = req;
-  // const deposit_amount = 500.0;
+  const box = await db.boxes.findOne({ attributes: ["id", "unique_id"], where: { unique_id: box_id } });
+  const user_id = req.user_id;
+  const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });
 
-  const amount = await ChecksAndAmount.findAll({
-    attributes: ["deposit_amount"],
-  });
-
-  const deposit_amount = amount?.[0].deposit_amount || 5.0;
-
-  const transaction = await db.sequelize.transaction();
+  const currency = "INR";
+  const options = {
+    amount: amount * 100,
+    currency: currency,
+    receipt: `IC_reciept_${Date.now()}`,
+    notes: {
+      user: user?.name || "Guest",
+      box: box?.unique_id || "Not Specified",
+      type: "rental",
+      user_id: user_id,
+      box_id,
+      package_id,
+    },
+  };
 
   try {
-    const user = await Users.findByPk(user_id, { transaction });
-    if (!user) {
-      throw new ApiError(404, "User not found");
+    if (!amount || amount <= 0) {
+      throw new Error("Amount should be a valid positive number");
     }
-
-    const [updatedCount] = await Users.update(
-      {
-        deposit_amount,
-        is_verified: true,
-        user_preferred_method: "deposit",
-      },
-      {
-        where: { id: user_id },
-        returning: true,
-        transaction,
-      }
-    );
-
-    if (updatedCount === 0) {
-      throw new ApiError(400, "Operation failed, try again");
-    }
-
-    const updatedUser = await Users.findByPk(user_id, { transaction });
-
-    await updatedUser.createTransaction(
-      {
-        amount: deposit_amount,
-        type: "deposit",
-        transaction_date: new Date(),
-      },
-      { transaction }
-    );
-
-    await transaction.commit();
-
-    sendSuccess(res, "Deposit amount added successfully", { user: updatedUser }, 200);
+    const order = await initiateOrder(options);
+    sendSuccess(res, "Order created successfully", { order }, 200);
   } catch (error) {
     console.error(error);
-    await transaction.rollback();
     next(error);
   }
 };
 
-exports.getDepositHistories = async (req, res, next) => {
+exports.verifyOrder = async (req, res, next) => {
   try {
-    const { user_id } = req;
-    const user = await Users.findByPk(user_id);
-    if (!user) {
-      throw new ApiError(404, "User not found");
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    const isSignatureValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+
+    if (isSignatureValid) {
+      sendSuccess(res, "Order verified successfully", {}, 200);
+    } else {
+      throw new Error("Order verification failed");
     }
-
-    const depositHistories = await Users.findAll({
-      attributes: ["id", "deposit_amount", "outstanding_amount", "status", "created_at"],
-      where: {
-        id: user_id,
-      },
-      include: {
-        model: Transactions,
-        as: "transactions",
-        attributes: ["id", "amount", "transfer_status", "type", "transaction_date", "created_at"],
-      },
-    });
-
-    sendSuccess(res, "Deposit amount added successfully", { depositHistories: depositHistories[0] }, 200);
   } catch (error) {
-    console.log(error);
+    console.log("error verifiying order", error);
     next(error);
   }
 };
 
-exports.deductDepositAmount = async (req, res, next) => {
-  const { user_id } = req;
-  const { deduct_amount } = req.body;
+exports.createOrderForDeposit = async (req, res, next) => {
+  const { amount } = req.body;
 
-  const transaction = await db.sequelize.transaction();
+  const user_id = req.user_id;
+  const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });
+
+  const currency = "INR";
+  const options = {
+    amount: amount * 100,
+    currency: currency,
+    receipt: `IC_reciept-Deposit_${Date.now()}`,
+    notes: {
+      user: user?.name || "Guest",
+      box: box?.unique_id || "Not Specified",
+      type: "rental",
+      user_id,
+      box_id,
+      package_id,
+    },
+  };
 
   try {
-    const user = await Users.findByPk(user_id, { transaction });
-    if (!user) {
-      throw new ApiError(404, "User not found");
+    if (!amount || amount <= 0) {
+      throw new Error("Amount should be a valid positive number");
     }
-
-    if (user.deposit_amount == 0) {
-      throw new ApiError(400, "Deposit amount is zero, cannot deduct");
-    }
-
-    if (deduct_amount > user.deposit_amount) {
-      throw new ApiError(400, "Deposit amount is not enough");
-    }
-
-    const updatedDepositAmount = user.deposit_amount - deduct_amount;
-
-    const [updatedCount] = await Users.update(
-      {
-        deposit_amount: updatedDepositAmount,
-        is_verified: updatedDepositAmount == 0 || updatedDepositAmount < 0 ? false : true,
-      },
-      {
-        where: { id: user_id },
-        returning: true,
-        transaction,
-      }
-    );
-
-    if (updatedCount === 0) {
-      throw new ApiError(400, "Operation failed, try again");
-    }
-
-    // Fetch the updated user after update
-    const updatedUser = await Users.findByPk(user_id, { transaction });
-
-    await updatedUser.createTransaction(
-      {
-        amount: deduct_amount,
-        type: "withdraw",
-        transaction_date: new Date(),
-      },
-      { transaction }
-    );
-
-    await transaction.commit(); // ✅ Commit transaction before sending response
-
-    sendSuccess(res, "Deposit amount deducted successfully", { user: updatedUser }, 200);
+    const order = await initiateOrder(options);
+    const razorpay_order_id = order?.orderId;
+    await addDepositAmount(user_id, amount, razorpay_order_id);
+    sendSuccess(res, "Order created successfully", { order }, 200);
   } catch (error) {
     console.error(error);
-    await transaction.rollback();
     next(error);
   }
 };
 
-exports.submitWithDrawRequest = async (req, res, next) => {
-  const { user_id } = req;
-  const { amount_to_withdraw } = req.body;
-  const transaction = await db.sequelize.transaction();
+exports.verifyOrderForDeposit = async (req, res, next) => {
   try {
-    const user = await Users.findByPk(user_id, { transaction });
-    if (!user) {
-      throw new ApiError(404, "User not found");
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    const isSignatureValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+
+    if (isSignatureValid) {
+      sendSuccess(res, "Deposit Order verified successfully", {}, 200);
+    } else {
+      throw new Error("Order verification failed");
     }
-
-    if (user.outstanding_amount >= user.deposit_amount) {
-      throw new ApiError(400, `You have a pending amount of ${user.outstanding_amount}, please clear it first`);
-    }
-
-    if (amount_to_withdraw > user.deposit_amount) {
-      throw new ApiError(400, "Deposit amount is not enough");
-    }
-
-    if (amount_to_withdraw != user.deposit_amount) {
-      throw new ApiError(400, "You are only allowed to withdraw your deposit amount");
-    }
-
-    const addedRequest = await user.createWithdraw_request(
-      {
-        amount: amount_to_withdraw,
-      },
-      { transaction }
-    );
-
-    await transaction.commit();
-    sendSuccess(res, "Withdraw request added successfully", { withdraw_request: addedRequest }, 200);
   } catch (error) {
-    console.error(error);
-    await transaction.rollback();
+    console.log("error verifiying order", error);
     next(error);
   }
 };
 
-exports.processWithdrawRequest = async (req, res, next) => {
-  const { amount, user_id, request_id, action, remarks = null } = req.body;
-
-  const transaction = await db.sequelize.transaction();
+exports.webhookHandler = async (req, res, next) => {
+  console.log("WEBHOOK ===========>");
   try {
-    if (action !== "accepted") {
-      throw new ApiError(400, "Invalid action");
-    }
-    const user = await Users.findByPk(user_id, { transaction });
-    if (!user) {
-      throw new ApiError(404, "User not found");
+    const webhookSecret = process.env.WEBHOOK_SECRET;
+    const signature = req.headers["x-razorpay-signature"];
+    const dataStringified = JSON.stringify(req.body);
+
+    const generatedSignature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(dataStringified) // use the raw Buffer directly
+      .digest("hex");
+
+    if (generatedSignature !== signature) {
+      console.log("Invalid signature");
+      return res.status(400).json({ message: "Invalid signature" });
     }
 
-    if (amount != user.deposit_amount) {
-      throw new ApiError(400, "You are only allowed to withdraw your deposit amount");
-    }
+    const event = req.body.event;
+    const payload = req.body.payload;
+    const order_id = payload?.payment?.entity?.order_id;
+    const type = payload?.payment?.entity?.notes?.type;
+    const userId = payload?.payment?.entity?.notes?.user_id;
+    const package_id = payload?.payment?.entity?.notes?.package_id;
+    const box_id = payload?.payment?.entity?.notes?.box_id;
+    const amount = payload?.payment?.entity?.amount / 100;
 
-    const requestedItem = await WithDrawRequests.findByPk(request_id, { transaction });
-    if (!requestedItem) {
-      throw new ApiError(404, "Withdraw request not found");
-    }
+    console.log("WEBHHOOK TYPE ==========>", type);
 
-    switch (action) {
-      case "accepted":
-        await user.createTransaction(
-          {
-            amount,
-            type: "withdraw",
-            transaction_date: new Date(),
-          },
-          { transaction }
-        );
-        await requestedItem.update({ status: "accepted", remarks }, { transaction });
+    switch (event) {
+      case "payment.authorized":
+        console.log("Payment authorized:");
         break;
+      case "payment.captured":
+        console.log("Payment captured:");
+        if (type == "rental") {
+          await startRent(userId, box_id, package_id, order_id);
+        } else {
+          await addDepositAmount(userId, amount, order_id);
+        }
+        break;
+      case "payment.failed":
+        console.log("Payment failed:");
       default:
-        throw new ApiError(400, "Invalid action");
+        console.log(`Unhandled event: ${event}`);
     }
-
-    await transaction.commit();
-    sendSuccess(res, "Withdraw request added successfully", {}, 200);
+    res.status(200).json({ status: "success", message: "Webhook received" });
   } catch (error) {
-    console.error(error);
-    await transaction.rollback();
-    next(error);
-  }
-};
-
-exports.withDrawRequestStatusUpdate = async (req, res, next) => {
-  const { status } = req.body;
-  const { id } = req.params;
-  const transaction = await db.sequelize.transaction();
-  try {
-    const requestedItem = await WithDrawRequests.findByPk(id, { transaction });
-    if (!requestedItem) {
-      throw new ApiError(404, "Withdraw request not found");
-    }
-
-    await requestedItem.update({ status }, { transaction });
-
-    await transaction.commit();
-    sendSuccess(res, "Withdraw request status updated successfully", {}, 200);
-  } catch (error) {
-    console.error(error);
-    await transaction.rollback();
-    next(error);
-  }
-};
-
-exports.getAllWithdrawRequests = async (req, res, next) => {
-  const { status = "all" } = req.query;
-  const whereClause = {};
-
-  if (status !== "all") {
-    whereClause.status = status;
-  }
-  try {
-    const withDrawRequests = await WithDrawRequests.findAll({
-      where: whereClause,
-      attributes: ["id", "amount", "status", "remarks", "user_id", "created_at"],
-      include: {
-        model: Users,
-        as: "user",
-        attributes: ["id", "name", "mobile", "deposit_amount", "outstanding_amount"],
-      },
-    });
-
-    sendSuccess(res, "Withdraw requests fetched successfully", { withdraw_requests: withDrawRequests }, 200);
-  } catch (error) {
+    console.log("error in webhook", error);
     next(error);
   }
 };

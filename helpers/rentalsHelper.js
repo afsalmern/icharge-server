@@ -104,7 +104,7 @@ const startRent = async (user_id, box_id, package_id, order_id) => {
         rental_id: rental.id,
         user_id,
         amount: paymentAmount,
-        status: "pending",
+        status: "success",
         order_id, // Razorpay / generated order id
       },
       { transaction }
@@ -253,7 +253,7 @@ const addDepositAmount = async (user_id, deposit_amount, order_id) => {
         type: "deposit",
         transaction_date: new Date(),
         order_id,
-        transfer_status: "pending",
+        transfer_status: "success",
       },
       { transaction }
     );
@@ -263,7 +263,7 @@ const addDepositAmount = async (user_id, deposit_amount, order_id) => {
       {
         amount: deposit_amount,
         order_id,
-        status: "pending",
+        status: "success",
       },
       { transaction }
     );
