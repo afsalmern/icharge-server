@@ -1,7 +1,7 @@
 const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { Op, Sequelize } = require("sequelize");
-const { getEndTime } = require("../../helpers/calculatePrices");
+const { getEndTime, calculatePriceOnRentals } = require("../../helpers/calculatePrices");
 const { ApiError } = require("../../middlewares/error");
 
 const User = db.users;
@@ -25,26 +25,26 @@ const stepsData = [
   },
 ];
 
-const calculatePriceOnRentals = (start_time, hourly_price, package_duration) => {
-  const now = new Date();
-  const start = new Date(start_time);
-  const elapsedMs = now - start; // Total time since start in milliseconds
-  const totalHours = Math.max(elapsedMs / (1000 * 60 * 60), 0); // Total used hours
+// const calculatePriceOnRentals = (start_time, hourly_price, package_duration) => {
+//   const now = new Date();
+//   const start = new Date(start_time);
+//   const elapsedMs = now - start; // Total time since start in milliseconds
+//   const totalHours = Math.max(elapsedMs / (1000 * 60 * 60), 0); // Total used hours
 
-  // Calculate expected end time based on package duration
-  const expectedEndMs = start.getTime() + package_duration * 60 * 60 * 1000; // duration in hours -> ms
-  const overdueMs = now - expectedEndMs; // Time past expected end
-  const elapsedHours = Math.max(overdueMs / (1000 * 60 * 60), 0); // Overdue hours, 0 if not overdue
+//   // Calculate expected end time based on package duration
+//   const expectedEndMs = start.getTime() + package_duration * 60 * 60 * 1000; // duration in hours -> ms
+//   const overdueMs = now - expectedEndMs; // Time past expected end
+//   const elapsedHours = Math.max(overdueMs / (1000 * 60 * 60), 0); // Overdue hours, 0 if not overdue
 
-  // Cost based on total hours
-  const current_cost = hourly_price ? (totalHours * hourly_price).toFixed(2) : 0;
+//   // Cost based on total hours
+//   const current_cost = hourly_price ? (totalHours * hourly_price).toFixed(2) : 0;
 
-  return {
-    elapsed_hours: elapsedHours.toFixed(2), // Hours past expected end (overdue)
-    total_hours: totalHours.toFixed(2), // Total used hours from start to now
-    current_cost: parseFloat(current_cost), // Cost based on total hours
-  };
-};
+//   return {
+//     elapsed_hours: elapsedHours.toFixed(2), // Hours past expected end (overdue)
+//     total_hours: totalHours.toFixed(2), // Total used hours from start to now
+//     current_cost: parseFloat(current_cost), // Cost based on total hours
+//   };
+// };
 
 // exports.getHome = async (req, res, next) => {
 //   const { user_id } = req;
@@ -302,7 +302,7 @@ exports.getHome = async (req, res, next) => {
           const swapsRemaining = userData.swaps_remaining === null ? "unlimited" : userData.swaps_remaining;
           const canSwap = userData.can_swap && !isTimeElapsed && userData.is_verified && !userData.block_status && userData.status === "active";
 
-          const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0);
+          const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0, type);
 
           return {
             order_id,

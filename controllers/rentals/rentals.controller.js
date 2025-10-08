@@ -69,7 +69,7 @@ exports.getRentalHistory = async (req, res, next) => {
         {
           model: Packages,
           as: "rented_package",
-          attributes: ["id", "hourly_price", "price"],
+          attributes: ["id", "hourly_price", "price", "type", "duration"],
         },
         {
           model: Disputes,
@@ -83,10 +83,10 @@ exports.getRentalHistory = async (req, res, next) => {
 
     const rentals_history = userRentals?.map((rental) => {
       const { order_id, start_time, start_on, status, rented_package, disputes } = rental;
-      const { hourly_price, price } = rented_package || {};
+      const { hourly_price, price, duration, type } = rented_package || {};
       const { reason } = disputes || {};
 
-      const cost_details = calculatePriceOnRentals(start_time, hourly_price);
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0, type);
 
       return {
         order_id,

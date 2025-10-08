@@ -1,30 +1,79 @@
-const calculatePriceOnRentals = (started_on, price) => {
-  console.log(started_on);
-  const startTime = new Date(started_on);
-  const currentTime = new Date();
+const calculatePriceOnRentals = (start_time, hourly_price, package_duration, package_type) => {
+  const now = new Date();
+  const start = new Date(start_time);
 
-  // Calculate total elapsed time in milliseconds
-  const elapsedMs = currentTime - startTime;
+  // 1️⃣ Total hours used
+  let totalHours = (now - start) / (1000 * 60 * 60); // ms → hours
+  totalHours = Math.ceil(totalHours); // round up
 
-  // Convert elapsed time to minutes, hours, or days
-  const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
-  const elapsed_hours = Math.floor(elapsedMinutes / 60);
-  const elapsedDays = Math.floor(elapsed_hours / 24);
-
-  // Determine best unit for total time used
-  let total_time_used;
-  if (elapsedDays > 0) {
-    total_time_used = `${elapsedDays} day(s)`;
-  } else if (elapsed_hours > 0) {
-    total_time_used = `${elapsed_hours} hour(s)`;
-  } else {
-    total_time_used = `${elapsedMinutes} minute(s)`;
+  // 2️⃣ Convert package duration to hours based on type
+  let packageHours = 0;
+  switch (package_type) {
+    case "hourly":
+      packageHours = package_duration;
+      break;
+    case "weekly":
+      packageHours = package_duration * 7 * 24;
+      break;
+    case "monthly":
+      packageHours = package_duration * 30 * 24; // approx 30 days
+      break;
+    case "free":
+      packageHours = 0;
+      break;
+    default:
+      throw new Error("Invalid package type: " + package_type);
   }
 
-  // Calculate total price and extra cost
-  const total_price = elapsed_hours == 0 ? price : (elapsed_hours * price).toFixed(2);
+  // 3️⃣ Calculate extra (overdue) hours
+  let extraHours = totalHours - packageHours;
+  extraHours = extraHours > 0 ? extraHours : 0;
 
-  return { elapsed_hours, current_price: total_price, total_time_used, gst: 1 };
+  // 4️⃣ Calculate extra charge and total cost
+  const extraCharge = extraHours * hourly_price;
+  const totalCost = totalHours * hourly_price;
+
+  // 5️⃣ Human readable breakdown
+  let usedTimeStr, allowedTimeStr, overdueTimeStr;
+
+  switch (package_type) {
+    case "hourly":
+      usedTimeStr = `${totalHours} hour(s) used`;
+      allowedTimeStr = `${packageHours} hour(s) allowed`;
+      overdueTimeStr = extraHours > 0 ? `${extraHours} hour(s) over limit` : "Within time limit";
+      break;
+
+    case "weekly":
+      usedTimeStr = `${Math.floor(totalHours / 24 / 7)} week(s) and ${totalHours % (24 * 7)} hour(s) used`;
+      allowedTimeStr = `${package_duration} week(s) allowed`;
+      overdueTimeStr = extraHours > 0 ? `${(extraHours / 24).toFixed(2)} day(s) over limit` : "Within time limit";
+      break;
+
+    case "monthly":
+      usedTimeStr = `${Math.floor(totalHours / (24 * 30))} month(s) and ${totalHours % (24 * 30)} hour(s) used`;
+      allowedTimeStr = `${package_duration} month(s) allowed`;
+      overdueTimeStr = extraHours > 0 ? `${(extraHours / 24).toFixed(2)} day(s) over limit` : "Within time limit";
+      break;
+
+    case "free":
+      usedTimeStr = "This is a free package";
+      allowedTimeStr = "Free usage — no time limit";
+      overdueTimeStr = "No overdue for free package";
+      break;
+  }
+
+  // 6️⃣ Return consistent structured data
+  return {
+    total_hours: totalHours, // total hours used
+    elapsed_hours: package_type === "free" ? 0 : extraHours, // extra or overdue hours
+    current_cost: package_type === "free" ? 0 : totalCost, // total cost for all hours
+    extra_charge: package_type === "free" ? 0 : extraCharge, // only for extra hours
+    readable: {
+      totalTime: usedTimeStr,
+      allowedTime: allowedTimeStr,
+      overdueTime: overdueTimeStr,
+    },
+  };
 };
 
 const getHourlyPrice = (type, price) => {
