@@ -4,10 +4,8 @@ const db = require("../../models");
 const { initiateOrder, verifySignature } = require("../../helpers/razorPayHelpers");
 const crypto = require("crypto");
 
-const ChecksAndAmount = db.checks_and_amounts;
-
 exports.createOrder = async (req, res, next) => {
-  const { amount, box_id } = req.body;
+  const { amount, box_id, package_id } = req.body;
 
   const box = await db.boxes.findOne({ attributes: ["id", "unique_id"], where: { unique_id: box_id } });
   const user_id = req.user_id;
@@ -30,7 +28,9 @@ exports.createOrder = async (req, res, next) => {
       throw new Error("Amount should be a valid positive number");
     }
     const order = await initiateOrder(options);
+    const order_id = order?.orderId;
 
+    await startRent(user_id, box_id, package_id, order_id);
     sendSuccess(res, "Order created successfully", { order }, 200);
   } catch (error) {
     console.error(error);
@@ -40,16 +40,13 @@ exports.createOrder = async (req, res, next) => {
 
 exports.verifyOrder = async (req, res, next) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, box_id, package_id } = req.body;
-    const user_id = req.user_id;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
     const isSignatureValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
 
     if (isSignatureValid) {
-      const rentalsData = await startRent(user_id, box_id, package_id, razorpay_order_id);
-      const { message, data } = rentalsData;
       console.log("Order verified successfully");
-      sendSuccess(res, message, data, 200);
+      sendSuccess(res, "Order verified successfully", {}, 200);
     } else {
       throw new Error("Order verification failed");
     }
@@ -80,14 +77,6 @@ exports.webhookHandler = async (req, res, next) => {
     const payload = req.body.payload;
     const type = payload?.payment?.entity?.notes?.type;
     const userId = payload?.payment?.entity?.notes?.user_id;
-
-    console.log("TYPE", payload?.payment?.entity?.notes?.type);
-    console.log("TYPE", payload?.payment?.entity?.notes);
-    console.log("TYPE", payload?.payment?.entity);
-    console.log("TYPE", type);
-
-    console.log("Event:", event);
-    console.log("Payload:", payload);
 
     switch (event) {
       case "payment.authorized":
@@ -145,7 +134,8 @@ exports.createOrderForDeposit = async (req, res, next) => {
       throw new Error("Amount should be a valid positive number");
     }
     const order = await initiateOrder(options);
-
+    const razorpay_order_id = order?.orderId;
+    await addDepositAmount(user_id, amount, razorpay_order_id);
     sendSuccess(res, "Order created successfully", { order }, 200);
   } catch (error) {
     console.error(error);
@@ -155,13 +145,11 @@ exports.createOrderForDeposit = async (req, res, next) => {
 
 exports.verifyOrderForDeposit = async (req, res, next) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
     const isSignatureValid = verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
 
     if (isSignatureValid) {
-      await addDepositAmount(req.user_id, amount, razorpay_order_id);
-      console.log("Order verified successfully Deposit");
       sendSuccess(res, "Deposit Order verified successfully", {}, 200);
     } else {
       throw new Error("Order verification failed");

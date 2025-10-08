@@ -142,8 +142,7 @@ const updateRentalPaymentStatus = async (database, payload, status, type = "defa
   try {
     const paymentEntity = payload.payment.entity;
     const order_id = paymentEntity.order_id;
-    const datas = await database.findAll();
-    console.log("datas", datas);
+
     const paymentsData = await database.findOne({ where: { order_id } });
     await paymentsData.update({ status });
 
