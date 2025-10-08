@@ -157,7 +157,7 @@ exports.getAllRentals = async (req, res, next) => {
 
       console.log(start_on);
 
-      const cost_details = calculatePriceOnRentals(start_time, hourly_price);
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0, type);
 
       return {
         order_id,
