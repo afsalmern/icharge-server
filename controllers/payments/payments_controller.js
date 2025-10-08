@@ -68,11 +68,11 @@ exports.createOrderForDeposit = async (req, res, next) => {
     receipt: `IC_reciept-Deposit_${Date.now()}`,
     notes: {
       user: user?.name || "Guest",
-      box: box?.unique_id || "Not Specified",
+      box: "Not Specified",
       type: "rental",
       user_id,
-      box_id,
-      package_id,
+      box_id: null,
+      package_id: null,
     },
   };
 
