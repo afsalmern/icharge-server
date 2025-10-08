@@ -34,7 +34,41 @@ const verifySignature = (order_id, payment_id, signature) => {
   }
 };
 
+const startRefund = async (payment_id, type) => {
+  try {
+    const paymentDetails = await razorpayInstance.payments.fetch(payment_id);
+
+    const paymentStatus = paymentDetails?.status;
+    const order_id = paymentDetails?.order_id;
+    const amount = paymentDetails?.amount;
+
+    if (paymentStatus !== "captured") {
+      throw new Error("Payment is not captured");
+    }
+
+    await razorpayInstance.payments.refund(payment_id, {
+      amount,
+      speed: "normal",
+      notes: {
+        reason: "Payment failed refund",
+        payment_id: payment_id,
+        type,
+      },
+    });
+
+    return {
+      status: true,
+      order_id,
+      amount: amount / 100,
+    };
+  } catch (error) {
+    console.log("Error in initiating refund", error);
+    throw error;
+  }
+};
+
 module.exports = {
   initiateOrder,
   verifySignature,
+  startRefund,
 };

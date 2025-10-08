@@ -1,6 +1,8 @@
+const Razorpay = require("razorpay");
 const { ApiError } = require("../middlewares/error");
 const db = require("../models");
 const { getEndTime } = require("./calculatePrices");
+const { startRefund } = require("./razorPayHelpers");
 
 const Users = db.users;
 
@@ -169,30 +171,22 @@ const updateRentalPaymentStatus = async (database, payload, status, type = "defa
 
 const initiateRefund = async (payment_id, user_id, type) => {
   try {
-    const paymentDetails = await razorpayInstance.payments.fetch(payment_id);
+    const refundStatus = await startRefund(payment_id, type);
 
-    const paymentStatus = paymentDetails?.status;
-    const order_id = paymentDetails?.order_id;
-    const amount = paymentDetails?.amount;
-
-    if (paymentStatus === "captured") {
-      await razorpayInstance.payments.refund(payment_id, {
-        amount,
-        speed: "normal",
-        notes: {
-          reason: "Payment failed refund",
-          payment_id: payment_id,
-        },
-      });
-
-      const refundData = await db.refunds.create({
-        order_id,
-        amount: amount / 100,
-        status: "pending",
-        type,
-        user_id,
-      });
+    if (!refundStatus) {
+      throw new Error("Refund failed");
     }
+
+    const amount = refundStatus?.amount;
+    const order_id = refundStatus?.order_id;
+
+    await db.refunds.create({
+      order_id,
+      amount,
+      status: "pending",
+      type,
+      user_id,
+    });
   } catch (error) {
     console.log("Error in initiating refund", error);
     throw error;
