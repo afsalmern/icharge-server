@@ -6,7 +6,7 @@ const { startRefund } = require("./razorPayHelpers");
 
 const Users = db.users;
 
-const startRent = async (user_id, box_id, package_id, order_id) => {
+const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) => {
   if (!user_id || !box_id) {
     throw new ApiError("User ID and Box ID are required", 400);
   }
@@ -93,6 +93,7 @@ const startRent = async (user_id, box_id, package_id, order_id) => {
         user_id,
         start_time,
         end_time,
+        rental_hours: user_hours,
         status: "ongoing",
         extra_charge: 0.0,
       },

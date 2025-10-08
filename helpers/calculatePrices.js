@@ -133,7 +133,7 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
   console.log(packageType);
   switch (packageType) {
     case "hourly":
-      packageHours = rental.rented_package.duration;
+      packageHours = rental.rental_hours;
       break;
     case "weekly":
       packageHours = rental.rented_package.duration * 7 * 24;

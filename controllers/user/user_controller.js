@@ -212,6 +212,7 @@ exports.getHome = async (req, res, next) => {
           "start_time",
           "end_time",
           "status",
+          "rental_hours",
           [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY, HH12:MI AM')`), "start_on"],
         ],
         where: { status: "ongoing", user_id },
@@ -291,7 +292,7 @@ exports.getHome = async (req, res, next) => {
 
     const rentalsModified = onGoingRental
       ? (() => {
-          const { order_id, start_time, start_on, status, end_time, rented_package, rented_user, rented_box, disputes } = onGoingRental;
+          const { order_id, start_time, start_on, status, end_time, rented_package, rented_user, rented_box, disputes, rental_hours } = onGoingRental;
           const { id: package_id, name, hourly_price, price, duration, swap, type } = rented_package || {};
           const { name: userName, mobile } = rented_user || {};
           const { reason } = disputes || {};
@@ -302,7 +303,9 @@ exports.getHome = async (req, res, next) => {
           const swapsRemaining = userData.swaps_remaining === null ? "unlimited" : userData.swaps_remaining;
           const canSwap = userData.can_swap && !isTimeElapsed && userData.is_verified && !userData.block_status && userData.status === "active";
 
-          const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0, type);
+          const packageDuration = type == "hourly" ? rental_hours : duration;
+
+          const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration, type);
 
           return {
             order_id,

@@ -59,6 +59,7 @@ exports.getRentalHistory = async (req, res, next) => {
         "start_time",
         "end_time",
         "status",
+        "rental_hours",
       ],
       include: [
         {
@@ -82,11 +83,13 @@ exports.getRentalHistory = async (req, res, next) => {
     });
 
     const rentals_history = userRentals?.map((rental) => {
-      const { order_id, start_time, start_on, status, rented_package, disputes } = rental;
+      const { order_id, start_time, start_on, status, rented_package, disputes, rental_hours } = rental;
       const { hourly_price, price, duration, type } = rented_package || {};
       const { reason } = disputes || {};
 
-      const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0, type);
+      const packageDuration = type == "hourly" ? rental_hours : duration;
+
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
 
       return {
         order_id,
@@ -116,6 +119,7 @@ exports.getAllRentals = async (req, res, next) => {
         "start_time",
         "end_time",
         "status",
+        "rental_hours",
       ],
       include: [
         {
@@ -150,14 +154,14 @@ exports.getAllRentals = async (req, res, next) => {
     };
 
     const rentals_history = userRentals?.map((rental) => {
-      const { id: order_id, start_time, status, rented_package, rented_user } = rental;
+      const { id: order_id, start_time, status, rented_package, rented_user, rental_hours } = rental;
       const { hourly_price, price, type, duration } = rented_package || {};
       const { name, mobile } = rented_user || {};
       const start_on = rental?.get("start_on");
 
-      console.log(start_on);
+      const packageDuration = type == "hourly" ? rental_hours : duration;
 
-      const cost_details = calculatePriceOnRentals(start_time, hourly_price, duration || 0, type);
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
 
       return {
         order_id,
