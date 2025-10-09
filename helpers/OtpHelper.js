@@ -21,7 +21,7 @@ const sendOtp = async (otp, number) => {
 
     // Check if SMS was sent successfully
     if (smsResponse.data.return !== true) {
-      throw new ApiError(500, "Failed to send OTP via SMS");
+      throw new ApiError(402, "Failed to send OTP via SMS");
     }
     return true;
   } catch (error) {
@@ -35,7 +35,7 @@ const sendOtp = async (otp, number) => {
       }
     }
     console.error("Error sending OTP via SMS:", error.response?.data || error.message);
-    throw new Error("Failed to send OTP via SMS.");
+    throw new ApiError(402, "Failed to send OTP via SMS");
   }
 };
 
