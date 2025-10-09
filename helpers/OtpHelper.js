@@ -3,6 +3,8 @@ const { default: axios } = require("axios");
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to numbers:", number);
 
+  return true;
+
   try {
     const smsResponse = await axios.post(
       process.env.FAST2SMS_URL,
