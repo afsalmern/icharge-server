@@ -48,6 +48,10 @@ const { ApiError } = require("../middlewares/error");
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to number:", number);
 
+  const countryCode = process.env.COUNTRY_CODE;
+
+  const phoneWithCountryCode = `${countryCode}${number}`;
+
   try {
     // Initialize Twilio client
     const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
@@ -56,7 +60,7 @@ const sendOtp = async (otp, number) => {
     const message = await client.messages.create({
       body: `Your OTP is: ${otp}. Valid for 10 minutes. Do not share this code.`,
       from: process.env.TWILIO_NUMBER, // Your Twilio phone number
-      to: number, // Recipient's number in E.164 format (e.g., +919876543210)
+      to: phoneWithCountryCode, // Recipient's number in E.164 format (e.g., +919876543210)
     });
 
     // Check if message was sent successfully
