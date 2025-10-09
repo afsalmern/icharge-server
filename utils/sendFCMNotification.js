@@ -17,6 +17,7 @@ const sendFCMNotification = async (fcmToken, notification) => {
     console.log("FCM sent to", fcmToken);
   } catch (err) {
     console.error("FCM send error:", err);
+    throw err;
   }
 };
 

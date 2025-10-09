@@ -1,8 +1,8 @@
-const Razorpay = require("razorpay");
 const { ApiError } = require("../middlewares/error");
 const db = require("../models");
-const { getEndTime } = require("./calculatePrices");
+const { getEndTime, calculateRentalCharge } = require("./calculatePrices");
 const { startRefund } = require("./razorPayHelpers");
+const sendFCMNotification = require("../utils/sendFCMNotification");
 
 const Users = db.users;
 
@@ -137,6 +137,79 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
   } catch (error) {
     await transaction.rollback();
     console.error("Error in startRent:", error);
+    throw error;
+  }
+};
+
+const returnItem = async (user_id, rental_id) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const rental = await db.rentals.findOne({
+      where: { id: rental_id, user_id, status: "ongoing" },
+      include: [
+        { model: db.users, as: "rented_user" },
+        { model: db.packages, as: "rented_package" },
+        { model: db.boxes, as: "rented_box" },
+      ],
+    });
+
+    if (!rental) throw new ApiError(404, "Ongoing rental not found");
+
+    const returnTime = new Date();
+
+    const { totalHours, extraHours, extraCharge, usedTime: usedTimeStr, allowedTime: allowedTimeStr } = calculateRentalCharge(rental, returnTime);
+
+    await rental.update(
+      {
+        return_time: returnTime,
+        extra_hours: extraHours,
+        extra_charge: extraCharge,
+        status: "completed",
+        location_id: rental.location_id, // or box.location_id if you fetch box
+      },
+      { transaction }
+    );
+    console.log(
+      `Total Hours: ${totalHours}, Extra Hours: ${extraHours}, Extra Charge: ${extraCharge}, Used Time: ${usedTimeStr}, Allowed Time: ${allowedTimeStr},`
+    );
+
+    const currentOutstanding = parseFloat(rental.rented_user.outstanding_amount) || 0;
+    const outStandAmountToUpdate = currentOutstanding + extraCharge;
+
+    console.log(`Current Outstanding: ${currentOutstanding}, Updated Outstanding: ${outStandAmountToUpdate}`);
+
+    // Update user outstanding_amount (add extra charge)
+    const user = rental.rented_user;
+    await user.update({ outstanding_amount: outStandAmountToUpdate }, { transaction });
+
+    // Update box available_powerbanks
+    const box = rental.rented_box;
+    await box.update({ available_powerbanks: box.available_powerbanks + 1 }, { transaction });
+
+    // Send notification
+    if (user?.device_token) {
+      const notificationMessage =
+        extraCharge > 0
+          ? `Powerbank returned. A fine of $${extraCharge.toFixed(2)} has been added for ${extraHours.toFixed(2)} extra hours.`
+          : "Thank you! Your powerbank has been returned successfully.";
+
+      await sendFCMNotification(user.device_token, {
+        title: "Powerbank Returned",
+        body: notificationMessage,
+        data: {
+          extraCharge: extraCharge.toFixed(2),
+        },
+      });
+    }
+
+    await transaction.commit();
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("Error in return Item:", error);
+    await transaction.rollback();
     throw error;
   }
 };
@@ -331,4 +404,5 @@ module.exports = {
   initiateRefund,
   addDepositAmount,
   revertDepositAmount,
+  returnItem,
 };

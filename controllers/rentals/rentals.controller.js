@@ -2,6 +2,7 @@ const { sendSuccess } = require("../../handlers/success_response_handler");
 const { calculatePriceOnRentals, getEndTime, calculateRentalCharge } = require("../../helpers/calculatePrices");
 const { startRent, getDeviceInfoByUuid } = require("../../helpers/externalCalls");
 const { sendOtp } = require("../../helpers/OtpHelper");
+const { returnItem } = require("../../helpers/rentalsHelper");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 const { generateOtp } = require("../../utils/generateOtp");
@@ -394,8 +395,6 @@ exports.returnItem = async (req, res, next) => {
 
     const returnTime = new Date();
 
-    let packageType = rental?.rented_package.type;
-
     const { totalHours, extraHours, extraCharge, usedTime: usedTimeStr, allowedTime: allowedTimeStr } = calculateRentalCharge(rental, returnTime);
 
     await rental.update(
@@ -511,7 +510,7 @@ exports.sendRentalsOtp = async (req, res, next) => {
 
 exports.verfiyRentalsOtp = async (req, res, next) => {
   try {
-    const { otp, device_id } = req.body;
+    const { otp, device_id, rental_id, order_type = "rental" } = req.body;
     const user_id = req.user_id;
 
     // Validate request input
@@ -548,9 +547,16 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
       return sendSuccess(res, "Otp expired", { is_otp_valid: false }, 400);
     }
 
-    sendSuccess(res, "Otp verified successfully", { is_otp_valid: true }, 200);
+    let message = "Otp verified successfully";
+
+    if (order_type == "return") {
+      await returnItem(user_id, rental_id);
+      message = "Item returned successfully";
+    }
+
+    sendSuccess(res, message, { is_otp_valid: true }, 200);
   } catch (error) {
-    console.error("Error in rentItem:", error);
+    console.error("Error in verfiying rentals otp:", error);
     next(error);
   }
 };
