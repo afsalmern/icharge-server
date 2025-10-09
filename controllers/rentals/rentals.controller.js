@@ -195,7 +195,7 @@ exports.getAllRentals = async (req, res, next) => {
 
       return {
         order_id,
-        disputes: disputes?.reason ? disputes?.reason : "N/A",
+        disputes: disputes?.reason,
         start_time,
         start_on,
         status,
