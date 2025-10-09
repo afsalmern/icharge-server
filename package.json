@@ -28,6 +28,7 @@
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "sequelize": "^6.37.5",
-    "sequelize-cli": "^6.6.2"
+    "sequelize-cli": "^6.6.2",
+    "twilio": "^5.10.2"
   }
 }

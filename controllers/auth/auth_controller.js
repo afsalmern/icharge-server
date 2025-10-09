@@ -112,43 +112,20 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
     throw new ApiError(400, "Otp not generated");
   }
 
-  try {
-    // Send OTP via Fast2SMS
-    const smsResponse = await axios.post(
-      process.env.FAST2SMS_URL,
-      {
-        route: "otp",
-        variables_values: otp,
-        numbers: mobile, // Mobile number
-      },
-      {
-        headers: {
-          authorization: process.env.FAST2SMS_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+  const isOtpSend = await sendOtp(otp, mobile);
 
-    // Check if SMS was sent successfully
-    if (smsResponse.data.return !== true) {
-      throw new ApiError(400, "Failed to send OTP via SMS");
-    }
-
-    // Store OTP in database
-    const otpData = {
-      mobile,
-      otp,
-    };
-    await Otp.create(otpData);
-
-    sendSuccess(res, "Otp sent successfully", process.env.NODE_ENV === "development" ? { otp } : {}, 200);
-  } catch (error) {
-    if (error.response) {
-      // Handle Fast2SMS specific errors
-      throw new ApiError(400, `SMS sending failed: ${error.response.data.message}`);
-    }
-    throw new ApiError(400, "Error sending OTP");
+  if (!isOtpSend) {
+    throw new ApiError(400, "Failed to send OTP via SMS");
   }
+
+  // Store OTP in database
+  const otpData = {
+    mobile,
+    otp,
+  };
+  await Otp.create(otpData);
+
+  sendSuccess(res, "Otp sent successfully", process.env.NODE_ENV === "development" ? { otp } : {}, 200);
 });
 
 // exports.verifyOtp = asyncWrapper(async (req, res) => {
