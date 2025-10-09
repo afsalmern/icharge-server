@@ -33,7 +33,7 @@ const KycDetails = db.kyc_details;
 //     throw new ApiError(400, "User is blocked");
 //   }
 //   if (!otp) {
-//     throw new ApiError(400, "Otp not generated");
+//     throw new ApiError(500, "Otp not generated");
 //   }
 
 //   try {
@@ -55,7 +55,7 @@ const KycDetails = db.kyc_details;
 
 //     // Check if SMS was sent successfully
 //     if (smsResponse.data.return !== true) {
-//       throw new ApiError(400, "Failed to send OTP via SMS");
+//       throw new ApiError(500, "Failed to send OTP via SMS");
 //     }
 
 //     // Store OTP in database
@@ -69,9 +69,9 @@ const KycDetails = db.kyc_details;
 //   } catch (error) {
 //     if (error.response) {
 //       // Handle Fast2SMS specific errors
-//       throw new ApiError(400, `SMS sending failed: ${error.response.data.message}`);
+//       throw new ApiError(500, `SMS sending failed: ${error.response.data.message}`);
 //     }
-//     throw new ApiError(400, "Error sending OTP");
+//     throw new ApiError(500, "Error sending OTP");
 //   }
 // });
 
@@ -110,13 +110,13 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
     throw new ApiError(400, "User is blocked");
   }
   if (!otp) {
-    throw new ApiError(400, "Otp not generated");
+    throw new ApiError(500, "Otp not generated");
   }
 
   const isOtpSend = await sendOtp(otp, mobile);
 
   if (!isOtpSend) {
-    throw new ApiError(400, "Failed to send OTP via SMS");
+    throw new ApiError(401, "Failed to send OTP via SMS");
   }
 
   // Store OTP in database
