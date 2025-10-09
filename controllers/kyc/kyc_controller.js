@@ -83,7 +83,7 @@ exports.uploadKyc = async (req, res, next) => {
     } else {
       const currentKyc = await KycDetails.findByPk(kyc_id);
       if (!currentKyc) {
-        throw new ApiError(500, "Kyc data not found");
+        throw new ApiError(400, "Kyc data not found");
       }
 
       const updatedKyc = await currentKyc.update(
@@ -180,15 +180,15 @@ exports.updateKycStatus = async (req, res, next) => {
   const transaction = await db.sequelize.transaction();
   try {
     if (type == "rejected" && (!reject_remarks || reject_remarks == "")) {
-      throw new ApiError(500, "Please enter reject remarks");
+      throw new ApiError(400, "Please enter reject remarks");
     }
     if (!allowedTypes.includes(type)) {
-      throw new ApiError(500, "Please choose valid status to update kyc");
+      throw new ApiError(400, "Please choose valid status to update kyc");
     }
 
     const kyc = await KycDetails.findByPk(id);
     if (!kyc) {
-      throw new ApiError(500, "Kyc data not found");
+      throw new ApiError(400, "Kyc data not found");
     }
 
     const updatedKyc = await kyc.update(
