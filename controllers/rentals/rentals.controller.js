@@ -501,7 +501,7 @@ exports.sendRentalsOtp = async (req, res, next) => {
       await RentalsOtps.create({ box_id: box.id, otp, location_id: location.id, user_id });
     }
 
-    sendSuccess(res, "Otp sent successfully to vendor", ...(process.env.NODE_ENV === "development" ? [otp] : []), 200);
+    sendSuccess(res, "Otp sent successfully to vendor", [], 200);
   } catch (error) {
     console.log(error);
     next(error);
