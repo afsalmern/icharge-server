@@ -110,6 +110,27 @@ exports.getRentalHistory = async (req, res, next) => {
 };
 
 exports.getAllRentals = async (req, res, next) => {
+  const { user, start_date } = req.query;
+
+  const whereCondition = {};
+
+  if (user) {
+    whereCondition.user_id = user;
+  }
+
+  if (start_date) {
+    const parsedDate = new Date(start_date);
+    if (!isNaN(parsedDate)) {
+      const nextDate = new Date(parsedDate);
+      nextDate.setDate(parsedDate.getDate() + 1);
+
+      whereCondition.start_time = {
+        [db.Sequelize.Op.gte]: parsedDate, // start of day
+        [db.Sequelize.Op.lt]: nextDate, // before next day
+      };
+    }
+  }
+
   try {
     const userRentals = await Rentals.findAll({
       attributes: [
@@ -118,10 +139,13 @@ exports.getAllRentals = async (req, res, next) => {
         "package_id",
         [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY')`), "start_on"],
         "start_time",
+        "user_id",
         "end_time",
         "status",
         "rental_hours",
       ],
+      where: whereCondition,
+      order: [["start_time", "DESC"]],
       include: [
         {
           model: Users,
@@ -137,6 +161,11 @@ exports.getAllRentals = async (req, res, next) => {
           model: Packages,
           as: "rented_package",
           attributes: ["id", "hourly_price", "price", "type", "duration"],
+        },
+        {
+          model: Disputes,
+          as: "disputes",
+          attributes: ["id", "reason"],
         },
       ],
     });
@@ -155,7 +184,7 @@ exports.getAllRentals = async (req, res, next) => {
     };
 
     const rentals_history = userRentals?.map((rental) => {
-      const { id: order_id, start_time, status, rented_package, rented_user, rental_hours } = rental;
+      const { id: order_id, start_time, status, rented_package, rented_user, rental_hours, disputes } = rental;
       const { hourly_price, price, type, duration } = rented_package || {};
       const { name, mobile } = rented_user || {};
       const start_on = rental?.get("start_on");
@@ -166,6 +195,7 @@ exports.getAllRentals = async (req, res, next) => {
 
       return {
         order_id,
+        disputes: disputes?.reason ? disputes?.reason : "N/A",
         start_time,
         start_on,
         status,
@@ -562,79 +592,16 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
 };
 
 exports.test = async (req, res, next) => {
-  const returnItem = new Date();
-  const { id } = req.body;
+  const amount = 100.54;
+  const dbAmount = "100.54";
 
-  const rental = await Rentals.findByPk(id, {
-    include: [{ model: Packages, as: "rented_package" }],
-  });
+  const depositAmount = await db.checks_and_amounts.findOne();
 
-  // 1️⃣ Total hours used
-  let totalHours = (returnItem - rental.start_time) / (1000 * 60 * 60); // ms → hours
-  totalHours = Math.ceil(totalHours); // round up
+  const isAmountValid = dbAmount == amount;
 
-  // 2️⃣ Convert package duration to hours
-  let packageHours;
-  let packageType = rental.rented_package.type;
-  switch (packageType) {
-    case "hourly":
-      packageHours = rental.rented_package.duration;
-      break;
-    case "weekly":
-      packageHours = rental.rented_package.duration * 7 * 24;
-      break;
-    case "monthly":
-      packageHours = rental.rented_package.duration * 30 * 24; // approximate
-      break;
-    default:
-      throw new Error("Unknown package type: " + packageType);
+  if (!isAmountValid) {
+    return res.status(400).json({ message: "Invalid amount" });
   }
 
-  // 3️⃣ Calculate extra hours
-  let extraHours = totalHours - packageHours;
-  extraHours = extraHours > 0 ? extraHours : 0;
-
-  // 4️⃣ Calculate extra charge
-  const extraCharge = extraHours * rental.rented_package.hourly_price;
-
-  // 5️⃣ User-friendly breakdown
-  let usedTimeStr;
-  switch (packageType) {
-    case "hourly":
-      usedTimeStr = `${totalHours} hour(s) used`;
-      break;
-    case "weekly":
-      usedTimeStr = `${Math.floor(totalHours / 24 / 7)} week(s) and ${totalHours % (24 * 7)} hour(s) used`;
-      break;
-    case "monthly":
-      usedTimeStr = `${Math.floor(totalHours / (24 * 30))} month(s) and ${totalHours % (24 * 30)} hour(s) used`;
-      break;
-  }
-
-  let allowedTimeStr;
-  switch (packageType) {
-    case "hourly":
-      allowedTimeStr = `${packageHours} hour(s) allowed`;
-      break;
-    case "weekly":
-      allowedTimeStr = `${rental.rented_package.duration} week(s) allowed`;
-      break;
-    case "monthly":
-      allowedTimeStr = `${rental.rented_package.duration} month(s) allowed`;
-      break;
-  }
-
-  sendSuccess(
-    res,
-    "Test successful",
-    {
-      totalHours,
-      packageHours,
-      extraHours,
-      extraCharge,
-      usedTime: usedTimeStr,
-      allowedTime: allowedTimeStr,
-    },
-    200
-  );
+  res.status(200).json({ message: "Amount is valid" });
 };

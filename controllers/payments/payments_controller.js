@@ -4,8 +4,17 @@ const db = require("../../models");
 const { initiateOrder, verifySignature } = require("../../helpers/razorPayHelpers");
 const crypto = require("crypto");
 
+const Deposits = db.checks_and_amounts;
+
 exports.createOrder = async (req, res, next) => {
   const { amount, box_id, package_id, user_hours } = req.body;
+
+  const depositAmount = await Deposits.findOne();
+  const isAmountValid = depositAmount?.deposit_amount == amount;
+
+  if (!isAmountValid) {
+    throw new Error("Deposit amount is not valid");
+  }
 
   const box = await db.boxes.findOne({ attributes: ["id", "unique_id"], where: { unique_id: box_id } });
   const user_id = req.user_id;
