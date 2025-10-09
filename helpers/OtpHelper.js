@@ -43,6 +43,7 @@
 // module.exports = { sendOtp };
 
 const twilio = require("twilio");
+const { ApiError } = require("../middlewares/error");
 
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to number:", number);
