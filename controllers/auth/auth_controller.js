@@ -6,6 +6,7 @@ const db = require("../../models");
 const { generateOtp } = require("../../utils/generateOtp");
 const { generateToken } = require("../../utils/generateToken");
 const asyncWrapper = require("../../handlers/async_handler");
+const { sendOtp } = require("../../helpers/OtpHelper");
 
 const Otp = db.otps;
 const User = db.users;
