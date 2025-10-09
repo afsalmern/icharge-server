@@ -1,4 +1,5 @@
 const { default: axios } = require("axios");
+const { ApiError } = require("../middlewares/error");
 
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to numbers:", number);
