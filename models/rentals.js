@@ -122,6 +122,13 @@ module.exports = (sequelize, DataTypes) => {
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     });
+
+    Rental.hasMany(models.rental_payments, {
+      foreignKey: "rental_id",
+      as: "rental_payments",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
   };
 
   return Rental;

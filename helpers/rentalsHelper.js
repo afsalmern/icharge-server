@@ -38,14 +38,14 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
     ]);
 
     // Validations
-    if (!user) throw new ApiError(404, "User not found");
-    if (user.status !== "active") throw new ApiError(403, "User is inactive");
-    if (user.block_status) throw new ApiError(403, "User is blocked");
-    if (!user.is_verified) throw new ApiError(400, "User is not verified");
+    // if (!user) throw new ApiError(404, "User not found");
+    // if (user.status !== "active") throw new ApiError(403, "User is inactive");
+    // if (user.block_status) throw new ApiError(403, "User is blocked");
+    // if (!user.is_verified) throw new ApiError(400, "User is not verified");
 
-    if (!box) throw new ApiError(404, "Box not found");
-    if (box.status !== "active") throw new ApiError(400, "This box is not active");
-    if (box.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
+    // if (!box) throw new ApiError(404, "Box not found");
+    // if (box.status !== "active") throw new ApiError(400, "This box is not active");
+    // if (box.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
 
     // Check for ongoing rental
     const ongoingRental = await db.rentals.findOne({
@@ -79,7 +79,9 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
     const paymentAmount = parseFloat(rentalPackage.price) + parseFloat(user.outstanding_amount || 0);
     const { type, duration, swap } = rentalPackage;
     const start_time = new Date();
-    const end_time = getEndTime(start_time, duration, type);
+
+    const packageDuration = type == "hourly" ? user_hours : duration;
+    const end_time = getEndTime(start_time, packageDuration, type);
 
     // Fetch location for the box
     const location = await box.getLocation({ attributes: ["id", "name"], transaction });
@@ -93,6 +95,7 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
         user_id,
         start_time,
         end_time,
+
         rental_hours: user_hours,
         status: "ongoing",
         extra_charge: 0.0,
@@ -398,6 +401,19 @@ const revertDepositAmount = async (user_id, order_id) => {
   }
 };
 
+const getDuration = (type, duration) => {
+  switch (type) {
+    case "hourly":
+      return `${duration} hour(s)`;
+    case "weekly":
+      return `${duration} week(s)`;
+    case "monthly":
+      return `${duration} month(s)`;
+    default:
+      return "N/A";
+  }
+};
+
 module.exports = {
   startRent,
   updateRentalPaymentStatus,
@@ -405,4 +421,5 @@ module.exports = {
   addDepositAmount,
   revertDepositAmount,
   returnItem,
+  getDuration,
 };

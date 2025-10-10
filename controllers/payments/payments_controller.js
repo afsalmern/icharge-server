@@ -3,18 +3,12 @@ const { startRent, initiateRefund, addDepositAmount, revertDepositAmount, update
 const db = require("../../models");
 const { initiateOrder, verifySignature } = require("../../helpers/razorPayHelpers");
 const crypto = require("crypto");
+const { ApiError } = require("../../middlewares/error");
 
 const Deposits = db.checks_and_amounts;
 
 exports.createOrder = async (req, res, next) => {
   const { amount, box_id, package_id, user_hours } = req.body;
-
-  const depositAmount = await Deposits.findOne();
-  const isAmountValid = depositAmount?.deposit_amount == amount;
-
-  if (!isAmountValid) {
-    throw new Error("Deposit amount is not valid");
-  }
 
   const box = await db.boxes.findOne({ attributes: ["id", "unique_id"], where: { unique_id: box_id } });
   const user_id = req.user_id;
@@ -67,6 +61,13 @@ exports.verifyOrder = async (req, res, next) => {
 
 exports.createOrderForDeposit = async (req, res, next) => {
   const { amount } = req.body;
+
+  const depositAmount = await Deposits.findOne();
+  const isAmountValid = depositAmount?.deposit_amount == amount;
+
+  if (!isAmountValid) {
+    throw new ApiError(402, "Deposit amount is not valid");
+  }
 
   const user_id = req.user_id;
   const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });

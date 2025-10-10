@@ -197,4 +197,36 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
   };
 }
 
-module.exports = { calculatePriceOnRentals, getHourlyPrice, getEndTime, calculateRentalCharge };
+function calculateTotalTimeUsed(startDate, endDate, status = "completed") {
+  const start = new Date(startDate);
+  const end = status == "ongoing" ? new Date() : new Date(endDate);
+
+  let diffMs = end - start; // difference in milliseconds
+  if (diffMs < 0) return "Invalid dates";
+
+  const msInMinute = 1000 * 60;
+  const msInHour = msInMinute * 60;
+  const msInDay = msInHour * 24;
+
+  const days = Math.floor(diffMs / msInDay);
+  diffMs -= days * msInDay;
+
+  const hours = Math.floor(diffMs / msInHour);
+  diffMs -= hours * msInHour;
+
+  const minutes = Math.floor(diffMs / msInMinute);
+
+  let data = "";
+
+  if (days > 0) {
+    data = `${days} day${days > 1 ? "s" : ""}${hours ? " " + hours + " hour" + (hours > 1 ? "s" : "") : ""} used`;
+  } else if (hours > 0) {
+    data = `${hours} hour${hours > 1 ? "s" : ""}${minutes ? " " + minutes + " min" : ""} used`;
+  } else {
+    data = `${minutes} min used`;
+  }
+
+  return data;
+}
+
+module.exports = { calculatePriceOnRentals, getHourlyPrice, getEndTime, calculateRentalCharge, calculateTotalTimeUsed };

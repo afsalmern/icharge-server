@@ -3,6 +3,8 @@ const moment = require("moment");
 const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
+const { getDuration } = require("../../helpers/rentalsHelper");
+const { calculatePriceOnRentals, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
 
 const Rentals = db.rentals;
 
@@ -67,7 +69,7 @@ exports.generateRentalReport = async (req, res, next) => {
         {
           model: db.packages,
           as: "rented_package",
-          attributes: ["type"], // Removed 'amount' due to error
+          attributes: ["type", "price", "duration", "hourly_price"], // Removed 'amount' due to error
         },
         {
           model: db.locations,
@@ -81,42 +83,48 @@ exports.generateRentalReport = async (req, res, next) => {
           attributes: ["id"],
           required: false,
         },
+        {
+          model: db.rental_payments,
+          as: "rental_payments",
+          attributes: ["status"],
+          required: false,
+        },
       ],
-      attributes: ["id", "start_time", "end_time", "status", "extra_charge", "extra_hours", "power_number"],
+      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time"],
       order: [["start_time", "DESC"]],
     });
 
     // Transform data for report
     const report = rentals.map((rental) => {
-      const duration = rental.end_time && rental.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
-
-      // Calculate swap count (simplified; assumes power_number change = swap)
-      const swapCount = rental.power_number ? 1 : 0; // TODO: Confirm swap count logic
-
       // Calculate amounts (placeholder; adjust based on actual rental cost source)
-      const rentalAmount = 0; // TODO: Replace with actual rental cost from packages or other table
-      const extraAmount = rental.extra_charge || 0;
-      const totalAmount = rentalAmount + extraAmount;
 
-      // Derive payment status (placeholder; adjust based on actual payment logic)
-      const derivedPaymentStatus = totalAmount > 0 ? "Paid" : "Unpaid"; // TODO: Confirm payment status logic
+      const { id, start_time, return_time, status, rented_package, rented_box, rental_payments, rented_user } = rental;
+      const { name } = rented_user;
+      const { location } = rented_box;
+      const { hourly_price, duration, price, type } = rented_package;
+
+      const rentalAmount = price || 0; // TODO: Replace with actual rental cost from packages or other table
+      const packageDuration = duration || 0;
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
+      const { extra_charge } = cost_details;
+
+      const totalAmount = parseFloat(rentalAmount) + extra_charge;
+      const time_used = calculateTotalTimeUsed(start_time, return_time, status);
 
       return {
-        rentalId: rental.id,
-        userName: rental.rented_user?.name || "N/A",
-        rentedFrom: rental.rented_box?.location?.name || "N/A",
-        returnedTo: rental.return_location?.name || "N/A",
-        rentedAt: rental.start_time,
-        returnedAt: rental.end_time,
-        duration: duration ? `${duration} hours` : "Ongoing",
-        swapCount,
-        packageType: rental.rented_package?.type || "N/A",
+        rentalId: id,
+        userName: name || "N/A",
+        rentedFrom: location?.name || "N/A",
+        rentedAt: start_time,
+        returnedAt: return_time,
+        duration: duration,
+        packageType: rented_package?.type || "N/A",
         rentalAmount,
-        extraAmount,
+        extraAmount: extra_charge,
         totalAmount,
-        viewDispute: rental.disputes?.length > 0 ? "View" : "None",
-        rentalStatus: rental.status,
-        paymentStatus: paymentStatus ? rental.payment_status : derivedPaymentStatus,
+        rentalStatus: status,
+        paymentStatus: rental_payments?.status || "N/A",
+        time_used,
       };
     });
 
@@ -235,7 +243,7 @@ exports.generateRevenewReport = async (req, res, next) => {
           model: db.rentals,
           as: "rental",
           required: true,
-          attributes: ["id", "start_time", "end_time", "status", "extra_charge"],
+          attributes: ["id", "start_time", "end_time", "status", "extra_charge", "return_time"],
           include: [
             {
               model: db.users,
@@ -263,7 +271,7 @@ exports.generateRevenewReport = async (req, res, next) => {
             {
               model: db.packages,
               as: "rented_package",
-              attributes: ["type"],
+              attributes: ["type", "hourly_price", "price", "duration"],
               required: true,
               ...(packageType !== "all" && {
                 where: {
@@ -277,39 +285,30 @@ exports.generateRevenewReport = async (req, res, next) => {
       attributes: ["id", "amount", "status", "created_at"],
     });
 
+    // Log for debugging
+    if (!payments) {
+      throw new ApiError(404, "Rental not found");
+    }
+
     // Transform data for report
     const report = payments.map((payment, index) => {
       const rental = payment.rental;
+      const { rented_package, start_time, return_time, status } = rental;
+      const { type, hourly_price, duration: packageDuration } = rented_package;
 
-      // Log for debugging
-      if (!rental) {
-        console.warn(`Payment ${payment.id} at index ${index} has no associated rental`);
-      }
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
+      const time_used = calculateTotalTimeUsed(start_time, return_time, status);
 
-      const duration = rental?.end_time && rental?.start_time ? moment(rental.end_time).diff(moment(rental.start_time), "hours") : null;
+      const { extra_charge } = cost_details;
 
       // Calculate amounts with safeguards
-      const rentedAmount = payment.status === "success" && payment.amount != null ? Number(payment.amount) : 0;
-      const extraAmount = rental?.extra_charge != null ? Number(rental.extra_charge) : 0;
+      const rentedAmount = parseFloat(payment.amount);
+      const extraAmount = extra_charge;
       const totalAmount = rentedAmount + extraAmount;
 
       // Log problematic amounts
       if (isNaN(totalAmount)) {
         console.warn(`Invalid totalAmount for payment ${payment.id}: rentedAmount=${rentedAmount}, extraAmount=${extraAmount}`);
-      }
-
-      // Determine overdue status based on end_time
-      let overdue = "No";
-      if (rental && rental.end_time) {
-        const isOverdue = moment().isAfter(moment(rental.end_time));
-        overdue = isOverdue ? "Yes" : "No";
-        if (isOverdue) {
-          console.log(`Rental ${rental.id} is overdue: end_time=${rental.end_time}, current_time=${moment().toISOString()}`);
-        }
-      } else if (rental && !rental.end_time) {
-        console.log(`Rental ${rental.id} has no end_time, marking overdue as No`);
-      } else {
-        console.warn(`Payment ${payment.id} has no rental, marking overdue as No`);
       }
 
       // Map payment status
@@ -332,12 +331,12 @@ exports.generateRevenewReport = async (req, res, next) => {
         rentalId: rental?.id || "N/A",
         userName: rental?.rented_user?.name || "N/A",
         rentalLocation: rental?.rented_box?.location?.name || "N/A",
-        totalDurationUsed: duration ? `${duration} hours` : "Ongoing",
-        packageType: rental?.rented_package?.type || "N/A",
-        rentedAmount: Number(rentedAmount.toFixed(2)),
-        overdue,
+        packageType: type || "N/A",
+        rentedAmount: rentedAmount,
+        overdue: extra_charge == 0 ? "No" : "Yes",
         totalRevenue: Number(totalAmount.toFixed(2)),
         paymentStatus,
+        time_used,
       };
     });
 

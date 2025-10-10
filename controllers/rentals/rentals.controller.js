@@ -1,8 +1,7 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { calculatePriceOnRentals, getEndTime, calculateRentalCharge } = require("../../helpers/calculatePrices");
-const { startRent, getDeviceInfoByUuid } = require("../../helpers/externalCalls");
+const { calculatePriceOnRentals, getEndTime, calculateRentalCharge, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
 const { sendOtp } = require("../../helpers/OtpHelper");
-const { returnItem } = require("../../helpers/rentalsHelper");
+const { returnItem, getDuration, startRent } = require("../../helpers/rentalsHelper");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 const { generateOtp } = require("../../utils/generateOtp");
@@ -133,17 +132,7 @@ exports.getAllRentals = async (req, res, next) => {
 
   try {
     const userRentals = await Rentals.findAll({
-      attributes: [
-        ["id", "order_id"],
-        "box_id",
-        "package_id",
-        [db.Sequelize.literal(`TO_CHAR("start_time", 'DD Mon YYYY')`), "start_on"],
-        "start_time",
-        "user_id",
-        "end_time",
-        "status",
-        "rental_hours",
-      ],
+      attributes: [["id", "order_id"], "box_id", "package_id", "start_time", "user_id", "end_time", "status", "rental_hours", "return_time"],
       where: whereCondition,
       order: [["start_time", "DESC"]],
       include: [
@@ -170,41 +159,31 @@ exports.getAllRentals = async (req, res, next) => {
       ],
     });
 
-    const getDuration = (type, duration) => {
-      switch (type) {
-        case "hourly":
-          return `${duration} hour(s)`;
-        case "weekly":
-          return `${duration} week(s)`;
-        case "monthly":
-          return `${duration} month(s)`;
-        default:
-          return "N/A";
-      }
-    };
-
     const rentals_history = userRentals?.map((rental) => {
-      const { id: order_id, start_time, status, rented_package, rented_user, rental_hours, disputes } = rental;
+      const { id: order_id, start_time, end_time, return_time, status, rented_package, rented_user, rental_hours, disputes } = rental;
       const { hourly_price, price, type, duration } = rented_package || {};
       const { name, mobile } = rented_user || {};
-      const start_on = rental?.get("start_on");
 
       const packageDuration = type == "hourly" ? rental_hours : duration;
 
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
+      const time_used = calculateTotalTimeUsed(start_time, return_time, status);
 
       return {
         order_id,
         disputes: disputes?.reason,
         start_time,
-        start_on,
+        end_time,
+        return_time: status == "ongoing" ? null : return_time,
         status,
         name,
         mobile,
         net_amount: price,
         type,
-        duration: getDuration(type, duration),
-        ...cost_details,
+        duration: getDuration(type, packageDuration),
+        elapsed_hours: cost_details.elapsed_hours,
+        current_cost: cost_details.current_cost,
+        time_used: time_used,
       };
     });
     sendSuccess(res, "Rental details fetched successfully", { rentals_history }, 200);
@@ -263,131 +242,11 @@ exports.buyItem = async (req, res, next) => {
 
 exports.rentItem = async (req, res, next) => {
   const { user_id } = req;
-  const { box_id, package_id } = req.body;
+  const { box_id, package_id, user_hours, order_id } = req.body;
 
-  if (!user_id || !box_id) {
-    return next(new ApiError("User ID and Box ID are required", 400));
-  }
+  console.log(req.body);
 
-  try {
-    const [user, box] = await Promise.all([
-      db.users.findByPk(user_id, {
-        attributes: [
-          "id",
-          "is_verified",
-          "block_status",
-          "status",
-          "outstanding_amount",
-          "deposit_amount",
-          "swaps_used",
-          "swaps_remaining",
-          "can_swap",
-        ],
-      }),
-      db.boxes.findOne({
-        where: { device_id: box_id },
-        attributes: ["id", "unique_id", "status", "available_powerbanks", "location_id"],
-      }),
-    ]);
-
-    if (!user) throw new ApiError(404, "User not found");
-    if (user?.status !== "active") throw new ApiError(403, "User is inactive");
-    if (user?.block_status) throw new ApiError(403, "User is blocked");
-    if (!user?.is_verified) throw new ApiError(400, "User not verified");
-
-    if (box?.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
-    if (box?.status !== "active") throw new ApiError(400, "This box is not active");
-    if (!box) throw new ApiError(404, "Box not found");
-
-    const ongoingRental = await db.rentals.findOne({
-      where: { user_id, status: "ongoing" },
-      include: [
-        {
-          model: db.packages,
-          as: "rented_package",
-          attributes: ["id", "type", "swap", "hourly_price"],
-        },
-      ],
-    });
-
-    if (ongoingRental) {
-      sendSuccess(res, "Rental is ongoing", {}, 200);
-    } else {
-      if (!package_id) {
-        throw new ApiError("Package ID is required for new rental", 400);
-      }
-
-      const rentalPackage = await db.packages.findByPk(package_id, {
-        attributes: ["id", "type", "duration", "price", "hourly_price", "swap"],
-      });
-
-      if (!rentalPackage) throw new ApiError("Package not found", 404);
-
-      const paymentAmount = parseFloat(rentalPackage.price) + parseFloat(user.outstanding_amount);
-
-      const { type, duration, swap } = rentalPackage;
-      const start_time = new Date();
-      const endTime = getEndTime(start_time, duration, type);
-
-      const location = await box.getLocation({ attributes: ["id", "name", "phone"] });
-
-      const createdRental = await db.sequelize.transaction(async (t) => {
-        const rental = await db.rentals.create(
-          {
-            box_id: box.id,
-            location_id: location.id,
-            package_id,
-            user_id,
-            start_time,
-            end_time: endTime,
-            status: "ongoing",
-            extra_charge: 0.0,
-          },
-          { transaction: t }
-        );
-
-        await db.rental_payments.create(
-          {
-            rental_id: rental.id,
-            user_id,
-            amount: paymentAmount,
-            status: "success",
-          },
-          { transaction: t }
-        );
-
-        await box.update(
-          {
-            available_powerbanks: db.sequelize.literal("available_powerbanks - 1"),
-          },
-          { transaction: t }
-        );
-
-        await user.update(
-          {
-            outstanding_amount: 0,
-            swaps_used: 0,
-            swaps_remaining: type === "monthly" ? null : swap,
-            can_swap: (type === "monthly" || swap > 0) && user.is_verified && !user.block_status && user.status === "active",
-          },
-          { transaction: t }
-        );
-
-        return rental;
-      });
-
-      const rentalData = {
-        order_id: createdRental.id,
-        start_time: createdRental.start_time,
-        payment_amount: paymentAmount,
-      };
-
-      sendSuccess(res, "Rental added successfully", rentalData, 201);
-    }
-  } catch (error) {
-    console.error("Error in rentItem:", error);
-    next(error);
-  }
+  await startRent(user_id, box_id, package_id, order_id, user_hours);
 };
 
 exports.deleteRental = async (req, res, next) => {
@@ -409,73 +268,7 @@ exports.deleteRental = async (req, res, next) => {
 exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
   const { rental_id } = req.body;
-
-  const transaction = await db.sequelize.transaction();
-  try {
-    const rental = await db.rentals.findOne({
-      where: { id: rental_id, user_id, status: "ongoing" },
-      include: [
-        { model: db.users, as: "rented_user" },
-        { model: db.packages, as: "rented_package" },
-        { model: db.boxes, as: "rented_box" },
-      ],
-    });
-
-    if (!rental) throw new ApiError(404, "Ongoing rental not found");
-
-    const returnTime = new Date();
-
-    const { totalHours, extraHours, extraCharge, usedTime: usedTimeStr, allowedTime: allowedTimeStr } = calculateRentalCharge(rental, returnTime);
-
-    await rental.update(
-      {
-        return_time: returnTime,
-        extra_hours: extraHours,
-        extra_charge: extraCharge,
-        status: "completed",
-        location_id: rental.location_id, // or box.location_id if you fetch box
-      },
-      { transaction }
-    );
-    console.log(
-      `Total Hours: ${totalHours}, Extra Hours: ${extraHours}, Extra Charge: ${extraCharge}, Used Time: ${usedTimeStr}, Allowed Time: ${allowedTimeStr},`
-    );
-
-    const currentOutstanding = parseFloat(rental.rented_user.outstanding_amount) || 0;
-    const outStandAmountToUpdate = currentOutstanding + extraCharge;
-
-    console.log(`Current Outstanding: ${currentOutstanding}, Updated Outstanding: ${outStandAmountToUpdate}`);
-
-    // Update user outstanding_amount (add extra charge)
-    const user = rental.rented_user;
-    await user.update({ outstanding_amount: outStandAmountToUpdate }, { transaction });
-
-    // Update box available_powerbanks
-    const box = rental.rented_box;
-    await box.update({ available_powerbanks: box.available_powerbanks + 1 }, { transaction });
-
-    // Send notification
-    if (user?.device_token) {
-      const notificationMessage =
-        extraCharge > 0
-          ? `Powerbank returned. A fine of $${extraCharge.toFixed(2)} has been added for ${extraHours.toFixed(2)} extra hours.`
-          : "Thank you! Your powerbank has been returned successfully.";
-
-      await sendFCMNotification(user.device_token, "Powerbank Returned", notificationMessage, {
-        powerbank: rental.powerbank.powerNo,
-        slot: rental.powerbank.positionUuid.toString(),
-        extraCharge: extraCharge.toFixed(2),
-      });
-    }
-
-    await transaction.commit();
-
-    return sendSuccess(res, "Power bank returned successfully", { hoursUsed: totalHours, extraCharge, extraHours }, 201);
-  } catch (error) {
-    await transaction.rollback();
-    console.error("Error in returnItem:", error);
-    next(error);
-  }
+  await returnItem(user_id, rental_id);
 };
 
 exports.addReasonForDispute = async (req, res, next) => {
@@ -592,16 +385,35 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
 };
 
 exports.test = async (req, res, next) => {
-  const amount = 100.54;
-  const dbAmount = "100.54";
+  const { startDate, endDate } = req.body;
 
-  const depositAmount = await db.checks_and_amounts.findOne();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
 
-  const isAmountValid = dbAmount == amount;
+  let diffMs = end - start; // difference in milliseconds
+  if (diffMs < 0) return "Invalid dates";
 
-  if (!isAmountValid) {
-    return res.status(400).json({ message: "Invalid amount" });
+  const msInMinute = 1000 * 60;
+  const msInHour = msInMinute * 60;
+  const msInDay = msInHour * 24;
+
+  const days = Math.floor(diffMs / msInDay);
+  diffMs -= days * msInDay;
+
+  const hours = Math.floor(diffMs / msInHour);
+  diffMs -= hours * msInHour;
+
+  const minutes = Math.floor(diffMs / msInMinute);
+
+  let data = "";
+
+  if (days > 0) {
+    data = `${days} day${days > 1 ? "s" : ""}${hours ? " " + hours + " hour" + (hours > 1 ? "s" : "") : ""} used`;
+  } else if (hours > 0) {
+    data = `${hours} hour${hours > 1 ? "s" : ""}${minutes ? " " + minutes + " min" : ""} used`;
+  } else {
+    data = `${minutes} min used`;
   }
 
-  res.status(200).json({ message: "Amount is valid" });
+  res.status(200).json({ data });
 };
