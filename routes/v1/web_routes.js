@@ -2,7 +2,17 @@ const express = require("express");
 const { addLocation, getLocations, updateLocation, deleteLocation } = require("../../controllers/locations/locations_controller");
 const { verifyToken } = require("../../middlewares/auth");
 const { checkRole } = require("../../middlewares/role_check");
-const { locationDataValidation, validate, validateId, validatePackagesData, validateBoxesData } = require("../../validators/validators");
+const {
+  locationDataValidation,
+  validate,
+  validateId,
+  validatePackagesData,
+  validateBoxesData,
+  validateReferelCode,
+  validateReferelCodeUpdate,
+  validateCorporate,
+  validateCorporateUpdate,
+} = require("../../validators/validators");
 const {
   getAllUsers,
   blockOrUnblockUser,
@@ -35,6 +45,8 @@ router.get("/dashboard", verifyToken, checkRole("admin"), getDashboard);
 router.get("/year-wise-data", verifyToken, checkRole("admin"), getYearWiseData);
 
 const { generateRentalReport, generateLocationsReport, generateRevenewReport } = require("../../controllers/web/reports_controller");
+const { createReferelCode, updateReferelCode } = require("../../controllers/referelCodes/codes_controller");
+const { addCorporates, deleteCorporate, updateCorporate, getCorporates } = require("../../controllers/corporates/corporate_controller");
 
 //Checks and deposit deposit_amount
 router.get("/checks-and-amount", verifyToken, checkRole("admin"), getChecksAndAmount);
@@ -48,6 +60,16 @@ router.post("/locations", verifyToken, checkRole("admin"), locationDataValidatio
 router.delete("/locations/:id", verifyToken, checkRole("admin"), deleteLocation);
 router.patch("/locations/:id", verifyToken, checkRole("admin"), locationDataValidation, validate, updateLocation);
 router.get("/locations", verifyToken, getLocations);
+
+//Corporates
+router.post("/corporates", verifyToken, checkRole("admin"), validateCorporate, validate, addCorporates);
+router.delete("/corporates/:id", verifyToken, checkRole("admin"), deleteCorporate);
+router.patch("/corporates/:id", verifyToken, checkRole("admin"), validateCorporateUpdate, validate, updateCorporate);
+router.get("/corporates", verifyToken, getCorporates);
+
+//Referel Codes
+router.post("/referel-codes", verifyToken, checkRole("admin"), validateReferelCode, validate, createReferelCode);
+router.patch("/referel-codes/:id", verifyToken, checkRole("admin"), validateReferelCodeUpdate, validate, updateReferelCode);
 
 //Packages
 router.get("/packages", verifyToken, checkRole("admin"), getPackages);

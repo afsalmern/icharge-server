@@ -1,30 +1,27 @@
+const { ref } = require("pdfkit");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
-const Location = db.locations;
+const Corporates = db.corporates;
 const ReferelCodes = db.referel_codes;
 
-exports.addLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
+exports.addCorporates = async (req, res, next) => {
+  const { name, email, phone, is_active } = req.body;
   const transaction = await db.sequelize.transaction();
   try {
-    const addedLocation = await Location.create(
+    const data = await Corporates.create(
       {
         name,
-        latitude,
-        longitude,
-        address,
-        starting_hour,
-        ending_hour,
-        is_active,
         phone,
+        email,
+        is_active,
       },
       { transaction }
     );
 
     await transaction.commit();
 
-    res.status(200).json({ message: "Location added successfully", data: addedLocation });
+    res.status(200).json({ message: "Corporates added successfully", data });
   } catch (error) {
     console.error(error);
     await transaction.rollback();
@@ -32,34 +29,30 @@ exports.addLocation = async (req, res, next) => {
   }
 };
 
-exports.updateLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
+exports.updateCorporate = async (req, res, next) => {
+  const { name, email, is_active, phone } = req.body;
   const { id } = req.params;
 
-  const location = await Location.findByPk(id);
-  if (!location) {
-    throw new ApiError(404, "Location not found");
+  const corporate = await Corporates.findByPk(id);
+  if (!corporate) {
+    throw new ApiError(404, "Corporates not found");
   }
 
   const transaction = await db.sequelize.transaction();
   try {
-    const updated_location = await location.update(
+    const data = await corporate.update(
       {
-        name,
-        latitude,
-        longitude,
-        address,
-        starting_hour,
-        ending_hour,
+        name: name || corporate.name,
+        email: email || corporate.email,
         is_active,
-        phone,
+        phone: phone || corporate.phone,
       },
       { returning: true },
       { transaction }
     );
 
     await transaction.commit();
-    sendSuccess(res, "Location updated successfully", { location: updated_location }, 200);
+    sendSuccess(res, "Corporates updated successfully", { corporate: data }, 200);
   } catch (error) {
     console.error(error);
     await transaction.rollback();
@@ -67,20 +60,19 @@ exports.updateLocation = async (req, res, next) => {
   }
 };
 
-exports.getLocations = async (req, res) => {
+exports.getCorporates = async (req, res) => {
   try {
-    const locations = await Location.findAll({
-      attributes: ["id", "name", "latitude", "longitude", "address", "starting_hour", "ending_hour", "is_active", "phone"],
+    const data = await Corporates.findAll({
+      attributes: ["id", "name", "email", "is_active", "phone"],
     });
-
     const corporateCodes = await ReferelCodes.findAll({
       attributes: ["id", "code", "type", "reference_id", "is_valid", "is_active"],
       where: {
-        type: "location",
+        type: "corporate",
       },
     });
 
-    const modifiedData = locations.map((corporate) => {
+    const modifiedData = data.map((corporate) => {
       const code = corporateCodes.find((code) => code.reference_id == corporate.id);
       const referralCode = code
         ? {
@@ -96,22 +88,22 @@ exports.getLocations = async (req, res) => {
       };
     });
 
-    return res.status(200).json({ message: "Locations fetched successfully", data: modifiedData });
+    return res.status(200).json({ message: "Corporates fetched successfully", data: modifiedData });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-exports.deleteLocation = async (req, res, next) => {
+exports.deleteCorporate = async (req, res, next) => {
   const { id } = req.params;
-  const location = await Location.findByPk(id);
-  if (!location) {
-    throw new ApiError(404, "Location not found");
+  const corporate = await Corporates.findByPk(id);
+  if (!corporate) {
+    throw new ApiError(404, "Corporates not found");
   }
   try {
-    await location.destroy();
-    sendSuccess(res, "Location deleted successfully", {}, 200);
+    await corporate.destroy();
+    sendSuccess(res, "Corporates deleted successfully", {}, 200);
   } catch (error) {
     console.error(error);
     next(error);

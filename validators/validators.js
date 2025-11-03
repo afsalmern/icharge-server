@@ -26,6 +26,25 @@ const locationDataValidation = [
   body("phone").not().isEmpty().withMessage("Phone number is required"),
 ];
 
+const validateCorporate = [
+  body("name").not().isEmpty().withMessage("Name is required"),
+  body("email").not().isEmpty().withMessage("Email is required").bail().isEmail().withMessage("Email is not valid"),
+  body("phone").not().isEmpty().withMessage("Phone number is required"),
+];
+
+const validateCorporateUpdate = [
+  body("name").optional().not().isEmpty().withMessage("Name is required if provided"),
+  body("email")
+    .optional()
+    .not()
+    .isEmpty()
+    .withMessage("Email is required if provided")
+    .bail()
+    .isEmail()
+    .withMessage("Email is not valid if provided"),
+  body("phone").optional().not().isEmpty().withMessage("Phone number is required if provided"),
+];
+
 const mobileNumberValidation = [
   body("mobile")
     .not()
@@ -111,6 +130,37 @@ const validateDisputeData = [
   body("dispute").not().isEmpty().withMessage("Reason is required"),
 ];
 
+const validateReferelCode = [
+  body("code")
+    .not()
+    .isEmpty()
+    .withMessage("Code is required")
+    .isString()
+    .withMessage("Code must be a string")
+    .isLength({ max: 255 })
+    .withMessage("Code cannot exceed 255 characters"),
+
+  body("type")
+    .not()
+    .isEmpty()
+    .withMessage("Type is required")
+    .isIn(["location", "corporate"])
+    .withMessage("Type must be either 'location' or 'corporate'"),
+
+  body("reference_id").not().isEmpty().withMessage("Entity id is required"),
+];
+const validateReferelCodeUpdate = [
+  body("code").optional().isString().withMessage("Code must be a string").isLength({ max: 255 }).withMessage("Code cannot exceed 255 characters"),
+
+  body("type").optional().isIn(["location", "corporate"]).withMessage("Type must be either 'location' or 'corporate'"),
+
+  body("reference_id").optional().not().isEmpty().withMessage("Entity id is required"),
+
+  body("is_active").optional().isBoolean().withMessage("is_active must be a boolean value"),
+
+  body("is_valid").optional().isBoolean().withMessage("is_valid must be a boolean value"),
+];
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -134,5 +184,9 @@ module.exports = {
   validateKycData,
   validateKycDataUpdate,
   validateDisputeData,
+  validateReferelCode,
+  validateReferelCodeUpdate,
+  validateCorporate,
+  validateCorporateUpdate,
   validate,
 };

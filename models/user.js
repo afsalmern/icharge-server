@@ -22,10 +22,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(15),
         allowNull: true,
       },
-      referral_code: {
-        type: DataTypes.STRING(100),
-        allowNull: true,
-      },
       avatar: {
         type: DataTypes.STRING(255),
         allowNull: true,
@@ -44,6 +40,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0.0,
+      },
+      referel_applied: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       block_status: {
         type: DataTypes.BOOLEAN,

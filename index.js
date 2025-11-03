@@ -26,6 +26,13 @@ app.use("/api/v1/auth/", authRouter);
 app.use("/api/v1/user/", userRouter);
 app.use("/api/v1/web/", webRouter);
 
+app.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.originalUrl}`,
+  });
+});
+
 app.use(errorHandler);
 
 const startServer = async () => {
