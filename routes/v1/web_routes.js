@@ -53,7 +53,7 @@ router.get("/checks-and-amount", verifyToken, checkRole("admin"), getChecksAndAm
 router.post("/checks-and-amount", verifyToken, checkRole("admin"), updateChecksAndAmount);
 
 //DropDownData
-router.get("/dropdowns", verifyToken, checkRole("admin"), getDropDownDatas);
+router.get("/dropdowns", getDropDownDatas);
 
 //Locations
 router.post("/locations", verifyToken, checkRole("admin"), locationDataValidation, validate, addLocation);

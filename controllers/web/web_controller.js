@@ -12,6 +12,7 @@ const Boxes = db.boxes;
 const Locations = db.locations;
 const ChecksAndAmounts = db.checks_and_amounts;
 const QRCode = db.qr_codes;
+const Corporates = db.corporates;
 
 //Data for Drop down
 exports.getDropDownDatas = async (req, res, next) => {
@@ -25,6 +26,7 @@ exports.getDropDownDatas = async (req, res, next) => {
       switch (t) {
         case "locations":
           const locations = await Locations.findAll({
+            where: { is_active: true },
             attributes: [
               ["id", "value"],
               ["name", "label"],
@@ -45,6 +47,7 @@ exports.getDropDownDatas = async (req, res, next) => {
 
         case "devices":
           const devices = await Boxes.findAll({
+            where: { status: "active" },
             attributes: [
               ["id", "value"],
               ["device_id", "label"],
@@ -61,6 +64,17 @@ exports.getDropDownDatas = async (req, res, next) => {
             ],
           });
           data["packages"] = packages;
+          break;
+
+        case "corporates":
+          const corporates = await Corporates.findAll({
+            where: { is_active: true },
+            attributes: [
+              ["id", "value"],
+              ["name", "label"],
+            ],
+          });
+          data["corporates"] = corporates;
           break;
 
         default:
@@ -247,12 +261,17 @@ exports.deletePackage = async (req, res, next) => {
 exports.getBoxes = async (req, res, next) => {
   try {
     const boxes = await db.boxes.findAll({
-      attributes: ["id", "unique_id", "device_id", "status", "total_powerbanks", "available_powerbanks", "location_id"],
+      attributes: ["id", "unique_id", "device_id", "status", "total_powerbanks", "available_powerbanks", "location_id", "type"],
       include: [
         {
           model: db.locations,
           attributes: ["name"],
           as: "location",
+        },
+        {
+          model: db.corporates,
+          attributes: ["name"],
+          as: "corporate",
         },
         {
           model: db.qr_codes,
@@ -273,12 +292,22 @@ exports.addBoxes = async (req, res, next) => {
   const transaction = await db.sequelize.transaction();
   let tempFileName = null;
   try {
-    const { unique_id, device_id, location_id, total_powerbanks, available_powerbanks } = req.body;
+    const { unique_id, device_id, location_id, corporate_id, total_powerbanks, available_powerbanks } = req.body;
 
-    const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
-    if (!isLocationValid) {
-      throw new ApiError(404, "Location not found");
+    if (location_id) {
+      const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
+      if (!isLocationValid) {
+        throw new ApiError(404, "Location not found");
+      }
     }
+
+    if (corporate_id) {
+      const isCorporateValid = await Corporates.findByPk(corporate_id, { attributes: ["id"] });
+      if (!isCorporateValid) {
+        throw new ApiError(404, "Corporate not found");
+      }
+    }
+
     const boxes = await Boxes.findAll({
       attributes: ["unique_id", "device_id"],
     });
@@ -291,7 +320,10 @@ exports.addBoxes = async (req, res, next) => {
       throw new ApiError(409, "Box with this device id already exists,choose another device id for box");
     }
 
-    const box = await Boxes.create({ unique_id, device_id, location_id, total_powerbanks, available_powerbanks }, { transaction });
+    const box = await Boxes.create(
+      { unique_id, device_id, location_id, corporate_id, total_powerbanks, available_powerbanks, type: location_id ? "location" : "corporate" },
+      { transaction }
+    );
 
     const deviceId = box.device_id;
 

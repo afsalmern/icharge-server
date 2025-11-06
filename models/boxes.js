@@ -12,9 +12,19 @@ module.exports = (sequelize, DataTypes) => {
       },
       location_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
           model: "locations", // Refers to the locations table
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
+      },
+      corporate_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "corporates", // Refers to the locations table
           key: "id",
         },
         onUpdate: "CASCADE",
@@ -24,6 +34,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.ENUM("active", "inactive", "maintenance"),
         allowNull: false,
         defaultValue: "active",
+      },
+      type: {
+        type: DataTypes.STRING,
+        allowNull: false,
       },
       unique_id: {
         type: DataTypes.STRING(50),
@@ -57,6 +71,12 @@ module.exports = (sequelize, DataTypes) => {
     Box.belongsTo(models.locations, {
       foreignKey: "location_id",
       as: "location",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+    Box.belongsTo(models.corporates, {
+      foreignKey: "corporate_id",
+      as: "corporate",
       onDelete: "CASCADE",
       onUpdate: "CASCADE",
     });

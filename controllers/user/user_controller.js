@@ -202,7 +202,7 @@ exports.getUserProfile = async (req, res, next) => {
 
 exports.updatUserProfile = async (req, res, next) => {
   const { user } = req;
-  const { name, dob, email, referel_code } = req.body;
+  const { name, dob, email } = req.body;
 
   const user_id = user.id;
   let code_added = false;
@@ -210,13 +210,8 @@ exports.updatUserProfile = async (req, res, next) => {
   const avatar = (req.files && req.files?.["avatar"]?.[0]?.filename) || null;
   const transaction = await db.sequelize.transaction();
   try {
-    if (referel_code) {
-      const isAdded = await addUserReferelCode(user_id, referel_code, transaction);
-      isAdded && (code_added = true);
-    }
-
     await user.update(
-      { name, dob: dob ? dob : user.dob, email: email ? email : user.email, avatar: avatar ? avatar : user.avatar, referel_applied: code_added },
+      { name, dob: dob ? dob : user.dob, email: email ? email : user.email, avatar: avatar ? avatar : user.avatar },
       { returning: true, transaction }
     );
     await transaction.commit();

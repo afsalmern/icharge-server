@@ -33,5 +33,14 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
+  Corporates.associate = function (models) {
+    Corporates.hasMany(models.boxes, {
+      foreignKey: "corporate_id",
+      as: "boxes",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+    });
+  };
+
   return Corporates;
 };

@@ -14,6 +14,7 @@ const {
   verfiyRentalsOtp,
   deleteRental,
   test,
+  verifyReferelCode,
 } = require("../../controllers/rentals/rentals.controller");
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate, validateDisputeData } = require("../../validators/validators");
@@ -51,6 +52,9 @@ router.post("/kyc-details", verifyToken, checkIsKycSubmitted, upload, validateKy
 router.patch("/kyc-details", verifyToken, upload, validateKycDataUpdate, validate, updateKyc);
 
 //Rental details
+
+router.post("/verify-referelcode", verifyToken, checkRole("user"), verifyReferelCode);
+
 router.get("/rentals-history", verifyToken, verifyUserExist, getRentalHistory);
 router.post("/buy-item", verifyToken, checkRole("user"), buyItem);
 router.post("/start-rent", verifyToken, checkRole("user"), rentItem);

@@ -86,7 +86,6 @@ const validatePackagesData = [
 ];
 
 const validateBoxesData = [
-  body("location_id").not().isEmpty().withMessage("Location is required"),
   body("device_id").not().isEmpty().withMessage("Device id is required"),
   body("unique_id").not().isEmpty().withMessage("Unique id is required"),
   body("total_powerbanks").not().isEmpty().withMessage("Number of power banks are required"),

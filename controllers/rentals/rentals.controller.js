@@ -10,6 +10,7 @@ const Boxes = db.boxes;
 const Users = db.users;
 const Packages = db.packages;
 const Locations = db.locations;
+const Codes = db.referel_codes;
 const Rentals = db.rentals;
 const Disputes = db.disputes;
 const RentalsOtps = db.rental_otps;
@@ -380,6 +381,28 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
     sendSuccess(res, message, { is_otp_valid: true }, 200);
   } catch (error) {
     console.error("Error in verfiying rentals otp:", error);
+    next(error);
+  }
+};
+
+exports.verifyReferelCode = async (req, res, next) => {
+  const { referel_code, location_id } = req.body;
+  const user_id = req.user_id;
+
+  try {
+    const code = await Codes.findOne({ where: { code: referel_code, reference_id: location_id, type: "location" } });
+
+    if (!code) {
+      return sendSuccess(res, "Invalid referal code", { is_code_valid: false }, 400);
+    }
+
+    if (!code.is_active || !code.is_valid) {
+      return sendSuccess(res, "Referral code is not active", { is_code_valid: false }, 400);
+    }
+
+    return sendSuccess(res, "Referral code is valid", { is_code_valid: true }, 200);
+  } catch (error) {
+    console.error("Error in verfiying rentals type:", error);
     next(error);
   }
 };
