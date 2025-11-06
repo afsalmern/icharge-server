@@ -88,6 +88,7 @@ exports.getHome = async (req, res, next) => {
           "block_status",
           "status",
           "is_verified",
+          "referel_applied",
           "user_preferred_method",
           "swaps_used",
           "swaps_remaining",
@@ -174,7 +175,7 @@ exports.getHome = async (req, res, next) => {
         devices,
         onGoingRental: rentalsModified,
         notifications: notificationsData,
-        steps: [], // Define or remove
+        steps: [],
         userStatus: userData,
         verification_methods: {
           kyc_enable: is_kyc_enabled,
