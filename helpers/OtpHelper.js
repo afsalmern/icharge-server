@@ -48,7 +48,7 @@ const { ApiError } = require("../middlewares/error");
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to number:", number);
 
-  return process.env.NODE_ENV === "development";
+  // return process.env.NODE_ENV === "development";
 
   const countryCode = process.env.COUNTRY_CODE;
 
