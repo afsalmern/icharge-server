@@ -99,6 +99,9 @@ exports.generateRentalReport = async (req, res, next) => {
       // Calculate amounts (placeholder; adjust based on actual rental cost source)
 
       const { id, start_time, return_time, status, rented_package, rented_box, rental_payments, rented_user } = rental;
+
+      console.log("RENTAL PAYMENTS ===========>", rental_payments);
+
       const { name } = rented_user;
       const { location } = rented_box;
       const { hourly_price, duration, price, type } = rented_package;
