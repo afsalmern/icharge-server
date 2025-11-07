@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { calculatePriceOnRentals, getEndTime, calculateRentalCharge, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
+const { calculatePriceOnRentals, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
 const { sendOtp } = require("../../helpers/OtpHelper");
 const { returnItem, getDuration, startRent } = require("../../helpers/rentalsHelper");
 const { ApiError } = require("../../middlewares/error");
@@ -9,7 +9,6 @@ const { generateOtp } = require("../../utils/generateOtp");
 const Boxes = db.boxes;
 const Users = db.users;
 const Packages = db.packages;
-const Locations = db.locations;
 const Codes = db.referel_codes;
 const Rentals = db.rentals;
 const Disputes = db.disputes;
