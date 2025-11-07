@@ -39,8 +39,30 @@ exports.checkIsDeviceValid = async (req, res, next) => {
       return sendSuccess(res, "No powerbanks available in this device", { is_scan_valid: false }, 200);
     }
 
+    const boxType = box?.type;
+
+    const entity_id = boxType == "location" ? box?.location_id : box?.corporate_id;
+
+    const referel_code = await Codes.findOne({
+      where: {
+        reference_id: entity_id,
+        type: boxType == "location" ? "location" : "corporate",
+        is_active: true,
+      },
+    });
+
     // If box exists and has available powerbanks, return success
-    sendSuccess(res, "Device is valid", { is_scan_valid: true }, 200);
+    sendSuccess(
+      res,
+      "Device is valid",
+      {
+        is_scan_valid: true,
+        device_type: boxType == "location" ? "location" : "corporate",
+        is_code_available: referel_code ? true : false,
+        entity_id,
+      },
+      200
+    );
   } catch (error) {
     console.log(error);
     next(error);
@@ -386,11 +408,10 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
 };
 
 exports.verifyReferelCode = async (req, res, next) => {
-  const { referel_code, location_id } = req.body;
-  const user_id = req.user_id;
+  const { referel_code, device_type, entity_id } = req.body;
 
   try {
-    const code = await Codes.findOne({ where: { code: referel_code, reference_id: location_id, type: "location" } });
+    const code = await Codes.findOne({ where: { code: referel_code, reference_id: entity_id, type: device_type } });
 
     if (!code) {
       return sendSuccess(res, "Invalid referal code", { is_code_valid: false }, 400);

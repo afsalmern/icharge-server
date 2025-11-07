@@ -239,8 +239,20 @@ exports.withDrawRequestStatusUpdate = async (req, res, next) => {
       throw new ApiError(404, "Withdraw request not found");
     }
 
+    const user_id = requestedItem.user_id;
+    const user = await Users.findByPk(user_id, { transaction });
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
     await requestedItem.update({ status }, { transaction });
 
+    await user.update(
+      {
+        deposit_amount: 0.0,
+      },
+      { transaction }
+    );
     await transaction.commit();
     sendSuccess(res, "Withdraw request status updated successfully", {}, 200);
   } catch (error) {

@@ -299,12 +299,28 @@ exports.addBoxes = async (req, res, next) => {
       if (!isLocationValid) {
         throw new ApiError(404, "Location not found");
       }
+
+      const isBoxExist = await Boxes.findOne({
+        where: { location_id },
+      });
+
+      if (isBoxExist) {
+        throw new ApiError(409, "Location already has a box");
+      }
     }
 
     if (corporate_id) {
       const isCorporateValid = await Corporates.findByPk(corporate_id, { attributes: ["id"] });
       if (!isCorporateValid) {
         throw new ApiError(404, "Corporate not found");
+      }
+
+      const isBoxExist = await Boxes.findOne({
+        where: { corporate_id },
+      });
+
+      if (isBoxExist) {
+        throw new ApiError(409, "Corporate already has a box");
       }
     }
 
