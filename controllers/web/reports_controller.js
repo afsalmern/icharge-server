@@ -131,6 +131,8 @@ exports.generateRentalReport = async (req, res, next) => {
       };
     });
 
+    console.log("RENTAL PAYMENTS ===========>", report);
+
     sendSuccess(res, "Rental report generated successfully", { report }, 200);
   } catch (error) {
     console.error("Error generating rental report:", error);
