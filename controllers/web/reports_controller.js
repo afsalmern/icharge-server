@@ -114,6 +114,10 @@ exports.generateRentalReport = async (req, res, next) => {
       const totalAmount = parseFloat(rentalAmount) + extra_charge;
       const time_used = calculateTotalTimeUsed(start_time, return_time, status);
 
+      const payment = Array.isArray(rental_payments) && rental_payments.length > 0 ? rental_payments[0] : rental_payments;
+
+      const paymentStatus = payment?.status || payment?.dataValues?.status || "N/A";
+
       return {
         rentalId: id,
         userName: name || "N/A",
@@ -126,7 +130,7 @@ exports.generateRentalReport = async (req, res, next) => {
         extraAmount: extra_charge,
         totalAmount,
         rentalStatus: status,
-        paymentStatus: rental_payments?.status || "N/A",
+        paymentStatus,
         time_used,
       };
     });

@@ -114,7 +114,7 @@ const startRent = async (user_id, box_id, package_id, order_id, type, user_hours
         user_id,
         amount: paymentAmount,
         status: "success",
-        order_id, // Razorpay / generated order id
+        order_id,
       },
       { transaction }
     );
