@@ -2,77 +2,93 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
   const now = new Date();
   const start = new Date(start_time);
 
-  // 1️⃣ Total hours used
-  let totalHours = (now - start) / (1000 * 60 * 60); // ms → hours
-  totalHours = Math.ceil(totalHours); // round up
+  // 1) Exact used hours as a decimal (no rounding yet)
+  const usedMs = now - start; // ms
+  const usedHoursFloat = usedMs / (1000 * 60 * 60); // e.g. 1.1667
 
-  // 2️⃣ Convert package duration to hours based on type
+  // 2) Convert package duration to allowed hours
   let packageHours = 0;
   switch (package_type) {
     case "hourly":
-      packageHours = package_duration;
+      // package_duration is count of hours allowed
+      packageHours = Number(package_duration) || 0;
+      break;
+    case "daily":
+      packageHours = (Number(package_duration) || 0) * 24;
       break;
     case "weekly":
-      packageHours = package_duration * 7 * 24;
+      packageHours = (Number(package_duration) || 0) * 7 * 24;
       break;
     case "monthly":
-      packageHours = package_duration * 30 * 24; // approx 30 days
+      packageHours = (Number(package_duration) || 0) * 30 * 24; // approx
       break;
     case "free":
-      packageHours = 0;
+      packageHours = Infinity; // free = unlimited
       break;
     default:
       throw new Error("Invalid package type: " + package_type);
   }
 
-  // 3️⃣ Calculate extra (overdue) hours
-  let extraHours = totalHours - packageHours;
-  extraHours = extraHours > 0 ? extraHours : 0;
+  // 3) Calculate extra hours (round up only the overtime portion)
+  const extraFloat = usedHoursFloat - packageHours;
+  const extraHours = extraFloat > 0 ? Math.ceil(extraFloat) : 0;
 
-  // 4️⃣ Calculate extra charge and total cost
-  const extraCharge = extraHours * hourly_price;
-  const totalCost = totalHours * hourly_price;
+  // 4) Charges
+  const extraCharge = package_type === "free" ? 0 : extraHours * hourly_price;
+  const totalCost = package_type === "free" ? 0 : extraCharge;
 
-  // 5️⃣ Human readable breakdown
-  let usedTimeStr, allowedTimeStr, overdueTimeStr;
+  // 📘 Friendly formatting helpers
+  const pluralize = (val, unit) => `${val} ${unit}${val === 1 ? "" : "s"}`;
+  const formatDuration = (hours) => {
+    const days = Math.floor(hours / 24);
+    const hrs = Math.floor(hours % 24);
+    if (days > 0 && hrs > 0) return `${pluralize(days, "day")} and ${pluralize(hrs, "hour")}`;
+    if (days > 0) return pluralize(days, "day");
+    return pluralize(hrs, "hour");
+  };
 
-  switch (package_type) {
-    case "hourly":
-      usedTimeStr = `${totalHours} hour(s) used`;
-      allowedTimeStr = `${packageHours} hour(s) allowed`;
-      overdueTimeStr = extraHours > 0 ? `${extraHours} hour(s) over limit` : "Within time limit";
-      break;
+  // 📗 Build readable text
+  let totalTimeText, allowedTimeText, overdueText;
 
-    case "weekly":
-      usedTimeStr = `${Math.floor(totalHours / 24 / 7)} week(s) and ${totalHours % (24 * 7)} hour(s) used`;
-      allowedTimeStr = `${package_duration} week(s) allowed`;
-      overdueTimeStr = extraHours > 0 ? `${(extraHours / 24).toFixed(2)} day(s) over limit` : "Within time limit";
-      break;
+  // Format total usage
+  if (package_type === "free") {
+    totalTimeText = "Unlimited free usage";
+    allowedTimeText = "No time limit";
+    overdueText = "No overdue charges";
+  } else {
+    totalTimeText = `Used for ${formatDuration(usedHoursFloat)}`;
+    switch (package_type) {
+      case "hourly":
+        allowedTimeText = `Allowed up to ${package_duration} hour${package_duration > 1 ? "s" : ""}`;
+        break;
+      case "daily":
+        allowedTimeText = `Allowed up to ${package_duration} day${package_duration > 1 ? "s" : ""}`;
+        break;
+      case "weekly":
+        allowedTimeText = `Allowed up to ${package_duration} week${package_duration > 1 ? "s" : ""}`;
+        break;
+      case "monthly":
+        allowedTimeText = `Allowed up to ${package_duration} month${package_duration > 1 ? "s" : ""}`;
+        break;
+    }
 
-    case "monthly":
-      usedTimeStr = `${Math.floor(totalHours / (24 * 30))} month(s) and ${totalHours % (24 * 30)} hour(s) used`;
-      allowedTimeStr = `${package_duration} month(s) allowed`;
-      overdueTimeStr = extraHours > 0 ? `${(extraHours / 24).toFixed(2)} day(s) over limit` : "Within time limit";
-      break;
-
-    case "free":
-      usedTimeStr = "This is a free package";
-      allowedTimeStr = "Free usage — no time limit";
-      overdueTimeStr = "No overdue for free package";
-      break;
+    overdueText = extraHours > 0 ? `Exceeded by ${formatDuration(extraHours)}` : "Within allowed time";
   }
 
-  // 6️⃣ Return consistent structured data
+  const readable = {
+    totalTime: totalTimeText,
+    allowedTime: allowedTimeText,
+    overdueTime: overdueText,
+  };
+
+  // 6) Return structured result
   return {
-    total_hours: totalHours, // total hours used
-    elapsed_hours: package_type === "free" ? 0 : extraHours, // extra or overdue hours
-    current_cost: package_type === "free" ? 0 : totalCost, // total cost for all hours
-    extra_charge: package_type === "free" ? 0 : extraCharge, // only for extra hours
-    readable: {
-      totalTime: usedTimeStr,
-      allowedTime: allowedTimeStr,
-      overdueTime: overdueTimeStr,
-    },
+    total_hours_billed: Math.ceil(usedHoursFloat), // if you ever want to bill total usage as whole hours
+    allowed_hours: packageHours === Infinity ? null : packageHours,
+    extra_hours: extraHours,
+    extra_charge: extraCharge,
+    total_cost: totalCost,
+    readable,
   };
 };
 
@@ -100,6 +116,10 @@ const getHourlyPrice = (type, price) => {
 
 const getEndTime = (start_date, duration, type) => {
   const startDate = new Date(start_date);
+
+  console.log(startDate);
+  console.log(duration);
+  console.log(type);
 
   switch (type) {
     case "free":

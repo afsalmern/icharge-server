@@ -265,11 +265,11 @@ exports.buyItem = async (req, res, next) => {
 
 exports.rentItem = async (req, res, next) => {
   const { user_id } = req;
-  const { box_id, package_id, user_hours, order_id } = req.body;
+  const { box_id, package_id, user_hours, order_id, type } = req.body;
 
-  console.log(req.body);
+  await startRent(user_id, box_id, package_id, order_id, type, user_hours);
 
-  await startRent(user_id, box_id, package_id, order_id, user_hours);
+  return sendSuccess(res, "Rental started successfully", {}, 200);
 };
 
 exports.deleteRental = async (req, res, next) => {

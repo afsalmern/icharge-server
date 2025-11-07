@@ -60,6 +60,20 @@ module.exports = (sequelize, DataTypes) => {
         onUpdate: "CASCADE",
         onDelete: "SET NULL",
       },
+      corporate_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "corporates",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
+      },
+      type: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      },
       extra_hours: {
         type: DataTypes.INTEGER,
         allowNull: true,
@@ -112,6 +126,13 @@ module.exports = (sequelize, DataTypes) => {
     Rental.belongsTo(models.locations, {
       foreignKey: "location_id",
       as: "return_location",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+    });
+
+    Rental.belongsTo(models.corporates, {
+      foreignKey: "corporate_id",
+      as: "rented_corporate",
       onDelete: "SET NULL",
       onUpdate: "CASCADE",
     });

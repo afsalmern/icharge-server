@@ -1,12 +1,14 @@
 const { ApiError } = require("../middlewares/error");
 const db = require("../models");
-const { getEndTime, calculateRentalCharge } = require("./calculatePrices");
+const { getEndTime, calculateRentalCharge, calculatePriceOnRentals } = require("./calculatePrices");
 const { startRefund } = require("./razorPayHelpers");
 const sendFCMNotification = require("../utils/sendFCMNotification");
 
 const Users = db.users;
 
-const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) => {
+const startRent = async (user_id, box_id, package_id, order_id, type, user_hours = 1) => {
+  const rentalType = type;
+
   if (!user_id || !box_id) {
     throw new ApiError("User ID and Box ID are required", 400);
   }
@@ -32,20 +34,18 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
       }),
       db.boxes.findOne({
         where: { device_id: box_id },
-        attributes: ["id", "unique_id", "status", "available_powerbanks", "location_id"],
+        attributes: ["id", "unique_id", "status", "available_powerbanks", "location_id", "corporate_id", "type"],
         transaction,
       }),
     ]);
 
-    // Validations
-    // if (!user) throw new ApiError(404, "User not found");
-    // if (user.status !== "active") throw new ApiError(403, "User is inactive");
-    // if (user.block_status) throw new ApiError(403, "User is blocked");
-    // if (!user.is_verified) throw new ApiError(400, "User is not verified");
+    if (!box) {
+      throw new ApiError(404, "Box not found");
+    }
 
-    // if (!box) throw new ApiError(404, "Box not found");
-    // if (box.status !== "active") throw new ApiError(400, "This box is not active");
-    // if (box.available_powerbanks <= 0) throw new ApiError(400, "No powerbanks available");
+    if (box?.type !== rentalType) {
+      throw new ApiError(400, "Box type does not match rental type");
+    }
 
     // Check for ongoing rental
     const ongoingRental = await db.rentals.findOne({
@@ -61,7 +61,7 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
     });
 
     if (ongoingRental) {
-      await transaction.rollback();
+      await transaction.commit();
       return { message: "Rental is ongoing", data: {} };
     }
 
@@ -83,19 +83,24 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
     const packageDuration = type == "hourly" ? user_hours : duration;
     const end_time = getEndTime(start_time, packageDuration, type);
 
-    // Fetch location for the box
-    const location = await box.getLocation({ attributes: ["id", "name"], transaction });
+    console.log("TIME ===>", start_time);
+    console.log("TIME ===>", end_time);
 
-    // Create rental, payment, update user and box atomically
+    let location = null;
+    let corporate = null;
+
+    rentalType == "location" ? (location = await box?.getLocation()) : (corporate = await box?.getCorporate());
+
     const rental = await db.rentals.create(
       {
         box_id: box.id,
-        location_id: location.id,
+        location_id: location ? location.id : null,
+        corporate_id: corporate ? corporate.id : null,
+        type: rentalType == "location" ? "location" : "corporate",
         package_id,
         user_id,
         start_time,
         end_time,
-
         rental_hours: user_hours,
         status: "ongoing",
         extra_charge: 0.0,
@@ -138,8 +143,8 @@ const startRent = async (user_id, box_id, package_id, order_id, user_hours = 0) 
       },
     };
   } catch (error) {
-    await transaction.rollback();
     console.error("Error in startRent:", error);
+    await transaction.rollback();
     throw error;
   }
 };
@@ -158,9 +163,14 @@ const returnItem = async (user_id, rental_id) => {
 
     if (!rental) throw new ApiError(404, "Ongoing rental not found");
 
+    const start = rental.start_time;
+    const packageType = rental.rented_package.type;
+    const duration = rental.rented_package.duration || 0;
+    const hourlyPrice = rental.rented_package.hourly_price || 0;
+
     const returnTime = new Date();
 
-    const { totalHours, extraHours, extraCharge, usedTime: usedTimeStr, allowedTime: allowedTimeStr } = calculateRentalCharge(rental, returnTime);
+    const { extra_charge: extraHours, extra_hours: extraCharge } = calculatePriceOnRentals(start, hourlyPrice, duration, packageType);
 
     await rental.update(
       {
@@ -168,18 +178,13 @@ const returnItem = async (user_id, rental_id) => {
         extra_hours: extraHours,
         extra_charge: extraCharge,
         status: "completed",
-        location_id: rental.location_id, // or box.location_id if you fetch box
+        location_id: rental.location_id,
       },
       { transaction }
-    );
-    console.log(
-      `Total Hours: ${totalHours}, Extra Hours: ${extraHours}, Extra Charge: ${extraCharge}, Used Time: ${usedTimeStr}, Allowed Time: ${allowedTimeStr},`
     );
 
     const currentOutstanding = parseFloat(rental.rented_user.outstanding_amount) || 0;
     const outStandAmountToUpdate = currentOutstanding + extraCharge;
-
-    console.log(`Current Outstanding: ${currentOutstanding}, Updated Outstanding: ${outStandAmountToUpdate}`);
 
     // Update user outstanding_amount (add extra charge)
     const user = rental.rented_user;
@@ -193,7 +198,7 @@ const returnItem = async (user_id, rental_id) => {
     if (user?.device_token) {
       const notificationMessage =
         extraCharge > 0
-          ? `Powerbank returned. A fine of $${extraCharge.toFixed(2)} has been added for ${extraHours.toFixed(2)} extra hours.`
+          ? `Powerbank returned. A fine of $${extraCharge?.toFixed(2)} has been added for ${extraHours?.toFixed(2)} extra hours.`
           : "Thank you! Your powerbank has been returned successfully.";
 
       await sendFCMNotification(user.device_token, {
