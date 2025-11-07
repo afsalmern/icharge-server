@@ -53,7 +53,7 @@ router.patch("/kyc-details", verifyToken, upload, validateKycDataUpdate, validat
 
 //Rental details
 
-router.get("/verify-referelcode", verifyToken, checkRole("user"), verifyReferelCode);
+router.post("/verify-referelcode", verifyToken, checkRole("user"), verifyReferelCode);
 
 router.get("/rentals-history", verifyToken, verifyUserExist, getRentalHistory);
 router.post("/buy-item", verifyToken, checkRole("user"), buyItem);
