@@ -11,12 +11,12 @@ const Rentals = db.rentals;
 // Generate Rental Report
 exports.generateRentalReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId } = req.query;
-
-    console.log("Query parameters:", req.query);
+    const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId, corporateId, type } = req.query;
 
     // Build filter conditions
-    const where = {};
+    const where = {
+      type,
+    };
 
     // Date filter
     if (startDate && endDate) {
@@ -40,75 +40,27 @@ exports.generateRentalReport = async (req, res, next) => {
       where.payment_status = paymentStatus; // Remove or adjust if not in rentals table
     }
 
-    // Location filter (rented from)
-    if (locationId) {
-      where["$rented_box.location_id$"] = locationId;
-    }
+    let rentals = [];
 
-    // Fetch rentals with associated models
-    const rentals = await Rentals.findAll({
-      where,
-      include: [
-        {
-          model: db.users,
-          as: "rented_user",
-          attributes: ["name"],
-        },
-        {
-          model: db.boxes,
-          as: "rented_box",
-          attributes: ["id", "location_id"],
-          include: [
-            {
-              model: db.locations,
-              as: "location",
-              attributes: ["name", "id"],
-            },
-          ],
-        },
-        {
-          model: db.packages,
-          as: "rented_package",
-          attributes: ["type", "price", "duration", "hourly_price"], // Removed 'amount' due to error
-        },
-        {
-          model: db.locations,
-          as: "return_location",
-          attributes: ["name", "id"],
-          required: false,
-        },
-        {
-          model: db.disputes,
-          as: "disputes",
-          attributes: ["id"],
-          required: false,
-        },
-        {
-          model: db.rental_payments,
-          as: "rental_payments",
-          attributes: ["status"],
-          required: false,
-        },
-      ],
-      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time"],
-      order: [["start_time", "DESC"]],
-    });
+    if (type == "location") {
+      rentals = await getLocationWiseRentals(where, locationId);
+    } else {
+      rentals = await getCorporateWiseRentals(where, corporateId);
+    }
 
     // Transform data for report
     const report = rentals.map((rental) => {
-      // Calculate amounts (placeholder; adjust based on actual rental cost source)
+      const { id, start_time, return_time, status, rented_package, rental_payments, rented_user } = rental;
 
-      const { id, start_time, return_time, status, rented_package, rented_box, rental_payments, rented_user } = rental;
-
-      console.log("RENTAL PAYMENTS ===========>", rental_payments);
+      const pickup_location = type == "location" ? rental.pickup_location?.name : rental.rented_corporate?.name;
+      const returned_location = type == "location" ? rental.returned_location?.name : rental.rented_corporate?.name;
 
       const { name } = rented_user;
-      const { location } = rented_box;
-      const { hourly_price, duration, price, type } = rented_package;
+      const { hourly_price, duration, price, type: packageType } = rented_package;
 
       const rentalAmount = price || 0; // TODO: Replace with actual rental cost from packages or other table
       const packageDuration = duration || 0;
-      const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
+      const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, packageType);
       const { extra_charge } = cost_details;
 
       const totalAmount = parseFloat(rentalAmount) + extra_charge;
@@ -121,7 +73,8 @@ exports.generateRentalReport = async (req, res, next) => {
       return {
         rentalId: id,
         userName: name || "N/A",
-        rentedFrom: location?.name || "N/A",
+        rentedFrom: pickup_location || "N/A",
+        rentedTo: returned_location || "N/A",
         rentedAt: start_time,
         returnedAt: return_time,
         duration: duration,
@@ -135,8 +88,6 @@ exports.generateRentalReport = async (req, res, next) => {
       };
     });
 
-    console.log("RENTAL PAYMENTS ===========>", report);
-
     sendSuccess(res, "Rental report generated successfully", { report }, 200);
   } catch (error) {
     console.error("Error generating rental report:", error);
@@ -145,9 +96,9 @@ exports.generateRentalReport = async (req, res, next) => {
 };
 
 exports.generateLocationsReport = async (req, res, next) => {
-  try {
-    const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId } = req.query;
+  const { type } = req.query;
 
+  try {
     const report = await db.sequelize.query(
       `
       SELECT 
@@ -230,11 +181,8 @@ ORDER BY
 
 exports.generateRevenewReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, locationId = "all", packageType = "all" } = req.query;
+    const { startDate, endDate, locationId = "all", packageType = "all", corporateId = "all", type: rentalType } = req.query;
 
-    console.log("Query parameters:", req.query);
-
-    // Build filter conditions for rental_payments
     const where = {};
 
     // Date filter for payment creation time
@@ -244,55 +192,12 @@ exports.generateRevenewReport = async (req, res, next) => {
       };
     }
 
-    // Fetch payments with associated models
-    const payments = await db.rental_payments.findAll({
-      where,
-      include: [
-        {
-          model: db.rentals,
-          as: "rental",
-          required: true,
-          attributes: ["id", "start_time", "end_time", "status", "extra_charge", "return_time"],
-          include: [
-            {
-              model: db.users,
-              as: "rented_user",
-              attributes: ["name"],
-            },
-            {
-              model: db.boxes,
-              as: "rented_box",
-              attributes: ["id", "location_id"],
-              ...(locationId !== "all" && {
-                where: {
-                  location_id: locationId,
-                },
-              }),
-              include: [
-                {
-                  model: db.locations,
-                  as: "location",
-                  attributes: ["name"],
-                  required: true,
-                },
-              ],
-            },
-            {
-              model: db.packages,
-              as: "rented_package",
-              attributes: ["type", "hourly_price", "price", "duration"],
-              required: true,
-              ...(packageType !== "all" && {
-                where: {
-                  type: packageType,
-                },
-              }),
-            },
-          ],
-        },
-      ],
-      attributes: ["id", "amount", "status", "created_at"],
-    });
+    let payments = [];
+    if (rentalType == "location") {
+      payments = await locationWiseRevenues(where, packageType, locationId);
+    } else {
+      payments = await corporateWiseRevenues(where, packageType, corporateId);
+    }
 
     // Log for debugging
     if (!payments) {
@@ -308,17 +213,14 @@ exports.generateRevenewReport = async (req, res, next) => {
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
       const time_used = calculateTotalTimeUsed(start_time, return_time, status);
 
+      const rented_from = rentalType == "location" ? rental?.pickup_location?.name || "N/A" : rental?.rented_corporate?.name || "N/A";
+
       const { extra_charge } = cost_details;
 
       // Calculate amounts with safeguards
       const rentedAmount = parseFloat(payment.amount);
       const extraAmount = extra_charge;
       const totalAmount = rentedAmount + extraAmount;
-
-      // Log problematic amounts
-      if (isNaN(totalAmount)) {
-        console.warn(`Invalid totalAmount for payment ${payment.id}: rentedAmount=${rentedAmount}, extraAmount=${extraAmount}`);
-      }
 
       // Map payment status
       let paymentStatus;
@@ -339,7 +241,7 @@ exports.generateRevenewReport = async (req, res, next) => {
       return {
         rentalId: rental?.id || "N/A",
         userName: rental?.rented_user?.name || "N/A",
-        rentalLocation: rental?.rented_box?.location?.name || "N/A",
+        rentalLocation: rented_from,
         packageType: type || "N/A",
         rentedAmount: rentedAmount,
         overdue: extra_charge == 0 ? "No" : "Yes",
@@ -359,5 +261,336 @@ exports.generateRevenewReport = async (req, res, next) => {
   } catch (error) {
     console.error("Error generating revenue report:", error);
     next(new ApiError(500, "Failed to generate revenue report", error.message));
+  }
+};
+
+const getLocationWiseRentals = async (where, location_id) => {
+  if (location_id) {
+    where["location_id"] = location_id;
+  }
+
+  try {
+    const rentals = await Rentals.findAll({
+      where,
+      include: [
+        {
+          model: db.users,
+          as: "rented_user",
+          attributes: ["name"],
+        },
+        {
+          model: db.boxes,
+          as: "rented_box",
+          attributes: ["id", "location_id"],
+        },
+        {
+          model: db.packages,
+          as: "rented_package",
+          attributes: ["type", "price", "duration", "hourly_price"], // Removed 'amount' due to error
+        },
+        {
+          model: db.locations,
+          as: "pickup_location", // 🔹 first location association
+          attributes: ["id", "name", "address"],
+        },
+        {
+          model: db.locations,
+          as: "return_location", // 🔹 second location association
+          attributes: ["id", "name", "address"],
+        },
+        {
+          model: db.disputes,
+          as: "disputes",
+          attributes: ["id"],
+          required: false,
+        },
+        {
+          model: db.rental_payments,
+          as: "rental_payments",
+          attributes: ["status"],
+          required: false,
+        },
+      ],
+      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time"],
+      order: [["start_time", "DESC"]],
+    });
+
+    return rentals;
+  } catch (error) {
+    console.log("error getting location wise rentals", error);
+    throw error;
+  }
+};
+
+const getCorporateWiseRentals = async (where, corporate_id) => {
+  if (corporate_id) {
+    where["corporate_id"] = corporate_id;
+  }
+
+  try {
+    const rentals = await Rentals.findAll({
+      where,
+      include: [
+        {
+          model: db.users,
+          as: "rented_user",
+          attributes: ["name"],
+        },
+        {
+          model: db.packages,
+          as: "rented_package",
+          attributes: ["type", "price", "duration", "hourly_price"], // Removed 'amount' due to error
+        },
+        {
+          model: db.corporates,
+          as: "rented_corporate", // 🔹 first location association
+          attributes: ["id", "name"],
+        },
+        {
+          model: db.disputes,
+          as: "disputes",
+          attributes: ["id"],
+          required: false,
+        },
+        {
+          model: db.rental_payments,
+          as: "rental_payments",
+          attributes: ["status"],
+          required: false,
+        },
+      ],
+      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "corporate_id"],
+      order: [["start_time", "DESC"]],
+    });
+
+    return rentals;
+  } catch (error) {
+    console.log("error getting corporate wise rentals", error);
+    throw error;
+  }
+};
+
+const locationWiseRevenues = async (where, packageType, locationId) => {
+  try {
+    const payments = await db.rental_payments.findAll({
+      where,
+      include: [
+        {
+          model: db.rentals,
+          as: "rental",
+          required: true,
+          attributes: ["id", "start_time", "end_time", "status", "extra_charge", "return_time", "type", "location_id"],
+          include: [
+            {
+              model: db.users,
+              as: "rented_user",
+              attributes: ["name"],
+            },
+            {
+              model: db.locations,
+              as: "pickup_location", // 🔹 first location association
+              attributes: ["id", "name", "address"],
+              required: true,
+              ...(locationId !== "all" && {
+                where: {
+                  id: locationId,
+                },
+              }),
+            },
+            {
+              model: db.packages,
+              as: "rented_package",
+              attributes: ["type", "hourly_price", "price", "duration"],
+              required: true,
+              ...(packageType !== "all" && {
+                where: {
+                  type: packageType,
+                },
+              }),
+            },
+          ],
+        },
+      ],
+      attributes: ["id", "amount", "status", "created_at"],
+    });
+    console.log("payments", JSON.stringify(payments, null, 2));
+    return payments;
+  } catch (error) {
+    console.log("error getting location wise revenues", error);
+    throw error;
+  }
+};
+
+const corporateWiseRevenues = async (where, packageType, corporateId) => {
+  try {
+    const payments = await db.rental_payments.findAll({
+      where,
+      include: [
+        {
+          model: db.rentals,
+          as: "rental",
+          required: true,
+          attributes: ["id", "start_time", "end_time", "status", "extra_charge", "return_time", "type", "corporate_id"],
+          include: [
+            {
+              model: db.users,
+              as: "rented_user",
+              attributes: ["name"],
+            },
+            {
+              model: db.corporates,
+              as: "rented_corporate", // 🔹 first location association
+              attributes: ["id", "name"],
+              required: true,
+              ...(corporateId !== "all" && {
+                where: {
+                  id: corporateId,
+                },
+              }),
+            },
+            {
+              model: db.packages,
+              as: "rented_package",
+              attributes: ["type", "hourly_price", "price", "duration"],
+              required: true,
+              ...(packageType !== "all" && {
+                where: {
+                  type: packageType,
+                },
+              }),
+            },
+          ],
+        },
+      ],
+      attributes: ["id", "amount", "status", "created_at"],
+    });
+
+    return payments;
+  } catch (error) {
+    console.log("error getting corporate wise revenues", error);
+    throw error;
+  }
+};
+
+const getLocationWiseReports = async () => {
+  try {
+    const report = await db.sequelize.query(
+      `
+      SELECT 
+  l.name AS location_name,
+  COUNT(DISTINCT b.id) AS total_devices,
+  COALESCE(SUM(b.available_powerbanks), 0) AS total_slot,
+  COUNT(r.id) AS total_rentals
+FROM 
+  locations l
+  LEFT JOIN 
+  boxes b ON b.location_id = l.id
+LEFT JOIN 
+  rentals b ON b.location_id = l.id
+GROUP BY 
+  l.id, l.name
+ORDER BY
+  total_rentals DESC
+  ;`,
+      {
+        type: db.sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    const rentals = await Rentals.findAll({
+      include: [
+        {
+          model: db.users,
+          as: "rented_user",
+          attributes: ["name"],
+        },
+        {
+          model: db.locations,
+          as: "pickup_location", // 🔹 first location association
+          attributes: ["id", "name", "address"],
+        },
+        {
+          model: db.locations,
+          as: "return_location",
+          attributes: ["name", "id"],
+          required: false,
+        },
+        {
+          model: db.disputes,
+          as: "disputes",
+          attributes: ["id"],
+          required: false,
+        },
+      ],
+      attributes: ["id", "start_time", "end_time", "status"],
+      order: [["start_time", "DESC"]],
+    });
+
+    return {
+      report,
+      rentals,
+    };
+  } catch (error) {
+    console.log("error getting location wise reports", error);
+    throw error;
+  }
+};
+
+const getCorporateWiseReports = async () => {
+  try {
+    const report = await db.sequelize.query(
+      `
+      SELECT 
+  l.name AS location_name,
+  COUNT(DISTINCT b.id) AS total_devices,
+  COALESCE(SUM(b.available_powerbanks), 0) AS total_slot,
+  COUNT(r.id) AS total_rentals
+FROM 
+  corporates l
+  LEFT JOIN 
+  boxes b ON b.corporate_id = l.id
+LEFT JOIN 
+  rentals b ON b.corporate_id = l.id
+GROUP BY 
+  l.id, l.name
+ORDER BY
+  total_rentals DESC
+  ;`,
+      {
+        type: db.sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    const rentals = await Rentals.findAll({
+      include: [
+        {
+          model: db.users,
+          as: "rented_user",
+          attributes: ["name"],
+        },
+        {
+          model: db.locations,
+          as: "pickup_location", // 🔹 first location association
+          attributes: ["id", "name", "address"],
+        },
+        {
+          model: db.locations,
+          as: "return_location",
+          attributes: ["name", "id"],
+          required: false,
+        },
+        {
+          model: db.disputes,
+          as: "disputes",
+          attributes: ["id"],
+          required: false,
+        },
+      ],
+      attributes: ["id", "start_time", "end_time", "status"],
+      order: [["start_time", "DESC"]],
+    });
+  } catch (error) {
+    console.log("error getting location wise reports", error);
+    throw error;
   }
 };

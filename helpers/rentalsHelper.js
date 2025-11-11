@@ -149,7 +149,7 @@ const startRent = async (user_id, box_id, package_id, order_id, type, user_hours
   }
 };
 
-const returnItem = async (user_id, rental_id) => {
+const returnItem = async (user_id, rental_id, scan_type, location_id = null) => {
   const transaction = await db.sequelize.transaction();
   try {
     const rental = await db.rentals.findOne({
@@ -164,6 +164,12 @@ const returnItem = async (user_id, rental_id) => {
     if (!rental) throw new ApiError(404, "Ongoing rental not found");
 
     const start = rental.start_time;
+    const rental_type = rental.type;
+
+    if (scan_type !== rental_type) {
+      throw new ApiError(400, "Scan type does not match rental type");
+    }
+
     const packageType = rental.rented_package.type;
     const duration = rental.rented_package.duration || 0;
     const hourlyPrice = rental.rented_package.hourly_price || 0;
@@ -178,7 +184,7 @@ const returnItem = async (user_id, rental_id) => {
         extra_hours: extraHours,
         extra_charge: extraCharge,
         status: "completed",
-        location_id: rental.location_id,
+        return_location_id: rental_type == "location" ? location_id : null,
       },
       { transaction }
     );

@@ -289,8 +289,14 @@ exports.deleteRental = async (req, res, next) => {
 
 exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
-  const { rental_id } = req.body;
-  await returnItem(user_id, rental_id);
+  const { rental_id, type } = req.body;
+  try {
+    await returnItem(user_id, rental_id, type ? type : "corporate");
+    return sendSuccess(res, "Item returned successfully", { return: true }, 200);
+  } catch (error) {
+    console.error("Error in returnItem:", error);
+    next(error);
+  }
 };
 
 exports.addReasonForDispute = async (req, res, next) => {
@@ -395,7 +401,7 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
     let message = "Otp verified successfully";
 
     if (order_type == "return") {
-      await returnItem(user_id, rental_id);
+      await returnItem(user_id, rental_id, "location", location.id);
       message = "Item returned successfully";
     }
 
