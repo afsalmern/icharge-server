@@ -19,6 +19,7 @@ const UserReferels = db.user_referels;
 exports.checkIsDeviceValid = async (req, res, next) => {
   try {
     const { device_id } = req.query;
+    const { user_id } = req.body;
 
     // Validate request input
     if (!device_id) {
