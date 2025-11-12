@@ -14,6 +14,7 @@ const Codes = db.referel_codes;
 const Rentals = db.rentals;
 const Disputes = db.disputes;
 const RentalsOtps = db.rental_otps;
+const UserReferels = db.user_referels;
 
 exports.checkIsDeviceValid = async (req, res, next) => {
   try {
