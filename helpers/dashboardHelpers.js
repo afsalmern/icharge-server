@@ -2,7 +2,9 @@ const db = require("../models");
 
 const Rentals = db.rentals;
 const Locations = db.locations;
+const Corporates = db.corporates;
 const Users = db.users;
+const Boxes = db.boxes;
 const Complaints = db.complaints;
 const PowerBanks = db.powerbanks;
 const getCardData = async () => {
@@ -12,16 +14,16 @@ const getCardData = async () => {
 
     const metaData = [
       {
-        variant: "warning",
-        description: "Total Rentals",
-        stats: String(cardData?.rentals),
-        icon: "fe-clock",
-      },
-      {
         variant: "success",
         description: "Active Users",
         stats: String(cardData?.activeUsers),
         icon: "fe-user-check",
+      },
+      {
+        variant: "primary",
+        description: "Corporates",
+        stats: String(cardData?.corporates),
+        icon: "fe-briefcase",
       },
       {
         variant: "info",
@@ -30,9 +32,21 @@ const getCardData = async () => {
         icon: "fe-map-pin",
       },
       {
+        variant: "secondary",
+        description: "Boxes",
+        stats: String(cardData?.boxes),
+        icon: "fe-package",
+      },
+      {
+        variant: "warning",
+        description: "Total Rentals",
+        stats: String(cardData?.rentals),
+        icon: "fe-clock",
+      },
+      {
         variant: "warning",
         description: "Total Revenue",
-        stats: String(cardData?.totalRevenue),
+        stats: String(cardData?.totalRevenue?.total_revenue),
         icon: "fe-dollar-sign",
       },
     ];
@@ -138,7 +152,7 @@ const getPowerBankCounts = async () => {
 
 const getAllCounts = async () => {
   try {
-    const [rentals, activeUsers, locations, totalRevenue] = await Promise.all([
+    const [rentals, activeUsers, locations, corporates, boxes, totalRevenue] = await Promise.all([
       Rentals.count(),
       Users.count({
         where: {
@@ -146,11 +160,12 @@ const getAllCounts = async () => {
         },
       }),
       Locations.count(),
+      Corporates.count(),
+      Boxes.count(),
       db.sequelize.query(
         `
-        SELECT SUM(p.price) AS total_revenue
-        FROM rentals r
-        JOIN packages p ON r.package_id = p.id;`,
+        SELECT SUM(p.amount) AS total_revenue
+        FROM rental_payments p;`,
         {
           type: db.sequelize.QueryTypes.SELECT,
         }
@@ -161,7 +176,9 @@ const getAllCounts = async () => {
       rentals,
       activeUsers,
       locations,
-      totalRevenue: totalRevenue?.total_revenue?.[0] || 0,
+      corporates,
+      boxes,
+      totalRevenue: totalRevenue?.[0] || 0,
     };
   } catch (error) {
     console.log("error in getting all counts", error);
@@ -179,9 +196,7 @@ const getLocationWiseRentalsCount = async () => {
 FROM 
   rentals r
 JOIN 
-  boxes b ON r.box_id = b.id
-JOIN 
-  locations l ON b.location_id = l.id
+  locations l ON r.location_id = l.id
 GROUP BY 
   l.name;
       `,
@@ -197,4 +212,37 @@ GROUP BY
   }
 };
 
-module.exports = { getCardData, getCompalaintsList, getYearWiseReveue, getPowerBankCounts, getLocationWiseRentalsCount };
+const getCorporateWiseRentalsCount = async () => {
+  try {
+    const locationWiseCount = await db.sequelize.query(
+      `
+      SELECT 
+  l.name AS label,
+  COUNT(r.id) AS value
+FROM 
+  rentals r
+JOIN 
+  corporates l ON r.corporate_id = l.id
+GROUP BY 
+  l.name;
+      `,
+      {
+        type: db.sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    return locationWiseCount;
+  } catch (error) {
+    console.log("error in getting corporate wise rentals count", error);
+    throw error;
+  }
+};
+
+module.exports = {
+  getCardData,
+  getCompalaintsList,
+  getYearWiseReveue,
+  getPowerBankCounts,
+  getLocationWiseRentalsCount,
+  getCorporateWiseRentalsCount,
+};

@@ -5,6 +5,7 @@ const {
   getYearWiseReveue,
   getPowerBankCounts,
   getLocationWiseRentalsCount,
+  getCorporateWiseRentalsCount,
 } = require("../../helpers/dashboardHelpers");
 const { generateLightColors } = require("../../utils/color_generator");
 
@@ -12,11 +13,11 @@ exports.getDashboard = async (req, res, next) => {
   try {
     const cards = await getCardData();
     const complaints = await getCompalaintsList();
-    const powerBankCounts = await getPowerBankCounts();
     const locationWiseRentalsCount = await getLocationWiseRentalsCount();
+    const corporateWiseRentalCount = await getCorporateWiseRentalsCount();
 
     const colorsForlocationWiseRentalsCount = locationWiseRentalsCount?.length > 0 ? generateLightColors(locationWiseRentalsCount.length) : [];
-    const colorsForPowerBankCounts = powerBankCounts?.series?.length > 0 ? generateLightColors(powerBankCounts?.series?.length) : [];
+    const colorsForCorporateWiseRentalCount = corporateWiseRentalCount?.length > 0 ? generateLightColors(corporateWiseRentalCount.length) : [];
 
     sendSuccess(
       res,
@@ -24,14 +25,13 @@ exports.getDashboard = async (req, res, next) => {
       {
         cards,
         complaints,
-        powerBankCounts: {
-          labels: powerBankCounts?.labels || [],
-          series: powerBankCounts?.series || [],
-          colors: colorsForPowerBankCounts,
-        },
         locationWiseRentalsCount: {
           data: locationWiseRentalsCount,
           colors: colorsForlocationWiseRentalsCount,
+        },
+        corporateWiseRentalCount: {
+          data: corporateWiseRentalCount,
+          colors: colorsForCorporateWiseRentalCount,
         },
       },
       200

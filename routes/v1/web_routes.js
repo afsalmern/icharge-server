@@ -44,7 +44,7 @@ const { getDashboard, getYearWiseData } = require("../../controllers/web/dashboa
 router.get("/dashboard", verifyToken, checkRole("admin"), getDashboard);
 router.get("/year-wise-data", verifyToken, checkRole("admin"), getYearWiseData);
 
-const { generateRentalReport, generateLocationsReport, generateRevenewReport } = require("../../controllers/web/reports_controller");
+const { generateRentalReport, generateLocationsReport, generateRevenewReport, getUserReferels } = require("../../controllers/web/reports_controller");
 const { createReferelCode, updateReferelCode } = require("../../controllers/referelCodes/codes_controller");
 const { addCorporates, deleteCorporate, updateCorporate, getCorporates } = require("../../controllers/corporates/corporate_controller");
 
@@ -120,5 +120,8 @@ router.delete("/powerbank/:id", powerbankController.deletePowerBank);
 router.get("/rental-report", generateRentalReport);
 router.get("/revenue-report", generateRevenewReport);
 router.get("/location-report", generateLocationsReport);
+router.get("/user-referals", getUserReferels);
+
+router.get("/test", getDashboard);
 
 module.exports = router;

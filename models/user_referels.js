@@ -40,5 +40,16 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
+  UserReferels.associate = (models) => {
+    UserReferels.belongsTo(models.users, {
+      foreignKey: "user_id",
+      as: "user",
+    });
+    UserReferels.belongsTo(models.referel_codes, {
+      foreignKey: "referel_id",
+      as: "code",
+    });
+  };
+
   return UserReferels;
 };

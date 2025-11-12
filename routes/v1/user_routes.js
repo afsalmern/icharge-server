@@ -65,8 +65,6 @@ router.post("/add-dispute", verifyToken, checkRole("user"), validateDisputeData,
 router.post("/rent-start-otp", verifyToken, checkRole("user"), sendRentalsOtp);
 router.put("/verify-rental-otp", verifyToken, checkRole("user"), verfiyRentalsOtp);
 
-router.post("/test", verifyToken, checkRole("user"), test);
-
 // //Payments
 router.post("/create-order", verifyToken, checkRole("user"), createOrder);
 router.post("/verify-order", verifyToken, checkRole("user"), verifyOrder);

@@ -264,6 +264,30 @@ exports.generateRevenewReport = async (req, res, next) => {
   }
 };
 
+exports.getUserReferels = async (req, res, next) => {
+  try {
+    const referals = await db.user_referels.findAll({
+      include: [
+        {
+          model: db.users,
+          as: "user",
+          attributes: ["name"],
+        },
+        {
+          model: db.referel_codes,
+          as: "code",
+          attributes: ["code"],
+        },
+      ],
+    });
+
+    return sendSuccess(res, "User referels fetched successfully", referals, 200);
+  } catch (error) {
+    console.error("Error getting user referels :", error);
+    next(error);
+  }
+};
+
 const getLocationWiseRentals = async (where, location_id) => {
   if (location_id) {
     where["location_id"] = location_id;

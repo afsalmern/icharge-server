@@ -51,6 +51,19 @@ exports.checkIsDeviceValid = async (req, res, next) => {
       },
     });
 
+    let isCodeUsed = false;
+
+    if (referel_code) {
+      const existingUserReferel = await UserReferels.findOne({
+        where: {
+          user_id,
+          referel_id: referel_code.id,
+        },
+      });
+
+      referel_code = existingUserReferel;
+    }
+
     // If box exists and has available powerbanks, return success
     sendSuccess(
       res,
@@ -59,6 +72,7 @@ exports.checkIsDeviceValid = async (req, res, next) => {
         is_scan_valid: true,
         device_type: boxType == "location" ? "location" : "corporate",
         is_code_available: referel_code ? true : false,
+        is_code_already_used: isCodeUsed,
         entity_id,
       },
       200
@@ -428,9 +442,9 @@ exports.verifyReferelCode = async (req, res, next) => {
       return sendSuccess(res, "Referral code is not active", { is_code_valid: false }, 400);
     }
 
-    await addUserReferelCode(user_id, referel_code);
+    const isUsed = await addUserReferelCode(user_id, referel_code);
 
-    return sendSuccess(res, "Referral code is valid", { is_code_valid: true }, 200);
+    return sendSuccess(res, "Referral code is valid", { is_code_valid: true, is_code_already_used: isUsed ? true : false }, 200);
   } catch (error) {
     console.error("Error in verfiying rentals type:", error);
     next(error);
