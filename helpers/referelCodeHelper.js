@@ -106,7 +106,7 @@ const updateReferelCode = async (body, id) => {
   }
 };
 
-const addUserReferelCode = async (user_id, code, transaction) => {
+const addUserReferelCode = async (user_id, code) => {
   try {
     const referelCode = await ReferelCodes.findOne({
       where: {
@@ -129,7 +129,7 @@ const addUserReferelCode = async (user_id, code, transaction) => {
       throw new ApiError(400, "User already has this referral code");
     }
 
-    await UserReferels.create({ user_id, referel_id: referelCode.id }, { transaction });
+    await UserReferels.create({ user_id, referel_id: referelCode.id });
     return true;
   } catch (error) {
     console.error("Error updating referral code:", error);

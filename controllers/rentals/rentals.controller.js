@@ -1,6 +1,7 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { calculatePriceOnRentals, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
 const { sendOtp } = require("../../helpers/OtpHelper");
+const { addUserReferelCode } = require("../../helpers/referelCodeHelper");
 const { returnItem, getDuration, startRent } = require("../../helpers/rentalsHelper");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
@@ -414,6 +415,7 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
 
 exports.verifyReferelCode = async (req, res, next) => {
   const { referel_code, device_type, entity_id } = req.body;
+  const { user_id } = req;
 
   try {
     const code = await Codes.findOne({ where: { code: referel_code, reference_id: entity_id, type: device_type } });
@@ -425,6 +427,8 @@ exports.verifyReferelCode = async (req, res, next) => {
     if (!code.is_active || !code.is_valid) {
       return sendSuccess(res, "Referral code is not active", { is_code_valid: false }, 400);
     }
+
+    await addUserReferelCode(user_id, referel_code);
 
     return sendSuccess(res, "Referral code is valid", { is_code_valid: true }, 200);
   } catch (error) {

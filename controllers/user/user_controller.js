@@ -3,7 +3,6 @@ const { sendSuccess } = require("../../handlers/success_response_handler");
 const { Op, Sequelize } = require("sequelize");
 const { getEndTime, calculatePriceOnRentals } = require("../../helpers/calculatePrices");
 const { ApiError } = require("../../middlewares/error");
-const { addUserReferelCode } = require("../../helpers/referelCodeHelper");
 
 const User = db.users;
 const Boxes = db.boxes;
