@@ -63,7 +63,7 @@ exports.checkIsDeviceValid = async (req, res, next) => {
         },
       });
 
-      referel_code = existingUserReferel;
+      isCodeUsed = existingUserReferel;
     }
 
     // If box exists and has available powerbanks, return success
