@@ -118,17 +118,6 @@ const addUserReferelCode = async (user_id, code) => {
       throw new ApiError(400, "Invalid referral code");
     }
 
-    const existingUserReferel = await UserReferels.findOne({
-      where: {
-        user_id,
-        referel_id: referelCode.id,
-      },
-    });
-
-    if (existingUserReferel) {
-      throw new ApiError(400, "User already has this referral code");
-    }
-
     await UserReferels.create({ user_id, referel_id: referelCode.id });
     return true;
   } catch (error) {
