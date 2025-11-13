@@ -6,7 +6,7 @@ const sendFCMNotification = require("../utils/sendFCMNotification");
 
 const Users = db.users;
 
-const startRent = async (user_id, box_id, package_id, order_id, type, user_hours = 1) => {
+const startRent = async (user_id, box_id, package_id, order_id, type, code, user_hours = 1) => {
   const rentalType = type;
 
   if (!user_id || !box_id) {
@@ -104,6 +104,7 @@ const startRent = async (user_id, box_id, package_id, order_id, type, user_hours
         rental_hours: user_hours,
         status: "ongoing",
         extra_charge: 0.0,
+        code,
       },
       { transaction }
     );

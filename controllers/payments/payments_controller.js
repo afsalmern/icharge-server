@@ -8,7 +8,7 @@ const { ApiError } = require("../../middlewares/error");
 const Deposits = db.checks_and_amounts;
 
 exports.createOrder = async (req, res, next) => {
-  const { amount, box_id, package_id, user_hours, type } = req.body;
+  const { amount, box_id, package_id, user_hours, type, code = null } = req.body;
 
   const box = await db.boxes.findOne({ attributes: ["id", "unique_id"], where: { unique_id: box_id } });
   const user_id = req.user_id;
@@ -28,6 +28,7 @@ exports.createOrder = async (req, res, next) => {
       package_id,
       user_hours: user_hours ? user_hours : 0,
       rental_type: type,
+      code,
     },
   };
 
@@ -87,6 +88,7 @@ exports.createOrderForDeposit = async (req, res, next) => {
       package_id: null,
       user_hours: null,
       rental_type: null,
+      code: null,
     },
   };
 
@@ -146,6 +148,7 @@ exports.webhookHandler = async (req, res, next) => {
     const amount = payload?.payment?.entity?.amount / 100;
     const user_hours = payload?.payment?.entity?.notes?.user_hours;
     const rental_type = payload?.payment?.entity?.notes?.rental_type;
+    const code = payload?.payment?.entity?.notes?.code;
 
     console.log("WEBHHOOK TYPE ==========>", type);
 
@@ -156,7 +159,7 @@ exports.webhookHandler = async (req, res, next) => {
       case "payment.captured":
         console.log("Payment captured:");
         if (type == "rental") {
-          await startRent(userId, box_id, package_id, order_id, rental_type, user_hours);
+          await startRent(userId, box_id, package_id, order_id, rental_type, code, user_hours);
         } else {
           await addDepositAmount(userId, amount, order_id);
         }

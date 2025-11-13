@@ -50,7 +50,7 @@ exports.generateRentalReport = async (req, res, next) => {
 
     // Transform data for report
     const report = rentals.map((rental) => {
-      const { id, start_time, return_time, status, rented_package, rental_payments, rented_user } = rental;
+      const { id, start_time, return_time, status, code: code_used, rented_package, rental_payments, rented_user } = rental;
 
       const pickup_location = type == "location" ? rental.pickup_location?.name : rental.rented_corporate?.name;
       const returned_location = type == "location" ? rental.returned_location?.name : rental.rented_corporate?.name;
@@ -85,6 +85,7 @@ exports.generateRentalReport = async (req, res, next) => {
         rentalStatus: status,
         paymentStatus,
         time_used,
+        code_used,
       };
     });
 
@@ -335,7 +336,7 @@ const getLocationWiseRentals = async (where, location_id) => {
           required: false,
         },
       ],
-      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time"],
+      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "code"],
       order: [["start_time", "DESC"]],
     });
 
@@ -383,7 +384,7 @@ const getCorporateWiseRentals = async (where, corporate_id) => {
           required: false,
         },
       ],
-      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "corporate_id"],
+      attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "corporate_id", "code"],
       order: [["start_time", "DESC"]],
     });
 

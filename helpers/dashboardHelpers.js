@@ -20,6 +20,13 @@ const getCardData = async () => {
         icon: "fe-user-check",
       },
       {
+        variant: "secondary",
+        description: "Total Users",
+        stats: String(cardData?.totalUsers?.total_users),
+        icon: "fe-users",
+      },
+
+      {
         variant: "primary",
         description: "Corporates",
         stats: String(cardData?.corporates),
@@ -30,12 +37,6 @@ const getCardData = async () => {
         description: "Locations",
         stats: String(cardData?.locations),
         icon: "fe-map-pin",
-      },
-      {
-        variant: "secondary",
-        description: "Boxes",
-        stats: String(cardData?.boxes),
-        icon: "fe-package",
       },
       {
         variant: "warning",
@@ -152,7 +153,7 @@ const getPowerBankCounts = async () => {
 
 const getAllCounts = async () => {
   try {
-    const [rentals, activeUsers, locations, corporates, boxes, totalRevenue] = await Promise.all([
+    const [rentals, activeUsers, locations, corporates, totalUsers, totalRevenue] = await Promise.all([
       Rentals.count(),
       Users.count({
         where: {
@@ -161,7 +162,14 @@ const getAllCounts = async () => {
       }),
       Locations.count(),
       Corporates.count(),
-      Boxes.count(),
+      db.sequelize.query(
+        `
+  SELECT COUNT(DISTINCT user_id) AS total_users
+  FROM rentals;`,
+        {
+          type: db.sequelize.QueryTypes.SELECT,
+        }
+      ),
       db.sequelize.query(
         `
         SELECT SUM(p.amount) AS total_revenue
@@ -177,7 +185,7 @@ const getAllCounts = async () => {
       activeUsers,
       locations,
       corporates,
-      boxes,
+      totalUsers: totalUsers?.[0] || 0,
       totalRevenue: totalRevenue?.[0] || 0,
     };
   } catch (error) {
