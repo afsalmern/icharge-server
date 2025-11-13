@@ -85,7 +85,7 @@ exports.generateRentalReport = async (req, res, next) => {
         rentalStatus: status,
         paymentStatus,
         time_used,
-        code_used,
+        code_used: code_used || "N/A",
       };
     });
 
