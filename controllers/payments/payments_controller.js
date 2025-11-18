@@ -159,7 +159,7 @@ exports.webhookHandler = async (req, res, next) => {
       case "payment.captured":
         console.log("Payment captured:");
         if (type == "rental") {
-          await startRent(userId, box_id, package_id, order_id, rental_type, code, user_hours);
+          await startRent(userId, box_id, package_id, order_id, rental_type, code, amount, user_hours);
         } else {
           await addDepositAmount(userId, amount, order_id);
         }

@@ -6,7 +6,7 @@ const sendFCMNotification = require("../utils/sendFCMNotification");
 
 const Users = db.users;
 
-const startRent = async (user_id, box_id, package_id, order_id, type, code, user_hours = 1) => {
+const startRent = async (user_id, box_id, package_id, order_id, type, code, amount, user_hours = 1) => {
   const rentalType = type;
 
   const transaction = await db.sequelize.transaction();
@@ -75,7 +75,7 @@ const startRent = async (user_id, box_id, package_id, order_id, type, code, user
     if (!rentalPackage) throw new ApiError(404, "Package not found");
 
     // Calculate total payment amount
-    const paymentAmount = parseFloat(rentalPackage.price) + parseFloat(user.outstanding_amount || 0);
+    const paymentAmount = parseFloat(amount) + parseFloat(user.outstanding_amount || 0);
     const { type, duration, swap } = rentalPackage;
     const start_time = new Date();
 
