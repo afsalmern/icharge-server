@@ -343,12 +343,6 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
           attributes: ["id", "name", "address"],
         },
         {
-          model: db.disputes,
-          as: "disputes",
-          attributes: ["id"],
-          seperate: true,
-        },
-        {
           model: db.rental_payments,
           as: "rental_payments",
           attributes: ["status"],
@@ -423,12 +417,6 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
           model: db.corporates,
           as: "rented_corporate", // 🔹 first location association
           attributes: ["id", "name"],
-        },
-        {
-          model: db.disputes,
-          as: "disputes",
-          attributes: ["id"],
-          seperate: true,
         },
         {
           model: db.rental_payments,
