@@ -213,7 +213,7 @@ const startFree = async (user_id, box_id, package_id, type, code) => {
     const { type, duration, swap } = rentalPackage;
     const start_time = new Date();
 
-    const packageDuration = type == "hourly" ? user_hours : duration;
+    const packageDuration = duration;
     const end_time = getEndTime(start_time, packageDuration, type);
 
     let location = null;
@@ -231,7 +231,7 @@ const startFree = async (user_id, box_id, package_id, type, code) => {
         user_id,
         start_time,
         end_time,
-        rental_hours: user_hours,
+        rental_hours: duration,
         status: "ongoing",
         extra_charge: 0.0,
         code,
