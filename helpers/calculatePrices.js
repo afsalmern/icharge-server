@@ -2,15 +2,15 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
   const now = new Date();
   const start = new Date(start_time);
 
-  // 1) Exact used hours as a decimal (no rounding yet)
-  const usedMs = now - start; // ms
-  const usedHoursFloat = usedMs / (1000 * 60 * 60); // e.g. 1.1667
+  // 1) Exact used hours as a decimal (no rounding)
+  const usedMs = now - start;
+  const usedHoursFloat = usedMs / (1000 * 60 * 60);
 
   // 2) Convert package duration to allowed hours
   let packageHours = 0;
   switch (package_type) {
     case "hourly":
-      // package_duration is count of hours allowed
+    case "free":
       packageHours = Number(package_duration) || 0;
       break;
     case "daily":
@@ -20,25 +20,31 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
       packageHours = (Number(package_duration) || 0) * 7 * 24;
       break;
     case "monthly":
-      packageHours = (Number(package_duration) || 0) * 30 * 24; // approx
-      break;
-    case "free":
-      packageHours = Infinity; // free = unlimited
+      packageHours = (Number(package_duration) || 0) * 30 * 24;
       break;
     default:
       throw new Error("Invalid package type: " + package_type);
   }
 
-  // 3) Calculate extra hours (round up only the overtime portion)
+  // 3) Extra hour calculation (round only overtime)
   const extraFloat = usedHoursFloat - packageHours;
   const extraHours = extraFloat > 0 ? Math.ceil(extraFloat) : 0;
 
   // 4) Charges
-  const extraCharge = package_type === "free" ? 0 : extraHours * hourly_price;
-  const totalCost = package_type === "free" ? 0 : extraCharge;
+  let extraCharge = 0;
+  let totalCost = 0;
 
-  // 📘 Friendly formatting helpers
+  if (package_type === "free") {
+    extraCharge = extraHours * hourly_price;
+    totalCost = extraCharge;
+  } else {
+    extraCharge = extraHours * hourly_price;
+    totalCost = extraCharge;
+  }
+
+  // Helpers
   const pluralize = (val, unit) => `${val} ${unit}${val === 1 ? "" : "s"}`;
+
   const formatDuration = (hours) => {
     const days = Math.floor(hours / 24);
     const hrs = Math.floor(hours % 24);
@@ -47,14 +53,13 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
     return pluralize(hrs, "hour");
   };
 
-  // 📗 Build readable text
+  // Readable texts
   let totalTimeText, allowedTimeText, overdueText;
 
-  // Format total usage
   if (package_type === "free") {
-    totalTimeText = "Unlimited free usage";
-    allowedTimeText = "No time limit";
-    overdueText = "No overdue charges";
+    totalTimeText = `Used for ${formatDuration(usedHoursFloat)}`;
+    allowedTimeText = `First ${package_duration} hours free`;
+    overdueText = extraHours > 0 ? `Exceeded by ${pluralize(extraHours, "hour")} (₹${hourly_price}/hour)` : "Within free period";
   } else {
     totalTimeText = `Used for ${formatDuration(usedHoursFloat)}`;
     switch (package_type) {
@@ -71,7 +76,6 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
         allowedTimeText = `Allowed up to ${package_duration} month${package_duration > 1 ? "s" : ""}`;
         break;
     }
-
     overdueText = extraHours > 0 ? `Exceeded by ${formatDuration(extraHours)}` : "Within allowed time";
   }
 
@@ -83,8 +87,8 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
 
   // 6) Return structured result
   return {
-    total_hours_billed: Math.ceil(usedHoursFloat), // if you ever want to bill total usage as whole hours
-    allowed_hours: packageHours === Infinity ? null : packageHours,
+    total_hours_billed: Math.ceil(usedHoursFloat),
+    allowed_hours: packageHours,
     extra_hours: extraHours,
     extra_charge: extraCharge,
     total_cost: totalCost,
@@ -92,24 +96,31 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
   };
 };
 
-const getHourlyPrice = (type, price) => {
+const getHourlyPrice = (type, price, duration = 1) => {
   let cost = 0.0;
 
   switch (type) {
     case "hourly":
-      cost = price; // Hourly price remains the same
+    case "free":
+      cost = price;
       break;
+
     case "weekly":
-      cost = price / (7 * 24); // Convert weekly price to hourly rate
+      // price = total price for X weeks
+      cost = price / (duration * 7 * 24);
       break;
+
     case "monthly":
-      cost = price / (30 * 24); // Convert monthly price to hourly rate (assuming 30 days in a month)
+      // price = total price for X months
+      cost = price / (duration * 30 * 24);
       break;
+
     default:
-      throw new Error("Invalid type. Allowed values: hourly, weekly, monthly");
+      throw new Error("Invalid type. Allowed values: hourly, free, weekly, monthly");
   }
 
-  const formattedCost = parseFloat(Math.ceil(cost).toFixed(2));
+  // Round UP to 2 decimals
+  const formattedCost = Number((Math.ceil(cost * 100) / 100).toFixed(2));
 
   return formattedCost;
 };

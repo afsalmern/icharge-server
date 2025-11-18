@@ -179,20 +179,15 @@ exports.addPackage = async (req, res, next) => {
   const file = req.files["image"][0];
   const package_image = file.filename;
 
-  let hourly_price = 0;
-
-  const isFree = type === "free";
-  if (!isFree) {
-    hourly_price = getHourlyPrice(type, price);
-  }
+  let hourly_price = getHourlyPrice(type, price, duration);
 
   try {
     const package = await db.packages.create({
       name,
       description,
-      price: isFree ? 0 : price,
+      price: price,
       duration,
-      swap: isFree ? 0 : swap,
+      swap: 0,
       image: package_image,
       hourly_price,
       type,
@@ -210,14 +205,20 @@ exports.updatePackage = async (req, res, next) => {
 
   const package_image = (req.files && req.files?.["image"]?.[0]?.filename) || null;
 
-  const package = await Packages.findByPk(id);
-  if (!package) {
-    throw new ApiError(404, "Package not found");
-  }
-  const transacion = await db.sequelize.transaction();
   try {
+    const package = await Packages.findByPk(id);
+    if (!package) {
+      throw new ApiError(404, "Package not found");
+    }
+    const transacion = await db.sequelize.transaction();
+
+    let hourly_price = getHourlyPrice(type, price, duration);
+
+    console.log(hourly_price);
+    console.log(hourly_price);
+
     const updatedPackage = await package.update(
-      { name, description, price, duration, swap, image: package_image ? package_image : package.image, type },
+      { name, description, price, duration, swap: 0, image: package_image ? package_image : package.image, type, hourly_price },
       { returning: true },
       { transacion }
     );
