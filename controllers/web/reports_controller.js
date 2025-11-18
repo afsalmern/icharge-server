@@ -561,6 +561,43 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
   const limitNum = parseInt(limit, 10);
   const offset = (pageNum - 1) * limitNum;
   try {
+    const paymentsCount = await db.rental_payments.findAll({
+      where,
+      include: [
+        {
+          model: db.rentals,
+          as: "rental",
+          required: true,
+          attributes: ["id"],
+          include: [
+            {
+              model: db.locations,
+              as: "pickup_location", // 🔹 first location association
+              attributes: ["id"],
+              required: true,
+              ...(locationId !== "all" && {
+                where: {
+                  id: locationId,
+                },
+              }),
+            },
+            {
+              model: db.packages,
+              as: "rented_package",
+              attributes: ["type"],
+              required: true,
+              ...(packageType !== "all" && {
+                where: {
+                  type: packageType,
+                },
+              }),
+            },
+          ],
+        },
+      ],
+      attributes: ["id"],
+    });
+
     const payments = await db.rental_payments.findAll({
       where,
       include: [
@@ -601,16 +638,18 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
         },
       ],
       attributes: ["id", "amount", "status", "created_at"],
+      limit: limitNum,
+      offset: offset,
     });
 
-    const totalPages = Math.ceil(totalCount?.length / limitNum);
+    const totalPages = Math.ceil(paymentsCount?.length / limitNum);
 
     return {
       payments,
       pagination: {
         currentPage: pageNum,
         totalPages,
-        totalItems: totalCount,
+        totalItems: paymentsCount?.length,
         itemsPerPage: limitNum,
         hasNextPage: pageNum < totalPages,
         hasPreviousPage: pageNum > 1,
