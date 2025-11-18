@@ -303,10 +303,22 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
     const offset = (pageNum - 1) * limitNum;
 
     // Get total count for pagination
-    const totalCount = await Rentals.count({ where });
+    const totalCount = await Rentals.findAll({
+      where,
+      include: [
+        {
+          model: db.packages,
+          as: "rented_package",
+          attributes: [], // Removed 'amount' due to error
+        },
+      ],
+      attributes: ["id"],
+      order: [["start_time", "DESC"]],
+    });
 
     const rentals = await Rentals.findAll({
       where,
+      subQuery: false,
       include: [
         {
           model: db.users,
@@ -337,13 +349,13 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
           model: db.disputes,
           as: "disputes",
           attributes: ["id"],
-          required: false,
+          seperate: true,
         },
         {
           model: db.rental_payments,
           as: "rental_payments",
           attributes: ["status"],
-          required: false,
+          seperate: true,
         },
       ],
       attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "code"],
@@ -353,7 +365,7 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
     });
 
     // Calculate pagination metadata
-    const totalPages = Math.ceil(totalCount / limitNum);
+    const totalPages = Math.ceil(totalCount?.length / limitNum);
 
     return {
       rentals,
@@ -383,11 +395,22 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
     const limitNum = parseInt(limit, 10);
     const offset = (pageNum - 1) * limitNum;
 
-    // Get total count for pagination
-    const totalCount = await Rentals.count({ where });
+    const totalCount = await Rentals.findAll({
+      where,
+      include: [
+        {
+          model: db.packages,
+          as: "rented_package",
+          attributes: [], // Removed 'amount' due to error
+        },
+      ],
+      attributes: ["id"],
+      order: [["start_time", "DESC"]],
+    });
 
     const rentals = await Rentals.findAll({
       where,
+      subQuery: false,
       include: [
         {
           model: db.users,
@@ -408,13 +431,13 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
           model: db.disputes,
           as: "disputes",
           attributes: ["id"],
-          required: false,
+          seperate: true,
         },
         {
           model: db.rental_payments,
           as: "rental_payments",
           attributes: ["status"],
-          required: false,
+          seperate: true,
         },
       ],
       attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "corporate_id", "code"],
