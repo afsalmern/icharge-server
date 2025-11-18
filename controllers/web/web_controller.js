@@ -291,11 +291,12 @@ exports.getBoxes = async (req, res, next) => {
 exports.addBoxes = async (req, res, next) => {
   const transaction = await db.sequelize.transaction();
   let tempFileName = null;
+  let entityName = null;
   try {
     const { unique_id, device_id, location_id, corporate_id, total_powerbanks, available_powerbanks } = req.body;
 
     if (location_id) {
-      const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
+      const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id", "name"] });
       if (!isLocationValid) {
         throw new ApiError(404, "Location not found");
       }
@@ -307,10 +308,11 @@ exports.addBoxes = async (req, res, next) => {
       if (isBoxExist) {
         throw new ApiError(409, "Location already has a box");
       }
+      entityName = isLocationValid.name;
     }
 
     if (corporate_id) {
-      const isCorporateValid = await Corporates.findByPk(corporate_id, { attributes: ["id"] });
+      const isCorporateValid = await Corporates.findByPk(corporate_id, { attributes: ["id", "name"] });
       if (!isCorporateValid) {
         throw new ApiError(404, "Corporate not found");
       }
@@ -322,6 +324,8 @@ exports.addBoxes = async (req, res, next) => {
       if (isBoxExist) {
         throw new ApiError(409, "Corporate already has a box");
       }
+
+      entityName = isCorporateValid.name;
     }
 
     const boxes = await Boxes.findAll({
@@ -343,8 +347,8 @@ exports.addBoxes = async (req, res, next) => {
 
     const deviceId = box.device_id;
 
-    const generatedQrCode = await generateCode(deviceId);
-    tempFileName = generatedQrCode?.fileName || null;
+    const generatedQrCode = await generateCode(deviceId, entityName);
+    tempFileName = generatedQrCode?.filePath || null;
     if (generatedQrCode) {
       await QRCode.create({ device_id: box.id, code: generatedQrCode?.filePath }, { transaction });
     }
@@ -411,17 +415,17 @@ exports.updateBox = async (req, res, next) => {
   const { status, available_powerbanks, location_id, total_powerbanks } = req.body;
   const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
 
-  if (!isLocationValid) {
-    throw new ApiError(404, "Location not found");
-  }
-
-  const isBoxValid = await Boxes.findByPk(id, { attributes: ["id"] });
-  if (!isBoxValid) {
-    throw new ApiError(404, "Box not found");
-  }
-
   const transaction = await db.sequelize.transaction();
   try {
+    if (!isLocationValid) {
+      throw new ApiError(404, "Location not found");
+    }
+
+    const isBoxValid = await Boxes.findByPk(id, { attributes: ["id"] });
+    if (!isBoxValid) {
+      throw new ApiError(404, "Box not found");
+    }
+
     const box = await Boxes.findByPk(id, { transaction });
     const updatedBox = await box.update({ status, available_powerbanks, location_id, total_powerbanks }, { transaction });
     await transaction.commit();

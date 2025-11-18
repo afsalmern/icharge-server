@@ -9,13 +9,12 @@ const Users = db.users;
 const startRent = async (user_id, box_id, package_id, order_id, type, code, user_hours = 1) => {
   const rentalType = type;
 
-  if (!user_id || !box_id) {
-    throw new ApiError("User ID and Box ID are required", 400);
-  }
-
   const transaction = await db.sequelize.transaction();
 
   try {
+    if (!user_id || !box_id) {
+      throw new ApiError(400, "User ID and Box ID are required");
+    }
     // Fetch user and box simultaneously, lock box row for update
     const [user, box] = await Promise.all([
       db.users.findByPk(user_id, {

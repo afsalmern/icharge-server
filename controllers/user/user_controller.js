@@ -14,11 +14,10 @@ const Checks = db.checks_and_amounts;
 exports.getHome = async (req, res, next) => {
   const { user_id } = req;
 
-  if (!user_id) {
-    return next(new ApiError("User ID is required", 400));
-  }
-
   try {
+    if (!user_id) {
+      throw new ApiError(400, "User ID is required");
+    }
     const [devices, onGoingRental, userData, checks] = await Promise.all([
       Boxes.findAll({
         attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"], "unique_id"],
@@ -90,9 +89,6 @@ exports.getHome = async (req, res, next) => {
           "is_verified",
           "referel_applied",
           "user_preferred_method",
-          "swaps_used",
-          "swaps_remaining",
-          "can_swap",
         ],
         include: {
           model: KycDetail,
@@ -109,9 +105,9 @@ exports.getHome = async (req, res, next) => {
     ]);
 
     if (!userData) throw new ApiError(404, "User not found");
+    if (userData.block_status) throw new ApiError(403, "User is blocked");
+    if (userData.status !== "active") throw new ApiError(403, "User is inactive");
     // if (!userData.is_verified) throw new ApiError("User not verified", 403);
-    if (userData.block_status) throw new ApiError("User is blocked", 403);
-    if (userData.status !== "active") throw new ApiError("User is inactive", 403);
 
     const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks[0] || {};
     const end_time = onGoingRental?.end_time || null;
@@ -140,15 +136,10 @@ exports.getHome = async (req, res, next) => {
             rental_hours,
             type: device_type,
           } = onGoingRental;
-          const { id: package_id, name, hourly_price, price, duration, swap, type } = rented_package || {};
+          const { id: package_id, name, hourly_price, price, duration, type } = rented_package || {};
           const { name: userName, mobile } = rented_user || {};
           const { reason } = disputes || {};
           const { device_id } = rented_box || {};
-
-          // Use user table fields, validate can_swap
-          const swapsUsed = userData.swaps_used;
-          const swapsRemaining = userData.swaps_remaining === null ? "unlimited" : userData.swaps_remaining;
-          const canSwap = userData.can_swap && !isTimeElapsed && userData.is_verified && !userData.block_status && userData.status === "active";
 
           const packageDuration = type == "hourly" ? rental_hours : duration;
 
@@ -171,11 +162,7 @@ exports.getHome = async (req, res, next) => {
               name,
               type,
               duration,
-              swap_limit: type === "monthly" ? "unlimited" : swap,
             },
-            swaps_used: swapsUsed,
-            swaps_remaining: swapsRemaining,
-            can_swap: canSwap,
             ...cost_details,
           };
         })()
@@ -216,9 +203,6 @@ exports.getUserProfile = async (req, res, next) => {
 exports.updatUserProfile = async (req, res, next) => {
   const { user } = req;
   const { name, dob, email } = req.body;
-
-  const user_id = user.id;
-  let code_added = false;
 
   const avatar = (req.files && req.files?.["avatar"]?.[0]?.filename) || null;
   const transaction = await db.sequelize.transaction();

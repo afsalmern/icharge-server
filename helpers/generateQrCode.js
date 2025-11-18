@@ -3,7 +3,7 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
 
-const generateCode = async (deviceId, logoColors = null) => {
+const generateCode = async (deviceId, entityName) => {
   try {
     // Ensure uploads/qr directory exists
     const uploadsDir = path.join(process.cwd(), "uploads", "qr");
@@ -12,7 +12,7 @@ const generateCode = async (deviceId, logoColors = null) => {
     }
 
     // Default color theme (can be overridden by logo colors)
-    const colorTheme = logoColors || {
+    const colorTheme = {
       primary: "#6abe55", // Blue
       secondary: "#1e40af", // Darker blue
       accent: "#3b82f6", // Light blue
@@ -112,7 +112,7 @@ const generateCode = async (deviceId, logoColors = null) => {
     doc
       .fontSize(12)
       .fillColor(colorTheme.lightText)
-      .text("Scan this QR code to access device information", 0, qrY + qrSize + 75, {
+      .text(`Scan this QR code to access device information of ${entityName} `, 0, qrY + qrSize + 75, {
         width: pageWidth,
         align: "center",
       });

@@ -36,13 +36,12 @@ exports.updateLocation = async (req, res, next) => {
   const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
   const { id } = req.params;
 
-  const location = await Location.findByPk(id);
-  if (!location) {
-    throw new ApiError(404, "Location not found");
-  }
-
   const transaction = await db.sequelize.transaction();
   try {
+    const location = await Location.findByPk(id);
+    if (!location) {
+      throw new ApiError(404, "Location not found");
+    }
     const updated_location = await location.update(
       {
         name,

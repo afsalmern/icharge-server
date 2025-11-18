@@ -67,32 +67,32 @@ exports.createOrderForDeposit = async (req, res, next) => {
   const depositAmount = await Deposits.findOne();
   const isAmountValid = depositAmount?.deposit_amount == amount;
 
-  if (!isAmountValid) {
-    throw new ApiError(402, "Deposit amount is not valid");
-  }
-
-  const user_id = req.user_id;
-  const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });
-
-  const currency = "INR";
-  const options = {
-    amount: amount * 100,
-    currency: currency,
-    receipt: `IC_reciept-Deposit_${Date.now()}`,
-    notes: {
-      user: user?.name || "Guest",
-      box: "Not Specified",
-      type: "deposit",
-      user_id,
-      box_id: null,
-      package_id: null,
-      user_hours: null,
-      rental_type: null,
-      code: null,
-    },
-  };
-
   try {
+    if (!isAmountValid) {
+      throw new ApiError(402, "Deposit amount is not valid");
+    }
+
+    const user_id = req.user_id;
+    const user = await db.users.findOne({ attributes: ["id", "name"], where: { id: user_id } });
+
+    const currency = "INR";
+    const options = {
+      amount: amount * 100,
+      currency: currency,
+      receipt: `IC_reciept-Deposit_${Date.now()}`,
+      notes: {
+        user: user?.name || "Guest",
+        box: "Not Specified",
+        type: "deposit",
+        user_id,
+        box_id: null,
+        package_id: null,
+        user_hours: null,
+        rental_type: null,
+        code: null,
+      },
+    };
+
     if (!amount || amount <= 0) {
       throw new Error("Amount should be a valid positive number");
     }
