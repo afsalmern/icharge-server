@@ -269,7 +269,7 @@ const startFree = async (user_id, box_id, package_id, type, code) => {
   }
 };
 
-const returnItem = async (user_id, rental_id, scan_type, location_id = null) => {
+const returnItem = async (user_id, rental_id, scan_type, corporate_id = null, location_id = null) => {
   const transaction = await db.sequelize.transaction();
   try {
     const rental = await db.rentals.findOne({
@@ -287,13 +287,13 @@ const returnItem = async (user_id, rental_id, scan_type, location_id = null) => 
     const rental_type = rental.type;
 
     if (scan_type == "corporate") {
-      const corporateId = rental.corporate_id;
-      const box_id = rental?.rented_box?.corporate_id;
-      const isCorporateValid = corporateId == box_id;
+      const corporateInRental = rental.corporate_id;
+      const corporate = await db.corporates.findByPk(corporate_id);
+      const isCorporateValid = corporateInRental == corporate?.id;
 
       console.log("isCorporateValid", isCorporateValid);
-      console.log("isCorporateValid", box_id);
-      console.log("isCorporateValid", corporateId);
+      console.log("isCorporateValid", rental.corporate_id);
+      console.log("isCorporateValid", corporate_id);
 
       if (!isCorporateValid) {
         throw new ApiError(400, "Please return to proper corporate box");

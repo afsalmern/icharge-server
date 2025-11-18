@@ -311,9 +311,9 @@ exports.deleteRental = async (req, res, next) => {
 
 exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
-  const { rental_id, type } = req.body;
+  const { rental_id, corporate_id } = req.body;
   try {
-    const { success } = await returnItem(user_id, rental_id, "corporate");
+    const { success } = await returnItem(user_id, rental_id, "corporate", corporate_id, null);
     if (!success) return sendSuccess(res, "Please return to proper corporate box", { return: false }, 400);
     return sendSuccess(res, "Item returned successfully", { return: true }, 200);
   } catch (error) {
@@ -424,7 +424,7 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
     let message = "Otp verified successfully";
 
     if (order_type == "return") {
-      await returnItem(user_id, rental_id, "location", location.id);
+      await returnItem(user_id, rental_id, "location", null, location.id);
       message = "Item returned successfully";
     }
 
