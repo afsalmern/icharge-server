@@ -63,14 +63,13 @@ exports.generateRentalReport = async (req, res, next) => {
       const packageDuration = duration || 0;
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, packageType);
       const { extra_charge } = cost_details;
-
-      const totalAmount = parseFloat(amountPaid) + extra_charge;
-      const time_used = calculateTotalTimeUsed(start_time, return_time, status);
-
       const payment = Array.isArray(rental_payments) && rental_payments.length > 0 ? rental_payments[0] : rental_payments;
+
+      const time_used = calculateTotalTimeUsed(start_time, return_time, status);
 
       const paymentStatus = payment?.status || payment?.dataValues?.status || "N/A";
       const amountPaid = payment?.amount || payment?.dataValues?.amount || 0;
+      const totalAmount = parseFloat(amountPaid) + extra_charge;
 
       return {
         rentalId: id,
