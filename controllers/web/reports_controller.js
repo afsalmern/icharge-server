@@ -184,7 +184,7 @@ ORDER BY
 
 exports.generateRevenewReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, locationId = "all", packageType = "all", corporateId = "all", type: rentalType } = req.query;
+    const { startDate, endDate, locationId = "all", packageType = "all", corporateId = "all", type: rentalType, page = 1, limit = 20 } = req.query;
 
     const where = {};
 
@@ -197,18 +197,15 @@ exports.generateRevenewReport = async (req, res, next) => {
 
     let payments = [];
     if (rentalType == "location") {
-      payments = await locationWiseRevenues(where, packageType, locationId);
+      payments = await locationWiseRevenues(where, packageType, locationId, page, limit);
     } else {
-      payments = await corporateWiseRevenues(where, packageType, corporateId);
+      payments = await corporateWiseRevenues(where, packageType, corporateId, page, limit);
     }
 
-    // Log for debugging
-    if (!payments) {
-      throw new ApiError(404, "Rental not found");
-    }
+    const { payments: paymentsData, pagination } = payments;
 
     // Transform data for report
-    const report = payments.map((payment, index) => {
+    const report = paymentsData.map((payment, index) => {
       const rental = payment.rental;
       const { rented_package, start_time, return_time, status } = rental;
       const { type, hourly_price, duration: packageDuration } = rented_package;
@@ -260,7 +257,7 @@ exports.generateRevenewReport = async (req, res, next) => {
     // Calculate sum of total amount and format to two decimal places
     const sumTotalAmount = report.length > 0 ? report.reduce((sum, item) => sum + (item.totalRevenue || 0), 0).toFixed(2) : "0.00";
 
-    sendSuccess(res, "Revenue report generated successfully", { report, sumTotalAmount }, 200);
+    sendSuccess(res, "Revenue report generated successfully", { report, pagination }, 200);
   } catch (error) {
     console.error("Error generating revenue report:", error);
     next(new ApiError(500, "Failed to generate revenue report", error.message));
@@ -466,8 +463,49 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
   }
 };
 
-const locationWiseRevenues = async (where, packageType, locationId) => {
+const locationWiseRevenues = async (where, packageType, locationId, page = 1, limit = 20) => {
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const offset = (pageNum - 1) * limitNum;
+
   try {
+    const paymentsCount = await db.rental_payments.findAll({
+      where,
+      include: [
+        {
+          model: db.rentals,
+          as: "rental",
+          required: true,
+          attributes: ["id"],
+          include: [
+            {
+              model: db.locations,
+              as: "pickup_location", // 🔹 first location association
+              attributes: ["id"],
+              required: true,
+              ...(locationId !== "all" && {
+                where: {
+                  id: locationId,
+                },
+              }),
+            },
+            {
+              model: db.packages,
+              as: "rented_package",
+              attributes: ["type"],
+              required: true,
+              ...(packageType !== "all" && {
+                where: {
+                  type: packageType,
+                },
+              }),
+            },
+          ],
+        },
+      ],
+      attributes: ["id"],
+    });
+
     const payments = await db.rental_payments.findAll({
       where,
       include: [
@@ -508,16 +546,33 @@ const locationWiseRevenues = async (where, packageType, locationId) => {
         },
       ],
       attributes: ["id", "amount", "status", "created_at"],
+      limit: limitNum,
+      offset: offset,
     });
-    console.log("payments", JSON.stringify(payments, null, 2));
-    return payments;
+
+    const totalPages = Math.ceil(paymentsCount?.length / limitNum);
+
+    return {
+      payments,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: paymentsCount?.length,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPreviousPage: pageNum > 1,
+      },
+    };
   } catch (error) {
     console.log("error getting location wise revenues", error);
     throw error;
   }
 };
 
-const corporateWiseRevenues = async (where, packageType, corporateId) => {
+const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, limit = 20) => {
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const offset = (pageNum - 1) * limitNum;
   try {
     const payments = await db.rental_payments.findAll({
       where,
@@ -561,7 +616,19 @@ const corporateWiseRevenues = async (where, packageType, corporateId) => {
       attributes: ["id", "amount", "status", "created_at"],
     });
 
-    return payments;
+    const totalPages = Math.ceil(totalCount?.length / limitNum);
+
+    return {
+      payments,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPreviousPage: pageNum > 1,
+      },
+    };
   } catch (error) {
     console.log("error getting corporate wise revenues", error);
     throw error;
