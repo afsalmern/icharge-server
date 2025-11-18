@@ -286,10 +286,18 @@ const returnItem = async (user_id, rental_id, scan_type, location_id = null) => 
     const start = rental.start_time;
     const rental_type = rental.type;
 
-    console.log("TYPES", rental_type, scan_type);
+    if (scan_type == "corporate") {
+      const corporateId = rental.corporate_id;
+      const box_id = rental?.rented_box?.corporate_id;
+      const isCorporateValid = corporateId == box_id;
+      if (!isCorporateValid) {
+        throw new ApiError(400, "Please return to proper corporate box");
+      }
+    }
 
     if (scan_type !== rental_type) {
-      throw new ApiError(400, "Scan type does not match rental type");
+      await transaction.commit();
+      return { success: false };
     }
 
     const packageType = rental.rented_package.type;
