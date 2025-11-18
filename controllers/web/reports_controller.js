@@ -571,13 +571,13 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
           attributes: ["id"],
           include: [
             {
-              model: db.locations,
-              as: "pickup_location", // 🔹 first location association
-              attributes: ["id"],
+              model: db.corporates,
+              as: "rented_corporate", // 🔹 first location association
+              attributes: ["id", "name"],
               required: true,
-              ...(locationId !== "all" && {
+              ...(corporateId !== "all" && {
                 where: {
-                  id: locationId,
+                  id: corporateId,
                 },
               }),
             },
