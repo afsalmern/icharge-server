@@ -313,7 +313,7 @@ exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
   const { rental_id, type } = req.body;
   try {
-    await returnItem(user_id, rental_id, type ? type : "corporate");
+    await returnItem(user_id, rental_id, "corporate");
     return sendSuccess(res, "Item returned successfully", { return: true }, 200);
   } catch (error) {
     console.error("Error in returnItem:", error);

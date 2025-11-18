@@ -286,6 +286,8 @@ const returnItem = async (user_id, rental_id, scan_type, location_id = null) => 
     const start = rental.start_time;
     const rental_type = rental.type;
 
+    console.log("TYPES", rental_type, scan_type);
+
     if (scan_type !== rental_type) {
       throw new ApiError(400, "Scan type does not match rental type");
     }
