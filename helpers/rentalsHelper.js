@@ -76,6 +76,7 @@ const startRent = async (user_id, box_id, package_id, order_id, type, code, amou
 
     // Calculate total payment amount
     const paymentAmount = parseFloat(amount) + parseFloat(user.outstanding_amount || 0);
+    console.log("PAYMENT AMOUNT ===>", paymentAmount);
     const { type, duration, swap } = rentalPackage;
     const start_time = new Date();
 

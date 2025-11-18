@@ -151,6 +151,7 @@ exports.webhookHandler = async (req, res, next) => {
     const code = payload?.payment?.entity?.notes?.code;
 
     console.log("WEBHHOOK TYPE ==========>", type);
+    console.log("WEBHHOOK TYPE ==========>", amount);
 
     switch (event) {
       case "payment.authorized":
