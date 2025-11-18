@@ -42,6 +42,8 @@ const startRent = async (user_id, box_id, package_id, order_id, type, code, amou
       throw new ApiError(404, "Box not found");
     }
 
+    console.log("user", user);
+
     if (box?.type !== rentalType) {
       throw new ApiError(400, "Box type does not match rental type");
     }
@@ -141,6 +143,123 @@ const startRent = async (user_id, box_id, package_id, order_id, type, code, amou
         start_time: rental.start_time,
         payment_amount: paymentAmount,
         order_id, // returned as-is
+      },
+    };
+  } catch (error) {
+    console.error("Error in startRent:", error);
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+const startFree = async (user_id, box_id, package_id, type, code) => {
+  const rentalType = type;
+
+  const transaction = await db.sequelize.transaction();
+
+  try {
+    if (!user_id || !box_id) {
+      throw new ApiError(400, "User ID and Box ID are required");
+    }
+    // Fetch user and box simultaneously, lock box row for update
+    const [user, box] = await Promise.all([
+      db.users.findByPk(user_id, {
+        attributes: ["id", "is_verified", "block_status", "status", "outstanding_amount", "deposit_amount"],
+        transaction,
+      }),
+      db.boxes.findOne({
+        where: { device_id: box_id },
+        attributes: ["id", "unique_id", "status", "available_powerbanks", "location_id", "corporate_id", "type"],
+        transaction,
+      }),
+    ]);
+
+    if (!box) {
+      throw new ApiError(404, "Box not found");
+    }
+
+    if (box?.type !== rentalType) {
+      throw new ApiError(400, "Box type does not match rental type");
+    }
+
+    // Check for ongoing rental
+    const ongoingRental = await db.rentals.findOne({
+      where: { user_id, status: "ongoing" },
+      include: [
+        {
+          model: db.packages,
+          as: "rented_package",
+          attributes: ["id", "type", "hourly_price"],
+        },
+      ],
+      transaction,
+    });
+
+    if (ongoingRental) {
+      await transaction.commit();
+      return { message: "Rental is ongoing", data: {} };
+    }
+
+    // Ensure package ID is provided
+    if (!package_id) throw new ApiError(400, "Package ID is required for new rental");
+
+    const rentalPackage = await db.packages.findByPk(package_id, {
+      attributes: ["id", "type", "duration", "price", "hourly_price", "swap"],
+      transaction,
+    });
+
+    if (!rentalPackage) throw new ApiError(404, "Package not found");
+
+    const { type, duration, swap } = rentalPackage;
+    const start_time = new Date();
+
+    const packageDuration = type == "hourly" ? user_hours : duration;
+    const end_time = getEndTime(start_time, packageDuration, type);
+
+    let location = null;
+    let corporate = null;
+
+    rentalType == "location" ? (location = await box?.getLocation()) : (corporate = await box?.getCorporate());
+
+    const rental = await db.rentals.create(
+      {
+        box_id: box.id,
+        location_id: location ? location.id : null,
+        corporate_id: corporate ? corporate.id : null,
+        type: rentalType == "location" ? "location" : "corporate",
+        package_id,
+        user_id,
+        start_time,
+        end_time,
+        rental_hours: user_hours,
+        status: "ongoing",
+        extra_charge: 0.0,
+        code,
+      },
+      { transaction }
+    );
+
+    await box.update({ available_powerbanks: db.sequelize.literal("available_powerbanks - 1") }, { transaction });
+
+    await user.update(
+      {
+        outstanding_amount: 0,
+        swaps_used: 0,
+        swaps_remaining: null,
+        can_swap: true,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    return {
+      message: "Rental started successfully",
+      data: {
+        rental_id: rental.id,
+        start_time: rental.start_time,
+        payment_amount: 0.0,
+        order_id: null,
       },
     };
   } catch (error) {
@@ -434,4 +553,5 @@ module.exports = {
   revertDepositAmount,
   returnItem,
   getDuration,
+  startFree,
 };

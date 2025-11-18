@@ -238,7 +238,7 @@ exports.getPackages = async (req, res, next) => {
     });
 
     const queryOptions = {
-      attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type"],
+      attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type", "hourly_price"],
       order: [["created_at", "DESC"]],
     };
 

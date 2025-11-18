@@ -2,7 +2,7 @@ const { sendSuccess } = require("../../handlers/success_response_handler");
 const { calculatePriceOnRentals, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
 const { sendOtp } = require("../../helpers/OtpHelper");
 const { addUserReferelCode } = require("../../helpers/referelCodeHelper");
-const { returnItem, getDuration, startRent } = require("../../helpers/rentalsHelper");
+const { returnItem, getDuration, startRent, startFree } = require("../../helpers/rentalsHelper");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 const { generateOtp } = require("../../utils/generateOtp");
@@ -280,12 +280,17 @@ exports.buyItem = async (req, res, next) => {
 };
 
 exports.rentItem = async (req, res, next) => {
-  const { user_id } = req;
-  const { box_id, package_id, user_hours, order_id, type } = req.body;
+  try {
+    const { user_id } = req;
+    const { box_id, package_id, type } = req.body;
 
-  await startRent(user_id, box_id, package_id, order_id, type, user_hours);
+    await startFree(user_id, box_id, package_id, type);
 
-  return sendSuccess(res, "Rental started successfully", {}, 200);
+    return sendSuccess(res, "Rental started successfully", {}, 200);
+  } catch (error) {
+    console.error("Error in rentItem:", error);
+    next(error);
+  }
 };
 
 exports.deleteRental = async (req, res, next) => {
