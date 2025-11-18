@@ -290,6 +290,11 @@ const returnItem = async (user_id, rental_id, scan_type, location_id = null) => 
       const corporateId = rental.corporate_id;
       const box_id = rental?.rented_box?.corporate_id;
       const isCorporateValid = corporateId == box_id;
+
+      console.log("isCorporateValid", isCorporateValid);
+      console.log("isCorporateValid", box_id);
+      console.log("isCorporateValid", corporateId);
+
       if (!isCorporateValid) {
         throw new ApiError(400, "Please return to proper corporate box");
       }
