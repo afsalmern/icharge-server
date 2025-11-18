@@ -369,7 +369,7 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
       pagination: {
         currentPage: pageNum,
         totalPages,
-        totalItems: totalCount,
+        totalItems: totalCount.length,
         itemsPerPage: limitNum,
         hasNextPage: pageNum < totalPages,
         hasPreviousPage: pageNum > 1,
