@@ -11,7 +11,7 @@ const Rentals = db.rentals;
 // Generate Rental Report
 exports.generateRentalReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId, corporateId, type } = req.query;
+    const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId, corporateId, type, page = 1, limit = 20 } = req.query;
 
     // Build filter conditions
     const where = {
@@ -40,13 +40,15 @@ exports.generateRentalReport = async (req, res, next) => {
       where.payment_status = paymentStatus; // Remove or adjust if not in rentals table
     }
 
-    let rentals = [];
+    let result = {};
 
     if (type == "location") {
-      rentals = await getLocationWiseRentals(where, locationId);
+      result = await getLocationWiseRentals(where, locationId, page, limit);
     } else {
-      rentals = await getCorporateWiseRentals(where, corporateId);
+      result = await getCorporateWiseRentals(where, corporateId, page, limit);
     }
+
+    const { rentals, pagination } = result;
 
     // Transform data for report
     const report = rentals.map((rental) => {
@@ -89,7 +91,7 @@ exports.generateRentalReport = async (req, res, next) => {
       };
     });
 
-    sendSuccess(res, "Rental report generated successfully", { report }, 200);
+    sendSuccess(res, "Rental report generated successfully", { report, pagination }, 200);
   } catch (error) {
     console.error("Error generating rental report:", error);
     next(new ApiError(500, "Failed to generate rental report", error.message));
@@ -289,12 +291,20 @@ exports.getUserReferels = async (req, res, next) => {
   }
 };
 
-const getLocationWiseRentals = async (where, location_id) => {
+const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) => {
   if (location_id) {
     where["location_id"] = location_id;
   }
 
   try {
+    // Convert page and limit to integers
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Get total count for pagination
+    const totalCount = await Rentals.count({ where });
+
     const rentals = await Rentals.findAll({
       where,
       include: [
@@ -338,21 +348,44 @@ const getLocationWiseRentals = async (where, location_id) => {
       ],
       attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "code"],
       order: [["start_time", "DESC"]],
+      limit: limitNum,
+      offset: offset,
     });
 
-    return rentals;
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    return {
+      rentals,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPreviousPage: pageNum > 1,
+      },
+    };
   } catch (error) {
     console.log("error getting location wise rentals", error);
     throw error;
   }
 };
 
-const getCorporateWiseRentals = async (where, corporate_id) => {
+const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20) => {
   if (corporate_id) {
     where["corporate_id"] = corporate_id;
   }
 
   try {
+    // Convert page and limit to integers
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Get total count for pagination
+    const totalCount = await Rentals.count({ where });
+
     const rentals = await Rentals.findAll({
       where,
       include: [
@@ -386,9 +419,24 @@ const getCorporateWiseRentals = async (where, corporate_id) => {
       ],
       attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "corporate_id", "code"],
       order: [["start_time", "DESC"]],
+      limit: limitNum,
+      offset: offset,
     });
 
-    return rentals;
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    return {
+      rentals,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems: totalCount,
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPreviousPage: pageNum > 1,
+      },
+    };
   } catch (error) {
     console.log("error getting corporate wise rentals", error);
     throw error;
