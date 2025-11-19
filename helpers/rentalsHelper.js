@@ -269,7 +269,7 @@ const startFree = async (user_id, box_id, package_id, type, code) => {
   }
 };
 
-const returnItem = async (user_id, rental_id, scan_type, corporate_id = null, location_id = null) => {
+const returnItem = async (user_id, rental_id, scan_type, device_id = null, location_id = null) => {
   const transaction = await db.sequelize.transaction();
   try {
     const rental = await db.rentals.findOne({
@@ -279,6 +279,7 @@ const returnItem = async (user_id, rental_id, scan_type, corporate_id = null, lo
         { model: db.packages, as: "rented_package" },
         { model: db.boxes, as: "rented_box" },
       ],
+      transaction,
     });
 
     if (!rental) throw new ApiError(404, "Ongoing rental not found");
@@ -286,22 +287,23 @@ const returnItem = async (user_id, rental_id, scan_type, corporate_id = null, lo
     const start = rental.start_time;
     const rental_type = rental.type;
 
-    if (scan_type == "corporate") {
-      const corporateInRental = rental.corporate_id;
-      const corporate = await db.corporates.findByPk(corporate_id);
-      const isCorporateValid = corporateInRental == corporate?.id;
+    // Corporate validation
+    if (scan_type === "corporate") {
+      const validBox = await db.boxes.findOne({
+        where: { device_id },
+        attributes: ["id", "corporate_id"],
+        transaction,
+      });
 
-      console.log("isCorporateValid", isCorporateValid);
-      console.log("isCorporateValid", rental.corporate_id);
-      console.log("isCorporateValid", corporate_id);
-
-      if (!isCorporateValid) {
-        throw new ApiError(400, "Please return to proper corporate box");
+      if (!validBox || validBox.corporate_id !== rental.corporate_id) {
+        await transaction.rollback();
+        return { success: false };
       }
     }
 
+    // Scan type mismatch
     if (scan_type !== rental_type) {
-      await transaction.commit();
+      await transaction.rollback();
       return { success: false };
     }
 
@@ -311,7 +313,7 @@ const returnItem = async (user_id, rental_id, scan_type, corporate_id = null, lo
 
     const returnTime = new Date();
 
-    const { extra_charge: extraHours, extra_hours: extraCharge } = calculatePriceOnRentals(start, hourlyPrice, duration, packageType);
+    const { extra_hours: extraHours, extra_charge: extraCharge } = calculatePriceOnRentals(start, hourlyPrice, duration, packageType);
 
     await rental.update(
       {
@@ -319,46 +321,40 @@ const returnItem = async (user_id, rental_id, scan_type, corporate_id = null, lo
         extra_hours: extraHours,
         extra_charge: extraCharge,
         status: "completed",
-        return_location_id: rental_type == "location" ? location_id : null,
+        return_location_id: rental_type === "location" ? location_id : null,
       },
       { transaction }
     );
 
-    const currentOutstanding = parseFloat(rental.rented_user.outstanding_amount) || 0;
-    const outStandAmountToUpdate = currentOutstanding + extraCharge;
-
-    // Update user outstanding_amount (add extra charge)
+    // Update outstanding
     const user = rental.rented_user;
-    await user.update({ outstanding_amount: outStandAmountToUpdate }, { transaction });
+    const currentOutstanding = Number(user.outstanding_amount) || 0;
 
-    // Update box available_powerbanks
-    const box = rental.rented_box;
-    await box.update({ available_powerbanks: box.available_powerbanks + 1 }, { transaction });
+    await user.update({ outstanding_amount: currentOutstanding + extraCharge }, { transaction });
 
-    // Send notification
+    // Update box powerbank stock (safe increment)
+    await db.boxes.increment({ available_powerbanks: 1 }, { where: { id: rental.rented_box.id }, transaction });
+
+    await transaction.commit();
+
+    // Send notification (outside transaction)
     if (user?.device_token) {
-      const notificationMessage =
+      const message =
         extraCharge > 0
-          ? `Powerbank returned. A fine of $${extraCharge?.toFixed(2)} has been added for ${extraHours?.toFixed(2)} extra hours.`
+          ? `Powerbank returned. A fine of $${extraCharge.toFixed(2)} has been added for ${extraHours.toFixed(2)} extra hours.`
           : "Thank you! Your powerbank has been returned successfully.";
 
       await sendFCMNotification(user.device_token, {
         title: "Powerbank Returned",
-        body: notificationMessage,
-        data: {
-          extraCharge: extraCharge.toFixed(2),
-        },
+        body: message,
+        data: { extraCharge: extraCharge?.toFixed(2) || "0.00" },
       });
     }
 
-    await transaction.commit();
-
-    return {
-      success: true,
-    };
+    return { success: true };
   } catch (error) {
-    console.error("Error in return Item:", error);
     await transaction.rollback();
+    console.error("Error in return Item:", error);
     throw error;
   }
 };
