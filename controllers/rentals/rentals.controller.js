@@ -311,9 +311,9 @@ exports.deleteRental = async (req, res, next) => {
 
 exports.returnItem = async (req, res, next) => {
   const { user_id } = req;
-  const { rental_id, device_id } = req.body;
+  const { rental_id, box_id } = req.body;
   try {
-    const { success } = await returnItem(user_id, rental_id, "corporate", device_id, null);
+    const { success } = await returnItem(user_id, rental_id, "corporate", box_id, null);
     if (!success) return sendSuccess(res, "Please return to proper corporate box", { return: false }, 400);
     return sendSuccess(res, "Item returned successfully", { return: true }, 200);
   } catch (error) {
