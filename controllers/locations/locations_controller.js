@@ -7,7 +7,16 @@ const ReferelCodes = db.referel_codes;
 exports.addLocation = async (req, res, next) => {
   const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
   const transaction = await db.sequelize.transaction();
+
   try {
+    // Duplicate phone check
+    if (phone) {
+      const phoneExists = await Location.findOne({ where: { phone } });
+      if (phoneExists) {
+        throw new ApiError(400, "Phone already exists");
+      }
+    }
+
     const addedLocation = await Location.create(
       {
         name,
@@ -24,11 +33,14 @@ exports.addLocation = async (req, res, next) => {
 
     await transaction.commit();
 
-    res.status(200).json({ message: "Location added successfully", data: addedLocation });
+    res.status(200).json({
+      message: "Location added successfully",
+      data: addedLocation,
+    });
   } catch (error) {
     console.error(error);
     await transaction.rollback();
-    res.status(500).json({ error: "Internal server error" });
+    next(error);
   }
 };
 
@@ -37,11 +49,27 @@ exports.updateLocation = async (req, res, next) => {
   const { id } = req.params;
 
   const transaction = await db.sequelize.transaction();
+
   try {
     const location = await Location.findByPk(id);
     if (!location) {
       throw new ApiError(404, "Location not found");
     }
+
+    // Duplicate phone check except current one
+    if (phone) {
+      const phoneExists = await Location.findOne({
+        where: {
+          phone,
+          id: { [Op.ne]: id },
+        },
+      });
+
+      if (phoneExists) {
+        throw new ApiError(400, "Phone already exists");
+      }
+    }
+
     const updated_location = await location.update(
       {
         name,
@@ -53,8 +81,7 @@ exports.updateLocation = async (req, res, next) => {
         is_active,
         phone,
       },
-      { returning: true },
-      { transaction }
+      { returning: true, transaction } // fixed options
     );
 
     await transaction.commit();
