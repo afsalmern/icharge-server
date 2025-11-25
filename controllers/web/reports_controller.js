@@ -431,14 +431,14 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
     });
 
     // Calculate pagination metadata
-    const totalPages = Math.ceil(totalCount / limitNum);
+    const totalPages = Math.ceil(totalCount?.length / limitNum);
 
     return {
       rentals,
       pagination: {
         currentPage: pageNum,
         totalPages,
-        totalItems: totalCount,
+        totalItems: totalCount?.length,
         itemsPerPage: limitNum,
         hasNextPage: pageNum < totalPages,
         hasPreviousPage: pageNum > 1,
