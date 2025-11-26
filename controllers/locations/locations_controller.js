@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
