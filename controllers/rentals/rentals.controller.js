@@ -157,14 +157,15 @@ exports.getAllRentals = async (req, res, next) => {
   }
 
   if (start_date) {
-    const parsedDate = new Date(start_date);
-    if (!isNaN(parsedDate)) {
-      const nextDate = new Date(parsedDate);
-      nextDate.setDate(parsedDate.getDate() + 1);
+    const date = new Date(start_date);
+
+    if (!isNaN(date)) {
+      const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+      const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
 
       whereCondition.start_time = {
-        [db.Sequelize.Op.gte]: parsedDate, // start of day
-        [db.Sequelize.Op.lt]: nextDate, // before next day
+        [db.Sequelize.Op.gte]: startOfDay,
+        [db.Sequelize.Op.lte]: endOfDay,
       };
     }
   }
