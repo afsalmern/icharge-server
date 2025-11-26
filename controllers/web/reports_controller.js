@@ -11,12 +11,16 @@ const Rentals = db.rentals;
 // Generate Rental Report
 exports.generateRentalReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, packageType, rentalStatus, paymentStatus, locationId, corporateId, type, page = 1, limit = 20 } = req.query;
+    const { user, startDate, endDate, packageType, rentalStatus, paymentStatus, locationId, corporateId, type, page = 1, limit = 20 } = req.query;
 
     // Build filter conditions
     const where = {
       type,
     };
+
+    if (user) {
+      where.user_id = user;
+    }
 
     // Date filter
     if (startDate && endDate) {
@@ -183,9 +187,23 @@ ORDER BY
 
 exports.generateRevenewReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, locationId = "all", packageType = "all", corporateId = "all", type: rentalType, page = 1, limit = 20 } = req.query;
+    const {
+      user,
+      startDate,
+      endDate,
+      locationId = "all",
+      packageType = "all",
+      corporateId = "all",
+      type: rentalType,
+      page = 1,
+      limit = 20,
+    } = req.query;
 
     const where = {};
+
+    if (user) {
+      where.user_id = user;
+    }
 
     // Date filter for payment creation time
     if (startDate && endDate) {
