@@ -7,35 +7,14 @@ const {
   getLocationWiseRentalsCount,
   getCorporateWiseRentalsCount,
 } = require("../../helpers/dashboardHelpers");
+const { sendOtp } = require("../../helpers/fast2smsHelper");
 const { generateLightColors } = require("../../utils/color_generator");
 
 exports.getDashboard = async (req, res, next) => {
   try {
-    const cards = await getCardData();
-    const complaints = await getCompalaintsList();
-    const locationWiseRentalsCount = await getLocationWiseRentalsCount();
-    const corporateWiseRentalCount = await getCorporateWiseRentalsCount();
+    const { mobile, otp } = req.body;
 
-    const colorsForlocationWiseRentalsCount = locationWiseRentalsCount?.length > 0 ? generateLightColors(locationWiseRentalsCount.length) : [];
-    const colorsForCorporateWiseRentalCount = corporateWiseRentalCount?.length > 0 ? generateLightColors(corporateWiseRentalCount.length) : [];
-
-    sendSuccess(
-      res,
-      "Dashboard data fetched successfully",
-      {
-        cards,
-        complaints,
-        locationWiseRentalsCount: {
-          data: locationWiseRentalsCount,
-          colors: colorsForlocationWiseRentalsCount,
-        },
-        corporateWiseRentalCount: {
-          data: corporateWiseRentalCount,
-          colors: colorsForCorporateWiseRentalCount,
-        },
-      },
-      200
-    );
+    await sendOtp(otp, mobile);
   } catch (error) {
     console.error(error);
     next(error);
