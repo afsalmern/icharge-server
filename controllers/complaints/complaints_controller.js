@@ -67,15 +67,26 @@ exports.createComplaint = async (req, res, next) => {
 // };
 
 exports.getAllComplaints = async (req, res, next) => {
-  const { issueType = "all" } = req.query;
+  const { issueType = "all", status = "all", page = 1, limit = 10 } = req.query;
 
   try {
-    // Fetch all complaints from DB
-    const complaints = await Complaint.findAll({
-      where: {
-        ...(issueType !== "all" && { issue_type: issueType }),
-      },
+    // Convert page and limit to numbers
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build where clause
+    const whereClause = {
+      ...(issueType !== "all" && { issue_type: issueType }),
+      ...(status !== "all" && { status }),
+    };
+
+    // Fetch complaints with pagination
+    const { count, rows: complaints } = await Complaint.findAndCountAll({
+      where: whereClause,
       order: [["created_at", "DESC"]],
+      limit: limitNum,
+      offset: offset,
     });
 
     // Generate full image URLs for each complaint
@@ -84,7 +95,25 @@ exports.getAllComplaints = async (req, res, next) => {
       imageUrl: complaint.attachment ? `${req.protocol}://${req.get("host")}/icharge/uploads/complaints/${complaint.attachment}` : null,
     }));
 
-    sendSuccess(res, "Complaints fetched successfully", { complaints: complaintsWithImages }, 200);
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(count / limitNum);
+
+    sendSuccess(
+      res,
+      "Complaints fetched successfully",
+      {
+        complaints: complaintsWithImages,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limitNum,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1,
+        },
+      },
+      200
+    );
   } catch (error) {
     next(error);
   }

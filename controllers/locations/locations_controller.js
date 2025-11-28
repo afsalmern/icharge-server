@@ -12,8 +12,10 @@ exports.addLocation = async (req, res, next) => {
   try {
     // Duplicate phone check
     if (phone) {
+      console.log("Checking phone:", phone);
       const phoneExists = await Location.findOne({ where: { phone } });
       if (phoneExists) {
+        console.log("Checking phone:", phoneExists);
         throw new ApiError(400, "Phone already exists");
       }
     }
@@ -96,37 +98,70 @@ exports.updateLocation = async (req, res, next) => {
 
 exports.getLocations = async (req, res) => {
   try {
-    const locations = await Location.findAll({
+    let { page = 1, limit = 10, status = "all" } = req.query;
+
+    page = Number(page);
+    limit = Number(limit);
+
+    const offset = (page - 1) * limit;
+
+    // Build WHERE condition
+    const whereCondition = {};
+    if (status !== "all") {
+      whereCondition.is_active = status === "active" ? true : false;
+    }
+
+    // Fetch paginated locations
+    const { rows: locations, count: totalItems } = await Location.findAndCountAll({
       attributes: ["id", "name", "latitude", "longitude", "address", "starting_hour", "ending_hour", "is_active", "phone"],
+      where: whereCondition,
+      limit,
+      offset,
+      order: [["id", "DESC"]],
     });
 
+    // Fetch referral codes linked to locations
     const corporateCodes = await ReferelCodes.findAll({
       attributes: ["id", "code", "type", "reference_id", "is_valid", "is_active"],
-      where: {
-        type: "location",
-      },
+      where: { type: "location" },
     });
 
-    const modifiedData = locations.map((corporate) => {
-      const code = corporateCodes.find((code) => code.reference_id == corporate.id);
-      const referralCode = code
-        ? {
-            id: code.id,
-            code: code.code,
-            is_valid: code.is_valid,
-            is_active: code.is_active,
-          }
-        : null;
+    // Merge referral codes into the locations result
+    const modifiedData = locations.map((loc) => {
+      const code = corporateCodes.find((c) => c.reference_id == loc.id);
       return {
-        ...corporate.dataValues,
-        referral_code: referralCode,
+        ...loc.dataValues,
+        referral_code: code
+          ? {
+              id: code.id,
+              code: code.code,
+              is_valid: code.is_valid,
+              is_active: code.is_active,
+            }
+          : null,
       };
     });
 
-    return res.status(200).json({ message: "Locations fetched successfully", data: modifiedData });
+    // Pagination Meta
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const pagination = {
+      currentPage: page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+
+    return res.status(200).json({
+      message: "Locations fetched successfully",
+      data: modifiedData,
+      pagination,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 

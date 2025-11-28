@@ -91,45 +91,47 @@ exports.getDropDownDatas = async (req, res, next) => {
 
 //User Actions
 exports.getAllUsers = async (req, res, next) => {
-  const { status = "all", block_status = "all", page = 1, limit = 20, keyword, from = 0, to = 0 } = req.query;
-  let userCreatedFilter = {};
-
-  if (from !== 0 && to !== 0) {
-    userCreatedFilter = {
-      created_at: {
-        [Op.between]: [from, to],
-      },
-    };
-  }
-
-  if (from !== 0 && to == 0) {
-    userCreatedFilter = {
-      created_at: {
-        [Op.gte]: from,
-      },
-    };
-  }
-
-  const offset = (page - 1) * limit;
-  const parsedLimit = parseInt(limit, 10);
-  const dynamicIlike = keyword ? `%${keyword}%` : `%%`;
-
-  const whereClause = {
-    ...userCreatedFilter,
-    [Op.or]: [{ name: { [Op.iLike]: dynamicIlike } }],
-    ...(status != "all" ? { status } : {}), // Only add status if it's defined
-    ...(block_status != "all" ? { block_status } : {}), // Only add block_status if it's defined
-  };
+  const { status = "all", page = 1, limit = 1 } = req.query;
 
   try {
-    const { rows, count } = await Users.findAndCountAll({
+    // Convert to numbers
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build main where clause
+    const whereClause = {
+      ...(status !== "all" && { status }),
+    };
+
+    // Fetch users with pagination
+    const { count, rows: users } = await Users.findAndCountAll({
       attributes: ["id", "name", "mobile", "email", "avatar", "status", "block_status", "created_at", "deposit_amount", "outstanding_amount"],
       where: whereClause,
-      limit: parsedLimit,
+      limit: limitNum,
       offset,
       order: [["created_at", "DESC"]],
     });
-    sendSuccess(res, "User fetched successfully", { users: rows, count }, 200);
+
+    // Pagination info
+    const totalPages = Math.ceil(count / limitNum);
+
+    sendSuccess(
+      res,
+      "Users fetched successfully",
+      {
+        users,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limitNum,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1,
+        },
+      },
+      200
+    );
   } catch (error) {
     console.log(error);
     next(error);
