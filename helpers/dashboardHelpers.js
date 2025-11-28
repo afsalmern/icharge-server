@@ -14,41 +14,52 @@ const getCardData = async () => {
 
     const metaData = [
       {
-        variant: "success",
-        description: "Active Users",
-        stats: String(cardData?.activeUsers),
-        icon: "fe-user-check",
+        variant: "warning", // gold / money related
+        description: "Total Revenue",
+        stats: String(cardData?.totalRevenue?.total_revenue),
+        icon: "fe-dollar-sign",
+        isCurrency: true,
       },
       {
-        variant: "secondary",
+        variant: "primary", // blue - generic main metric
         description: "Total Users",
         stats: String(cardData?.totalUsers?.total_users),
         icon: "fe-users",
+        isCurrency: false,
       },
-
       {
-        variant: "primary",
+        variant: "secondary", // gray - category metric
         description: "Corporates",
         stats: String(cardData?.corporates),
         icon: "fe-briefcase",
+        isCurrency: false,
       },
       {
-        variant: "info",
+        variant: "info", // light blue - map/location
         description: "Locations",
         stats: String(cardData?.locations),
         icon: "fe-map-pin",
       },
       {
-        variant: "warning",
+        variant: "danger", // red - count of heavy/important records
         description: "Total Rentals",
         stats: String(cardData?.rentals),
-        icon: "fe-clock",
+        icon: "fe-package",
+        isCurrency: false,
       },
       {
-        variant: "warning",
-        description: "Total Revenue",
-        stats: String(cardData?.totalRevenue?.total_revenue),
-        icon: "fe-dollar-sign",
+        variant: "success", // green - ongoing activities
+        description: "On Going Rentals",
+        stats: String(cardData?.activeRentals),
+        icon: "fe-activity",
+        isCurrency: false,
+      },
+      {
+        variant: "success", // green - completed status
+        description: "Completed Rentals",
+        stats: String(cardData?.completedRentals),
+        icon: "fe-check-circle",
+        isCurrency: false,
       },
     ];
 
@@ -153,11 +164,16 @@ const getPowerBankCounts = async () => {
 
 const getAllCounts = async () => {
   try {
-    const [rentals, activeUsers, locations, corporates, totalUsers, totalRevenue] = await Promise.all([
+    const [rentals, activeRentals, completedRentals, locations, corporates, totalUsers, totalRevenue] = await Promise.all([
       Rentals.count(),
-      Users.count({
+      Rentals.count({
         where: {
-          status: "active",
+          status: "ongoing",
+        },
+      }),
+      Rentals.count({
+        where: {
+          status: "completed",
         },
       }),
       Locations.count(),
@@ -182,7 +198,8 @@ const getAllCounts = async () => {
 
     return {
       rentals,
-      activeUsers,
+      activeRentals,
+      completedRentals,
       locations,
       corporates,
       totalUsers: totalUsers?.[0] || 0,
