@@ -13,6 +13,7 @@ const Locations = db.locations;
 const ChecksAndAmounts = db.checks_and_amounts;
 const QRCode = db.qr_codes;
 const Corporates = db.corporates;
+const TestOtps = db.test_otps;
 
 //Data for Drop down
 exports.getDropDownDatas = async (req, res, next) => {
@@ -475,5 +476,55 @@ exports.updateChecksAndAmount = async (req, res, next) => {
     await transaction.rollback();
     console.error(error);
     return next(error);
+  }
+};
+
+//Test OTPs Actions
+exports.getTestOtps = async (req, res, next) => {
+  const { page = 1, limit = 10, mobile } = req.query;
+
+  try {
+    // Convert to numbers
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build where clause
+    const whereClause = {};
+    if (mobile) {
+      whereClause.mobile = mobile;
+    }
+
+    // Fetch test OTPs with pagination
+    const { count, rows: testOtps } = await TestOtps.findAndCountAll({
+      attributes: ["id", "mobile", "otp", "created_at"],
+      where: whereClause,
+      limit: limitNum,
+      offset,
+      order: [["created_at", "DESC"]],
+    });
+
+    // Pagination info
+    const totalPages = Math.ceil(count / limitNum);
+
+    sendSuccess(
+      res,
+      "Test OTPs fetched successfully",
+      {
+        testOtps,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalItems: count,
+          itemsPerPage: limitNum,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1,
+        },
+      },
+      200
+    );
+  } catch (error) {
+    console.log(error);
+    next(error);
   }
 };

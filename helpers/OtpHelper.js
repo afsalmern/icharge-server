@@ -56,9 +56,18 @@
 
 const axios = require("axios");
 const { ApiError } = require("../middlewares/error");
+const db = require("../models");
+const TestOtps = db.test_otps;
 
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to number:", number);
+
+  const otpData = {
+    mobile: number,
+    otp,
+  };
+
+  await TestOtps.create(otpData);
 
   return true;
 

@@ -29,6 +29,7 @@ const {
   deleteBoxes,
   updateChecksAndAmount,
   getChecksAndAmount,
+  getTestOtps,
 } = require("../../controllers/web/web_controller");
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
@@ -51,6 +52,9 @@ const { addCorporates, deleteCorporate, updateCorporate, getCorporates } = requi
 //Checks and deposit deposit_amount
 router.get("/checks-and-amount", verifyToken, checkRole("admin"), getChecksAndAmount);
 router.post("/checks-and-amount", verifyToken, checkRole("admin"), updateChecksAndAmount);
+
+//Test OTPs
+router.get("/test-otps", verifyToken, checkRole("admin"), getTestOtps);
 
 //DropDownData
 router.get("/dropdowns", getDropDownDatas);
