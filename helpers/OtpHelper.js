@@ -60,7 +60,7 @@ const { ApiError } = require("../middlewares/error");
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to number:", number);
 
-  // return true;
+  return true;
 
   try {
     // Payload for Fast2SMS
