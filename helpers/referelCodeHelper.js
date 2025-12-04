@@ -5,13 +5,10 @@ const db = require("../models");
 const ReferelCodes = db.referel_codes;
 const UserReferels = db.user_referels;
 
-const createReferelCode = async (entity_id, entity_type, code) => {
-  const transaction = await db.sequelize.transaction();
-
+const createReferelCode = async (entity_id, entity_type, code, transaction) => {
   console.log("Creating referral code for", entity_id, entity_type, code);
 
   try {
-    // Determine which model to check
     const modelMap = {
       corporate: db.corporates,
       location: db.locations,
@@ -20,22 +17,15 @@ const createReferelCode = async (entity_id, entity_type, code) => {
     const model = modelMap[entity_type];
     if (!model) throw new ApiError(400, "Invalid entity type");
 
-    // Check if entity exists
-    const entity = await model.findByPk(entity_id);
-    if (!entity) {
-      throw new ApiError(400, `${entity_type} does not exist`);
-    }
+    const entity = await model.findByPk(entity_id, { transaction });
+    if (!entity) throw new ApiError(400, `${entity_type} does not exist`);
 
-    // Check if a referral code already exists for this entity
     const existingCode = await ReferelCodes.findOne({
       where: { code },
+      transaction,
     });
+    if (existingCode) throw new ApiError(400, "Referral code already exists");
 
-    if (existingCode) {
-      throw new ApiError(400, "Referral code already exists");
-    }
-
-    // Create new referral code
     await ReferelCodes.create(
       {
         reference_id: entity_id,
@@ -47,10 +37,8 @@ const createReferelCode = async (entity_id, entity_type, code) => {
       { transaction }
     );
 
-    await transaction.commit();
     return true;
   } catch (error) {
-    await transaction.rollback();
     console.error("Error creating referral code:", error);
     throw error;
   }
@@ -106,6 +94,62 @@ const updateReferelCode = async (body, id) => {
   }
 };
 
+const getAndUpdateReferelCode = async (entity_id, entity_type, code, transaction) => {
+  try {
+    const referelCode = await ReferelCodes.findOne({
+      where: {
+        reference_id: entity_id,
+        type: entity_type,
+      },
+      transaction,
+    });
+
+    if (!referelCode) {
+      await ReferelCodes.create(
+        {
+          reference_id: entity_id,
+          type: entity_type,
+          code,
+          is_active: true,
+          is_valid: true,
+        },
+        { transaction }
+      );
+      return true;
+    }
+
+    await referelCode.update({
+      code,
+    });
+    return true;
+  } catch (error) {
+    console.error("Error fetching referral code:", error);
+    throw error;
+  }
+};
+
+const deleteReferelCode = async (entity_id, entity_type, transaction) => {
+  try {
+    const referelCode = await ReferelCodes.findOne({
+      where: {
+        reference_id: entity_id,
+        type: entity_type,
+      },
+      transaction,
+    });
+
+    if (!referelCode) {
+      throw new ApiError(400, "Referral code does not exist");
+    }
+
+    await referelCode.destroy({ transaction });
+    return true;
+  } catch (error) {
+    console.error("Error deleting referral code:", error);
+    throw error;
+  }
+};
+
 const addUserReferelCode = async (user_id, code) => {
   try {
     const referelCode = await ReferelCodes.findOne({
@@ -130,4 +174,6 @@ module.exports = {
   createReferelCode,
   updateReferelCode,
   addUserReferelCode,
+  deleteReferelCode,
+  getAndUpdateReferelCode,
 };

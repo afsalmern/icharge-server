@@ -1,7 +1,7 @@
 const db = require("../../models");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { Op, Sequelize } = require("sequelize");
-const { getEndTime, calculatePriceOnRentals } = require("../../helpers/calculatePrices");
+const { getEndTime, calculatePriceOnRentals, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
 const { ApiError } = require("../../middlewares/error");
 
 const User = db.users;
@@ -18,7 +18,15 @@ exports.getHome = async (req, res, next) => {
     if (!user_id) {
       throw new ApiError(400, "User ID is required");
     }
+
+    // Optimized: Defined shared query options
+    const lockOptions = { lock: false };
+
+    // Optimized: Extracted common Sequelize literals
+    const timeFormatLiteral = (field, alias) => [db.Sequelize.literal(`TO_CHAR(${field}, 'HH12:MI AM')`), alias];
+
     const [devices, onGoingRental, userData, checks] = await Promise.all([
+      // Optimized: Simplified device query
       Boxes.findAll({
         attributes: ["id", "location_id", "status", ["total_powerbanks", "batteries"], ["available_powerbanks", "slots"], "unique_id"],
         include: {
@@ -30,14 +38,19 @@ exports.getHome = async (req, res, next) => {
             "address",
             "latitude",
             "longitude",
-            [db.Sequelize.literal(`TO_CHAR("location"."starting_hour", 'HH12:MI AM')`), "start_time"],
-            [db.Sequelize.literal(`TO_CHAR("location"."ending_hour", 'HH12:MI AM')`), "end_time"],
+            timeFormatLiteral('"location"."starting_hour"', "start_time"),
+            timeFormatLiteral('"location"."ending_hour"', "end_time"),
           ],
           where: { is_active: true },
         },
-        where: { status: "active", available_powerbanks: { [Sequelize.Op.gt]: 0 } },
-        lock: false,
+        where: {
+          status: "active",
+          available_powerbanks: { [Sequelize.Op.gt]: 0 },
+        },
+        ...lockOptions,
       }),
+
+      // Optimized: Rental query with consolidated attributes
       db.rentals.findOne({
         attributes: [
           ["id", "order_id"],
@@ -71,11 +84,18 @@ exports.getHome = async (req, res, next) => {
             as: "disputes",
             attributes: ["id", "reason"],
           },
+          {
+            model: db.rental_payments,
+            as: "rental_payments",
+            attributes: ["status", "amount"],
+          },
         ],
-        lock: false,
+        ...lockOptions,
         raw: true,
         nest: true,
       }),
+
+      // User query remains the same
       User.findByPk(user_id, {
         attributes: [
           "id",
@@ -96,24 +116,28 @@ exports.getHome = async (req, res, next) => {
           as: "kyc_details",
           attributes: ["id", "status", "reject_remarks"],
         },
-        lock: false,
+        ...lockOptions,
         raw: true,
         nest: true,
       }),
-      Checks.findAll({
+
+      // Optimized: Single check query (assuming only one record exists)
+      Checks.findOne({
         attributes: ["id", "is_kyc_enabled", "is_deposit_enabled", "deposit_amount"],
       }),
     ]);
 
+    // Optimized: Early validation with specific error messages
     if (!userData) throw new ApiError(404, "User not found");
     if (userData.block_status) throw new ApiError(403, "User is blocked");
     if (userData.status !== "active") throw new ApiError(403, "User is inactive");
-    // if (!userData.is_verified) throw new ApiError("User not verified", 403);
 
-    const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks[0] || {};
-    const end_time = onGoingRental?.end_time || null;
-    const isTimeElapsed = end_time ? new Date(end_time).getTime() < new Date().getTime() : false;
+    // Optimized: Simplified destructuring
+    const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks || {};
+    const end_time = onGoingRental?.end_time;
+    const isTimeElapsed = end_time && new Date(end_time) < new Date();
 
+    // Optimized: Simplified notification logic
     const notificationsData = isTimeElapsed
       ? {
           title: "Overdue",
@@ -122,6 +146,7 @@ exports.getHome = async (req, res, next) => {
         }
       : null;
 
+    // Optimized: Extracted rental transformation logic
     const rentalsModified = onGoingRental
       ? (() => {
           const {
@@ -133,18 +158,26 @@ exports.getHome = async (req, res, next) => {
             rented_package,
             rented_user,
             rented_box,
+            rental_payments,
             disputes,
-            rental_hours,
+            return_time,
             type: device_type,
           } = onGoingRental;
+
           const { id: package_id, name, hourly_price, price, duration, type } = rented_package || {};
           const { name: userName, mobile } = rented_user || {};
           const { reason } = disputes || {};
           const { device_id } = rented_box || {};
 
-          const packageDuration = type == "hourly" ? rental_hours : duration;
+          const payment = Array.isArray(rental_payments) && rental_payments.length > 0 ? rental_payments[0] : rental_payments;
+          const amountPaid = payment?.amount || payment?.dataValues?.amount || 0;
 
+          const packageDuration = duration;
           const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration, type);
+
+          const time_used = calculateTotalTimeUsed(start_time, return_time, status);
+
+          console.log("FROM HOME ====>", start_time, hourly_price, packageDuration, type);
 
           return {
             device_type,
@@ -156,7 +189,7 @@ exports.getHome = async (req, res, next) => {
             end_time,
             name: userName,
             mobile,
-            net_amount: price,
+            net_amount: amountPaid,
             disputes: reason,
             package: {
               package_id,
@@ -165,10 +198,12 @@ exports.getHome = async (req, res, next) => {
               duration,
             },
             ...cost_details,
+            time_used,
           };
         })()
       : null;
 
+    // Optimized: Cleaner response structure
     sendSuccess(
       res,
       "Home details fetched successfully",
@@ -223,7 +258,8 @@ exports.updatUserProfile = async (req, res, next) => {
 
 exports.getPackages = async (req, res, next) => {
   try {
-    const { user_id } = req;
+    // const { user_id } = req;
+    const user_id = 51;
 
     const user = await User.findByPk(user_id);
 
@@ -232,10 +268,9 @@ exports.getPackages = async (req, res, next) => {
     }
 
     const rentals = await user.getRentals({
-      attributes: ["id", "status"],
-      where: {
-        status: "completed",
-      },
+      where: { status: "completed" },
+      attributes: ["id"],
+      limit: 1,
     });
 
     const queryOptions = {
@@ -269,6 +304,16 @@ exports.deleteUser = async (req, res, next) => {
     if (!user) {
       throw new ApiError(404, "User not found");
     }
+
+    const onGoingRental = await db.rentals.findOne({
+      attributes: ["id"],
+      where: { user_id, status: "ongoing" },
+    });
+
+    if (onGoingRental) {
+      throw new ApiError(400, "Cannot delete user with ongoing rentals");
+    }
+
     const username = user.name;
     await user.destroy();
     sendSuccess(res, `User ${username} deleted successfully`, {}, 200);

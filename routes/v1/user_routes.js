@@ -15,6 +15,8 @@ const {
   deleteRental,
   test,
   verifyReferelCode,
+  TestRent,
+  TestReturn,
 } = require("../../controllers/rentals/rentals.controller");
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { validateKycData, validate, validateKycDataUpdate, validateDisputeData } = require("../../validators/validators");
@@ -58,6 +60,8 @@ router.post("/verify-referelcode", verifyToken, checkRole("user"), verifyReferel
 router.get("/rentals-history", verifyToken, verifyUserExist, getRentalHistory);
 router.post("/buy-item", verifyToken, checkRole("user"), buyItem);
 router.post("/start-rent", verifyToken, checkRole("user"), rentItem);
+router.post("/start-test", verifyToken, checkRole("user"), TestRent);
+router.post("/return-test", verifyToken, checkRole("user"), TestReturn);
 router.post("/return-rent", verifyToken, checkRole("user"), returnItem);
 router.delete("/rentals-history", verifyToken, checkRole("user"), deleteRental);
 router.get("/validate-device", verifyToken, checkRole("user"), checkIsDeviceValid);

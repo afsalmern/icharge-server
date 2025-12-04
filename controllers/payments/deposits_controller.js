@@ -154,7 +154,6 @@ exports.deductDepositAmount = async (req, res, next) => {
 exports.submitWithDrawRequest = async (req, res, next) => {
   const { user_id } = req;
   const { amount_to_withdraw } = req.body;
-  console.log("WITHDRAW AMOUNT", amount_to_withdraw);
   const transaction = await db.sequelize.transaction();
   try {
     const user = await Users.findByPk(user_id, { transaction });
@@ -162,7 +161,7 @@ exports.submitWithDrawRequest = async (req, res, next) => {
       throw new ApiError(404, "User not found");
     }
 
-    if (amount_to_withdraw > user.deposit_amount) {
+    if (amount_to_withdraw != user.deposit_amount) {
       throw new ApiError(400, "Deposit amount is not enough");
     }
 
@@ -247,12 +246,13 @@ exports.withDrawRequestStatusUpdate = async (req, res, next) => {
 
     await requestedItem.update({ status }, { transaction });
 
-    await user.update(
-      {
-        deposit_amount: 0.0,
-      },
-      { transaction }
-    );
+    status == "accepted" &&
+      (await user.update(
+        {
+          deposit_amount: 0.0,
+        },
+        { transaction }
+      ));
     await transaction.commit();
     sendSuccess(res, "Withdraw request status updated successfully", {}, 200);
   } catch (error) {
@@ -263,14 +263,19 @@ exports.withDrawRequestStatusUpdate = async (req, res, next) => {
 };
 
 exports.getAllWithdrawRequests = async (req, res, next) => {
-  const { status = "all" } = req.query;
+  let { status = "all", page = 1, limit = 10 } = req.query;
   const whereClause = {};
 
   if (status !== "all") {
     whereClause.status = status;
   }
+
+  page = Number(page);
+  limit = Number(limit);
+
+  const offset = (page - 1) * limit;
   try {
-    const withDrawRequests = await WithDrawRequests.findAll({
+    const { rows: withDrawRequests, count } = await WithDrawRequests.findAndCountAll({
       where: whereClause,
       attributes: ["id", "amount", "status", "remarks", "user_id", "created_at"],
       include: {
@@ -278,9 +283,23 @@ exports.getAllWithdrawRequests = async (req, res, next) => {
         as: "user",
         attributes: ["id", "name", "mobile", "deposit_amount", "outstanding_amount"],
       },
+      limit,
+      offset,
+      order: [["created_at", "DESC"]],
     });
 
-    sendSuccess(res, "Withdraw requests fetched successfully", { withdraw_requests: withDrawRequests }, 200);
+    const totalPages = Math.ceil(count / limit);
+
+    const pagination = {
+      currentPage: page,
+      totalPages,
+      totalItems: count,
+      itemsPerPage: limit,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+
+    sendSuccess(res, "Withdraw requests fetched successfully", { withdraw_requests: withDrawRequests, pagination }, 200);
   } catch (error) {
     next(error);
   }

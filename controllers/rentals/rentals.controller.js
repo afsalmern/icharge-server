@@ -17,9 +17,14 @@ const RentalsOtps = db.rental_otps;
 const UserReferels = db.user_referels;
 
 exports.checkIsDeviceValid = async (req, res, next) => {
+  const { device_id } = req.query;
+  const { user_id } = req;
   try {
-    const { device_id } = req.query;
-    const { user_id } = req;
+    const userData = await Users.findByPk(user_id, { attributes: ["id", "block_status", "status"] });
+
+    if (!userData) throw new ApiError(404, "User not found");
+    if (userData.block_status) throw new ApiError(403, "User is blocked");
+    if (userData.status !== "active") throw new ApiError(403, "User is inactive");
 
     // Validate request input
     if (!device_id) {
@@ -34,6 +39,20 @@ exports.checkIsDeviceValid = async (req, res, next) => {
     // If no box is found, return "Device is not valid"
     if (!box) {
       return sendSuccess(res, "Device is not valid", { is_scan_valid: false }, 200);
+    }
+    const isBoxValid = box?.status === "active";
+
+    console.log("isBoxValid", box?.status);
+
+    if (!isBoxValid) {
+      const statusMessage = {
+        inactive: "The box is currently inactive.",
+        maintenance: "The box is under maintenance.",
+        undefined: "Box status is unavailable.",
+        active: "The box is active.",
+      };
+
+      return sendSuccess(res, statusMessage[box?.status] || `The box status is ${box?.status}.`, { is_scan_valid: false }, 200);
     }
 
     // Check if available_powerbanks is 0 or less
@@ -99,6 +118,7 @@ exports.getRentalHistory = async (req, res, next) => {
         "end_time",
         "status",
         "rental_hours",
+        "return_time",
       ],
       include: [
         {
@@ -116,27 +136,47 @@ exports.getRentalHistory = async (req, res, next) => {
           as: "disputes",
           attributes: ["id", "reason"],
         },
+        {
+          model: db.rental_payments,
+          as: "rental_payments",
+          attributes: ["status", "amount"],
+        },
       ],
       raw: true,
       nest: true,
     });
 
     const rentals_history = userRentals?.map((rental) => {
-      const { order_id, start_time, start_on, status, rented_package, disputes, rental_hours } = rental;
+      const { order_id, start_time, status, return_time, rented_package, disputes, rental_payments, extra_charge: extraFromRental } = rental;
       const { hourly_price, price, duration, type } = rented_package || {};
       const { reason } = disputes || {};
 
-      const packageDuration = type == "hourly" ? rental_hours : duration;
-
+      const packageDuration = duration;
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
+      const { extra_charge, extra_hours } = cost_details;
+      const payment = Array.isArray(rental_payments) && rental_payments.length > 0 ? rental_payments[0] : rental_payments;
+
+      const time_used = calculateTotalTimeUsed(start_time, return_time, status);
+
+      const amountPaid = payment?.amount || payment?.dataValues?.amount || 0;
+
+      const extraAmount = status == "ongoing" ? extra_charge : parseFloat(extraFromRental || 0);
+
+      const formatDT = (dt) =>
+        new Date(dt).toLocaleString("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
 
       return {
+        totalTime: time_used,
+        extra_charge: extraAmount,
+        extra_hours,
         order_id,
-        start_time: start_on,
+        start_time: formatDT(start_time),
         status,
-        net_amount: price,
+        net_amount: amountPaid,
         dispute: reason,
-        ...cost_details,
       };
     });
 
@@ -200,11 +240,11 @@ exports.getAllRentals = async (req, res, next) => {
     });
 
     const rentals_history = userRentals?.map((rental) => {
-      const { id: order_id, start_time, end_time, return_time, status, rented_package, rented_user, rental_hours, disputes } = rental;
+      const { id: order_id, start_time, end_time, return_time, status, rented_package, rented_user, disputes } = rental;
       const { hourly_price, price, type, duration } = rented_package || {};
       const { name, mobile } = rented_user || {};
 
-      const packageDuration = type == "hourly" ? rental_hours : duration;
+      const packageDuration = duration;
 
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
       const time_used = calculateTotalTimeUsed(start_time, return_time, status);
@@ -286,6 +326,33 @@ exports.rentItem = async (req, res, next) => {
     const { box_id, package_id, type } = req.body;
 
     await startFree(user_id, box_id, package_id, type);
+
+    return sendSuccess(res, "Rental started successfully", {}, 200);
+  } catch (error) {
+    console.error("Error in rentItem:", error);
+    next(error);
+  }
+};
+
+exports.TestRent = async (req, res, next) => {
+  try {
+    const { user_id } = req;
+    const { box_id, package_id, order_id, rental_type, code, amount, user_hours } = req.body;
+
+    await startRent(user_id, box_id, package_id, order_id, rental_type, code, amount, user_hours);
+
+    return sendSuccess(res, "Rental started successfully", {}, 200);
+  } catch (error) {
+    console.error("Error in rentItem:", error);
+    next(error);
+  }
+};
+exports.TestReturn = async (req, res, next) => {
+  try {
+    const { user_id } = req;
+    const { rental_id, location } = req.body;
+
+    await returnItem(user_id, rental_id, "location", null, location);
 
     return sendSuccess(res, "Rental started successfully", {}, 200);
   } catch (error) {

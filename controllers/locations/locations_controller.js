@@ -2,20 +2,19 @@ const { Op } = require("sequelize");
 const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
+const { createReferelCode, getAndUpdateReferelCode, deleteReferelCode } = require("../../helpers/referelCodeHelper");
 const Location = db.locations;
 const ReferelCodes = db.referel_codes;
 
 exports.addLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
+  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone, code } = req.body;
   const transaction = await db.sequelize.transaction();
 
   try {
-    // Duplicate phone check
+    // Duplicate phone check (with transaction)
     if (phone) {
-      console.log("Checking phone:", phone);
-      const phoneExists = await Location.findOne({ where: { phone } });
+      const phoneExists = await Location.findOne({ where: { phone }, transaction });
       if (phoneExists) {
-        console.log("Checking phone:", phoneExists);
         throw new ApiError(400, "Phone already exists");
       }
     }
@@ -34,6 +33,11 @@ exports.addLocation = async (req, res, next) => {
       { transaction }
     );
 
+    if (code) {
+      const locationId = addedLocation.id;
+      await createReferelCode(locationId, "location", code, transaction);
+    }
+
     await transaction.commit();
 
     res.status(200).json({
@@ -41,14 +45,13 @@ exports.addLocation = async (req, res, next) => {
       data: addedLocation,
     });
   } catch (error) {
-    console.error(error);
     await transaction.rollback();
     next(error);
   }
 };
 
 exports.updateLocation = async (req, res, next) => {
-  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone } = req.body;
+  const { name, latitude, longitude, address, starting_hour, ending_hour, is_active, phone, code } = req.body;
   const { id } = req.params;
 
   const transaction = await db.sequelize.transaction();
@@ -86,6 +89,12 @@ exports.updateLocation = async (req, res, next) => {
       },
       { returning: true, transaction } // fixed options
     );
+
+    if (code) {
+      await getAndUpdateReferelCode(id, "location", code, transaction);
+    } else {
+      await deleteReferelCode(id, "location", transaction);
+    }
 
     await transaction.commit();
     sendSuccess(res, "Location updated successfully", { location: updated_location }, 200);
@@ -131,14 +140,7 @@ exports.getLocations = async (req, res) => {
       const code = corporateCodes.find((c) => c.reference_id == loc.id);
       return {
         ...loc.dataValues,
-        referral_code: code
-          ? {
-              id: code.id,
-              code: code.code,
-              is_valid: code.is_valid,
-              is_active: code.is_active,
-            }
-          : null,
+        referral_code: code ? code.code : null,
       };
     });
 
@@ -167,15 +169,19 @@ exports.getLocations = async (req, res) => {
 
 exports.deleteLocation = async (req, res, next) => {
   const { id } = req.params;
-  const location = await Location.findByPk(id);
-  if (!location) {
-    throw new ApiError(404, "Location not found");
-  }
+  const transaction = await db.sequelize.transaction();
   try {
+    const location = await Location.findByPk(id);
+    if (!location) {
+      throw new ApiError(404, "Location not found");
+    }
     await location.destroy();
+    await deleteReferelCode(id, "location", transaction);
+    await transaction.commit();
     sendSuccess(res, "Location deleted successfully", {}, 200);
   } catch (error) {
     console.error(error);
+    await transaction.rollback();
     next(error);
   }
 };

@@ -42,7 +42,8 @@ const startRent = async (user_id, box_id, package_id, order_id, type, code, amou
       throw new ApiError(404, "Box not found");
     }
 
-    console.log("user", user);
+    console.log("user", box?.type);
+    console.log("user", rentalType);
 
     if (box?.type !== rentalType) {
       throw new ApiError(400, "Box type does not match rental type");
@@ -77,12 +78,12 @@ const startRent = async (user_id, box_id, package_id, order_id, type, code, amou
     if (!rentalPackage) throw new ApiError(404, "Package not found");
 
     // Calculate total payment amount
-    const paymentAmount = parseFloat(amount) + parseFloat(user.outstanding_amount || 0);
+    const paymentAmount = parseFloat(amount);
     console.log("PAYMENT AMOUNT ===>", paymentAmount);
     const { type, duration, swap } = rentalPackage;
     const start_time = new Date();
 
-    const packageDuration = type == "hourly" ? user_hours : duration;
+    const packageDuration = duration;
     const end_time = getEndTime(start_time, packageDuration, type);
 
     console.log("TIME ===>", start_time);

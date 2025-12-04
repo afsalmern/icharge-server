@@ -30,6 +30,7 @@ const {
   updateChecksAndAmount,
   getChecksAndAmount,
   getTestOtps,
+  hardDeleteUser,
 } = require("../../controllers/web/web_controller");
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
@@ -94,6 +95,7 @@ router.get("/terms-conditions", verifyToken, getLocations);
 
 //Users
 router.get("/users", verifyToken, checkRole("admin"), getAllUsers);
+router.delete("/user/:id", hardDeleteUser);
 router.patch("/users/:id", verifyToken, checkRole("admin"), validateId, validate, blockOrUnblockUser);
 router.patch("/user-status/:id", verifyToken, checkRole("admin"), validateId, validate, activeOrInactiveUser);
 
@@ -107,7 +109,7 @@ router.get("/rentals", verifyToken, checkRole("admin"), getAllRentals);
 //Transactions
 // router.patch("/withdraw-request", verifyToken, checkRole("admin"), processWithdrawRequest);
 router.patch("/withdraw-request/:id", verifyToken, checkRole("admin"), withDrawRequestStatusUpdate);
-router.get("/withdraw-request", verifyToken, getAllWithdrawRequests);
+router.get("/withdraw-request", verifyToken, checkRole("admin"), getAllWithdrawRequests);
 
 // Complaints Routes
 router.get("/complaints", verifyToken, complaintController.getAllComplaints);

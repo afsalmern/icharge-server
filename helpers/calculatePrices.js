@@ -26,9 +26,17 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
       throw new Error("Invalid package type: " + package_type);
   }
 
+  const roundBy30Minutes = (hours) => {
+    const whole = Math.floor(hours);
+    const decimal = hours - whole;
+
+    return decimal >= 0.5 ? whole + 1 : whole;
+  };
+
   // 3) Extra hour calculation (round only overtime)
   const extraFloat = usedHoursFloat - packageHours;
-  const extraHours = extraFloat > 0 ? Math.ceil(extraFloat) : 0;
+  // const extraHours = extraFloat > 0 ? Math.ceil(extraFloat) : 0;
+  const extraHours = extraFloat > 0 ? roundBy30Minutes(extraFloat) : 0;
 
   // 4) Charges
   let extraCharge = 0;
@@ -97,32 +105,34 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
 };
 
 const getHourlyPrice = (type, price, duration = 1) => {
-  let cost = 0.0;
+  let hourly = 0;
 
   switch (type) {
-    case "hourly":
     case "free":
-      cost = price;
+      hourly = price;
+      break;
+
+    case "hourly":
+      // price = total price for given X hours
+      hourly = price / duration;
       break;
 
     case "weekly":
-      // price = total price for X weeks
-      cost = price / (duration * 7 * 24);
+      // price = total price for given X weeks
+      hourly = price / (duration * 7 * 24);
       break;
 
     case "monthly":
-      // price = total price for X months
-      cost = price / (duration * 30 * 24);
+      // price = total price for given X months
+      hourly = price / (duration * 30 * 24);
       break;
 
     default:
-      throw new Error("Invalid type. Allowed values: hourly, free, weekly, monthly");
+      throw new Error("Invalid type. Allowed values: free, hourly, weekly, monthly");
   }
 
-  // Round UP to 2 decimals
-  const formattedCost = Number((Math.ceil(cost * 100) / 100).toFixed(2));
-
-  return formattedCost;
+  // round UP to 2 decimals
+  return Number(((hourly * 100) / 100).toFixed(2));
 };
 
 const getEndTime = (start_date, duration, type) => {
@@ -164,7 +174,7 @@ function calculateRentalCharge(rental, returnTime = new Date()) {
   console.log(packageType);
   switch (packageType) {
     case "hourly":
-      packageHours = rental.rental_hours;
+      packageHours = rental.rented_package.duration;
       break;
     case "weekly":
       packageHours = rental.rented_package.duration * 7 * 24;

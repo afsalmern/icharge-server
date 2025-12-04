@@ -107,11 +107,24 @@ exports.getAllUsers = async (req, res, next) => {
 
     // Fetch users with pagination
     const { count, rows: users } = await Users.findAndCountAll({
-      attributes: ["id", "name", "mobile", "email", "avatar", "status", "block_status", "created_at", "deposit_amount", "outstanding_amount"],
+      attributes: [
+        "id",
+        "name",
+        "mobile",
+        "email",
+        "avatar",
+        "status",
+        "block_status",
+        "created_at",
+        "deposit_amount",
+        "outstanding_amount",
+        "deleted_at",
+      ],
       where: whereClause,
       limit: limitNum,
       offset,
       order: [["created_at", "DESC"]],
+      paranoid: false,
     });
 
     // Pagination info
@@ -172,6 +185,21 @@ exports.activeOrInactiveUser = async (req, res, next) => {
   }
 };
 
+exports.hardDeleteUser = async (req, res, next) => {
+  const { id: user_id } = req.params;
+  const user = await Users.findByPk(user_id, { paranoid: false });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  try {
+    await user.destroy({ force: true });
+    sendSuccess(res, "User deleted permanently", {}, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
 //Package Actions
 exports.addPackage = async (req, res, next) => {
   const { name, description, price, duration, swap, type } = req.body;
@@ -217,9 +245,6 @@ exports.updatePackage = async (req, res, next) => {
 
     let hourly_price = getHourlyPrice(type, price, duration);
 
-    console.log(hourly_price);
-    console.log(hourly_price);
-
     const updatedPackage = await package.update(
       { name, description, price, duration, swap: 0, image: package_image ? package_image : package.image, type, hourly_price },
       { returning: true },
@@ -238,6 +263,7 @@ exports.getPackages = async (req, res, next) => {
   try {
     const packages = await db.packages.findAll({
       attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type", "hourly_price"],
+      order: [["created_at", "DESC"]],
     });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
   } catch (error) {
@@ -265,7 +291,7 @@ exports.deletePackage = async (req, res, next) => {
 exports.getBoxes = async (req, res, next) => {
   try {
     const boxes = await db.boxes.findAll({
-      attributes: ["id", "unique_id", "device_id", "status", "total_powerbanks", "available_powerbanks", "location_id", "type"],
+      attributes: ["id", "unique_id", "device_id", "status", "total_powerbanks", "available_powerbanks", "location_id", "corporate_id", "type"],
       include: [
         {
           model: db.locations,
@@ -345,7 +371,15 @@ exports.addBoxes = async (req, res, next) => {
     }
 
     const box = await Boxes.create(
-      { unique_id, device_id, location_id, corporate_id, total_powerbanks, available_powerbanks, type: location_id ? "location" : "corporate" },
+      {
+        unique_id: device_id,
+        device_id,
+        location_id,
+        corporate_id,
+        total_powerbanks,
+        available_powerbanks,
+        type: location_id ? "location" : "corporate",
+      },
       { transaction }
     );
 
@@ -416,13 +450,21 @@ exports.deleteBoxes = async (req, res, next) => {
 
 exports.updateBox = async (req, res, next) => {
   const { id } = req.params;
-  const { status, available_powerbanks, location_id, total_powerbanks } = req.body;
-  const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id"] });
+  const { status, available_powerbanks, location_id, corporate_id, total_powerbanks } = req.body;
 
   const transaction = await db.sequelize.transaction();
   try {
-    if (!isLocationValid) {
-      throw new ApiError(404, "Location not found");
+    if (location_id) {
+      const isLocationValid = await Locations.findByPk(location_id, { attributes: ["id", "name"] });
+      if (!isLocationValid) {
+        throw new ApiError(404, "Location not found");
+      }
+    }
+    if (corporate_id) {
+      const isCorporateValid = await Corporates.findByPk(corporate_id, { attributes: ["id", "name"] });
+      if (!isCorporateValid) {
+        throw new ApiError(404, "Corporate not found");
+      }
     }
 
     const isBoxValid = await Boxes.findByPk(id, { attributes: ["id"] });
@@ -431,7 +473,10 @@ exports.updateBox = async (req, res, next) => {
     }
 
     const box = await Boxes.findByPk(id, { transaction });
-    const updatedBox = await box.update({ status, available_powerbanks, location_id, total_powerbanks }, { transaction });
+    const updatedBox = await box.update(
+      { status, available_powerbanks, location_id, corporate_id, total_powerbanks, type: location_id ? "location" : "corporate" },
+      { transaction }
+    );
     await transaction.commit();
     sendSuccess(res, "Package updated successfully", { updatedBox }, 200);
   } catch (error) {

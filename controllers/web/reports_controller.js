@@ -56,10 +56,20 @@ exports.generateRentalReport = async (req, res, next) => {
 
     // Transform data for report
     const report = rentals.map((rental) => {
-      const { id, start_time, return_time, status, code: code_used, rented_package, rental_payments, rented_user } = rental;
+      const {
+        id,
+        start_time,
+        return_time,
+        status,
+        code: code_used,
+        rented_package,
+        rental_payments,
+        rented_user,
+        extra_charge: extraFromRental,
+      } = rental;
 
       const pickup_location = type == "location" ? rental.pickup_location?.name : rental.rented_corporate?.name;
-      const returned_location = type == "location" ? rental.returned_location?.name : rental.rented_corporate?.name;
+      const returned_location = type == "location" ? rental.return_location?.name : rental.rented_corporate?.name;
 
       const { name } = rented_user;
       const { hourly_price, duration, type: packageType } = rented_package;
@@ -73,7 +83,7 @@ exports.generateRentalReport = async (req, res, next) => {
 
       const paymentStatus = payment?.status || payment?.dataValues?.status || "N/A";
       const amountPaid = payment?.amount || payment?.dataValues?.amount || 0;
-      const totalAmount = parseFloat(amountPaid) + extra_charge;
+      const totalAmount = parseFloat(amountPaid);
 
       return {
         rentalId: id,
@@ -85,7 +95,7 @@ exports.generateRentalReport = async (req, res, next) => {
         duration: duration,
         packageType: rented_package?.type || "N/A",
         rentalAmount: amountPaid,
-        extraAmount: extra_charge,
+        extraAmount: status == "ongoing" ? extra_charge : parseFloat(extraFromRental || 0),
         totalAmount,
         rentalStatus: status,
         paymentStatus,
@@ -224,7 +234,7 @@ exports.generateRevenewReport = async (req, res, next) => {
     // Transform data for report
     const report = paymentsData.map((payment, index) => {
       const rental = payment.rental;
-      const { rented_package, start_time, return_time, status } = rental;
+      const { rented_package, start_time, return_time, status, extra_charge: extraFromRental } = rental;
       const { type, hourly_price, duration: packageDuration } = rented_package;
 
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
@@ -237,7 +247,7 @@ exports.generateRevenewReport = async (req, res, next) => {
       // Calculate amounts with safeguards
       const rentedAmount = parseFloat(payment.amount);
       const extraAmount = extra_charge;
-      const totalAmount = rentedAmount + extraAmount;
+      const totalAmount = rentedAmount;
 
       // Map payment status
       let paymentStatus;
@@ -261,18 +271,16 @@ exports.generateRevenewReport = async (req, res, next) => {
         rentalLocation: rented_from,
         packageType: type || "N/A",
         rentedAmount: rentedAmount,
+        extraAmount: status == "ongoing" ? extra_charge : parseFloat(extraFromRental || 0),
         overdue: extra_charge == 0 ? "No" : "Yes",
         totalRevenue: Number(totalAmount.toFixed(2)),
         paymentStatus,
+        rentalStatus: status,
         time_used,
       };
     });
 
     // Sort by totalRevenue (highest to lowest)
-    report.sort((a, b) => b.totalRevenue - a.totalRevenue);
-
-    // Calculate sum of total amount and format to two decimal places
-    const sumTotalAmount = report.length > 0 ? report.reduce((sum, item) => sum + (item.totalRevenue || 0), 0).toFixed(2) : "0.00";
 
     sendSuccess(res, "Revenue report generated successfully", { report, pagination }, 200);
   } catch (error) {
@@ -367,7 +375,7 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
         },
       ],
       attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "code", "user_id"],
-      order: [["start_time", "DESC"]],
+      order: [["id", "DESC"]],
       limit: limitNum,
       offset: offset,
     });
@@ -443,7 +451,7 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
         },
       ],
       attributes: ["id", "start_time", "status", "extra_charge", "extra_hours", "return_time", "corporate_id", "code", "user_id"],
-      order: [["start_time", "DESC"]],
+      order: [["id", "DESC"]],
       limit: limitNum,
       offset: offset,
     });
@@ -551,6 +559,7 @@ const locationWiseRevenues = async (where, packageType, locationId, page = 1, li
         },
       ],
       attributes: ["id", "amount", "status", "created_at"],
+      order: [[{ model: db.rentals, as: "rental" }, "id", "DESC"]], // ⬅️ SORT BY RENTALS.ID DESC
       limit: limitNum,
       offset: offset,
     });
@@ -656,6 +665,7 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
         },
       ],
       attributes: ["id", "amount", "status", "created_at"],
+      order: [[{ model: db.rentals, as: "rental" }, "id", "DESC"]], // ⬅️ SORT BY RENTALS.ID DESC
       limit: limitNum,
       offset: offset,
     });

@@ -3,11 +3,12 @@ const { sendSuccess } = require("../../handlers/success_response_handler");
 const { ApiError } = require("../../middlewares/error");
 const db = require("../../models");
 const { Op } = require("sequelize");
+const { getAndUpdateReferelCode, deleteReferelCode, createReferelCode } = require("../../helpers/referelCodeHelper");
 const Corporates = db.corporates;
 const ReferelCodes = db.referel_codes;
 
 exports.addCorporates = async (req, res, next) => {
-  const { name, email, phone, is_active, address } = req.body;
+  const { name, email, phone, is_active, address, code } = req.body;
   const transaction = await db.sequelize.transaction();
 
   try {
@@ -38,6 +39,9 @@ exports.addCorporates = async (req, res, next) => {
       { transaction }
     );
 
+    const corporateId = data.id;
+    await createReferelCode(corporateId, "corporate", code, transaction);
+
     await transaction.commit();
     res.status(200).json({ message: "Corporates added successfully", data });
   } catch (error) {
@@ -48,7 +52,7 @@ exports.addCorporates = async (req, res, next) => {
 };
 
 exports.updateCorporate = async (req, res, next) => {
-  const { name, email, is_active, phone, address } = req.body;
+  const { name, email, is_active, phone, address, code } = req.body;
   const { id } = req.params;
 
   const corporate = await Corporates.findByPk(id);
@@ -98,6 +102,12 @@ exports.updateCorporate = async (req, res, next) => {
       { transaction } // corrected: update options must be a single object
     );
 
+    if (code) {
+      await getAndUpdateReferelCode(id, "corporate", code, transaction);
+    } else {
+      await deleteReferelCode(id, "corporate", transaction);
+    }
+
     await transaction.commit();
     sendSuccess(res, "Corporates updated successfully", { corporate: data }, 200);
   } catch (error) {
@@ -121,14 +131,7 @@ exports.getCorporates = async (req, res) => {
 
     const modifiedData = data.map((corporate) => {
       const code = corporateCodes.find((code) => code.reference_id == corporate.id);
-      const referralCode = code
-        ? {
-            id: code.id,
-            code: code.code,
-            is_valid: code.is_valid,
-            is_active: code.is_active,
-          }
-        : null;
+      const referralCode = code ? code?.code : null;
       return {
         ...corporate.dataValues,
         referral_code: referralCode,
@@ -144,15 +147,20 @@ exports.getCorporates = async (req, res) => {
 
 exports.deleteCorporate = async (req, res, next) => {
   const { id } = req.params;
-  const corporate = await Corporates.findByPk(id);
-  if (!corporate) {
-    throw new ApiError(404, "Corporates not found");
-  }
+  const transaction = await db.sequelize.transaction();
   try {
+    const corporate = await Corporates.findByPk(id);
+    if (!corporate) {
+      throw new ApiError(404, "Corporates not found");
+    }
+    await deleteReferelCode(id, "corporate", transaction);
     await corporate.destroy();
+    await transaction.commit();
+
     sendSuccess(res, "Corporates deleted successfully", {}, 200);
   } catch (error) {
     console.error(error);
+    await transaction.rollback();
     next(error);
   }
 };

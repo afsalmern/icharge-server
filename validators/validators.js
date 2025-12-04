@@ -75,7 +75,6 @@ const validatePackagesData = [
   body("price").not().isEmpty().withMessage("Price is required").bail().isNumeric().withMessage("Price must be a number"),
   body("duration").not().isEmpty().withMessage("Duration is required").bail().isNumeric().withMessage("Duration must be a number"),
   body("description").not().isEmpty().withMessage("Description is required").bail().isString().withMessage("Description must be a string"),
-  body("swap").not().isEmpty().withMessage("Swap is required").bail().isNumeric().withMessage("Swap must be a number"),
   body("type")
     .not()
     .isEmpty()
