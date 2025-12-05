@@ -72,7 +72,7 @@ exports.generateRentalReport = async (req, res, next) => {
       const returned_location = type == "location" ? rental.return_location?.name : rental.rented_corporate?.name;
 
       const { name } = rented_user;
-      const { hourly_price, duration, type: packageType } = rented_package;
+      const { hourly_price, duration, type: packageType, price: packagePrice } = rented_package;
 
       const packageDuration = duration || 0;
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, packageType);
@@ -94,6 +94,7 @@ exports.generateRentalReport = async (req, res, next) => {
         returnedAt: return_time,
         duration: duration,
         packageType: rented_package?.type || "N/A",
+        packageAmount: packagePrice,
         rentalAmount: amountPaid,
         extraAmount: status == "ongoing" ? extra_charge : parseFloat(extraFromRental || 0),
         totalAmount,
@@ -235,7 +236,7 @@ exports.generateRevenewReport = async (req, res, next) => {
     const report = paymentsData.map((payment, index) => {
       const rental = payment.rental;
       const { rented_package, start_time, return_time, status, extra_charge: extraFromRental } = rental;
-      const { type, hourly_price, duration: packageDuration } = rented_package;
+      const { type, hourly_price, duration: packageDuration, price: packagePrice } = rented_package;
 
       const cost_details = calculatePriceOnRentals(start_time, hourly_price, packageDuration || 0, type);
       const time_used = calculateTotalTimeUsed(start_time, return_time, status);
@@ -270,6 +271,7 @@ exports.generateRevenewReport = async (req, res, next) => {
         userName: rental?.rented_user?.name || "N/A",
         rentalLocation: rented_from,
         packageType: type || "N/A",
+        packageAmount: packagePrice,
         rentedAmount: rentedAmount,
         extraAmount: status == "ongoing" ? extra_charge : parseFloat(extraFromRental || 0),
         overdue: extra_charge == 0 ? "No" : "Yes",
@@ -355,7 +357,7 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
         {
           model: db.packages,
           as: "rented_package",
-          attributes: ["type", "duration", "hourly_price"], // Removed 'amount' due to error
+          attributes: ["type", "duration", "hourly_price", "price"], // Removed 'amount' due to error
         },
         {
           model: db.locations,
@@ -436,7 +438,7 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
         {
           model: db.packages,
           as: "rented_package",
-          attributes: ["type", "duration", "hourly_price"], // Removed 'amount' due to error
+          attributes: ["type", "duration", "hourly_price", "price"], // Removed 'amount' due to error
         },
         {
           model: db.corporates,
@@ -505,7 +507,7 @@ const locationWiseRevenues = async (where, packageType, locationId, page = 1, li
             {
               model: db.packages,
               as: "rented_package",
-              attributes: ["type"],
+              attributes: ["type", "price"],
               required: true,
               ...(packageType !== "all" && {
                 where: {
@@ -611,7 +613,7 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
             {
               model: db.packages,
               as: "rented_package",
-              attributes: ["type"],
+              attributes: ["type", "price"],
               required: true,
               ...(packageType !== "all" && {
                 where: {
@@ -653,7 +655,7 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
             {
               model: db.packages,
               as: "rented_package",
-              attributes: ["type", "hourly_price", "price", "duration"],
+              attributes: ["type", "hourly_price", "price", "duration", "price"],
               required: true,
               ...(packageType !== "all" && {
                 where: {

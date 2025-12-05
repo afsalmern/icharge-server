@@ -10,6 +10,7 @@ const Locations = db.locations;
 const Packages = db.packages;
 const KycDetail = db.kyc_details;
 const Checks = db.checks_and_amounts;
+const ReferelCodes = db.referel_codes;
 
 exports.getHome = async (req, res, next) => {
   const { user_id } = req;
@@ -238,13 +239,18 @@ exports.getUserProfile = async (req, res, next) => {
 
 exports.updatUserProfile = async (req, res, next) => {
   const { user } = req;
-  const { name, dob, email } = req.body;
-
+  const { name, dob, email, referel_code } = req.body;
   const avatar = (req.files && req.files?.["avatar"]?.[0]?.filename) || null;
   const transaction = await db.sequelize.transaction();
   try {
+    let code = false;
+    if (referel_code) {
+      const isCodeValid = await validateCode(referel_code);
+      code = isCodeValid;
+    }
+
     await user.update(
-      { name, dob: dob ? dob : user.dob, email: email ? email : user.email, avatar: avatar ? avatar : user.avatar },
+      { name, dob: dob ? dob : user.dob, email: email ? email : user.email, avatar: avatar ? avatar : user.avatar, referel_applied: code },
       { returning: true, transaction }
     );
     await transaction.commit();
@@ -319,5 +325,26 @@ exports.deleteUser = async (req, res, next) => {
   } catch (error) {
     console.log(error);
     next(error);
+  }
+};
+
+const validateCode = async (code) => {
+  try {
+    const referelCode = await ReferelCodes.findOne({
+      where: {
+        code,
+        type: "corporate",
+        is_active: true,
+      },
+    });
+
+    if (!referelCode) {
+      throw new ApiError(400, "Invalid referral code");
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error finding referral code:", error);
+    throw error;
   }
 };
