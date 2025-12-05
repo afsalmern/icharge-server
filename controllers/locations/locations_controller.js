@@ -156,11 +156,7 @@ exports.getLocations = async (req, res) => {
       hasPreviousPage: page > 1,
     };
 
-    return res.status(200).json({
-      message: "Locations fetched successfully",
-      data: modifiedData,
-      pagination,
-    });
+    sendSuccess(res, "Locations fetched successfully", { data: modifiedData, pagination }, 200);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal server error" });

@@ -118,9 +118,26 @@ exports.updateCorporate = async (req, res, next) => {
 };
 
 exports.getCorporates = async (req, res) => {
+  let { page = 1, limit = 10, status = "all" } = req.query;
+
+  page = Number(page);
+  limit = Number(limit);
+
+  const offset = (page - 1) * limit;
+
+  // Build WHERE condition
+  const whereCondition = {};
+  if (status !== "all") {
+    whereCondition.is_active = status === "active" ? true : false;
+  }
+
   try {
-    const data = await Corporates.findAll({
+    const { rows: corporates, count: totalItems } = await Corporates.findAndCountAll({
       attributes: ["id", "name", "email", "is_active", "phone", "address"],
+      where: whereCondition,
+      limit,
+      offset,
+      order: [["id", "DESC"]],
     });
     const corporateCodes = await ReferelCodes.findAll({
       attributes: ["id", "code", "type", "reference_id", "is_valid", "is_active"],
@@ -129,7 +146,7 @@ exports.getCorporates = async (req, res) => {
       },
     });
 
-    const modifiedData = data.map((corporate) => {
+    const modifiedData = corporates.map((corporate) => {
       const code = corporateCodes.find((code) => code.reference_id == corporate.id);
       const referralCode = code ? code?.code : null;
       return {
@@ -138,7 +155,18 @@ exports.getCorporates = async (req, res) => {
       };
     });
 
-    return res.status(200).json({ message: "Corporates fetched successfully", data: modifiedData });
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const pagination = {
+      currentPage: page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+
+    sendSuccess(res, "Corporates fetched successfully", { data: modifiedData, pagination }, 200);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
