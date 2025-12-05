@@ -258,8 +258,7 @@ exports.updatUserProfile = async (req, res, next) => {
 
 exports.getPackages = async (req, res, next) => {
   try {
-    // const { user_id } = req;
-    const user_id = 51;
+    const { user_id } = req;
 
     const user = await User.findByPk(user_id);
 
