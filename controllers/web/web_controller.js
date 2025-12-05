@@ -386,7 +386,7 @@ exports.addBoxes = async (req, res, next) => {
       });
 
       if (isBoxExist) {
-        throw new ApiError(409, "Location already has a box");
+        throw new ApiError(400, "Location already has a box");
       }
       entityName = isLocationValid.name;
     }
