@@ -129,8 +129,8 @@ exports.getHome = async (req, res, next) => {
 
     // Optimized: Early validation with specific error messages
     if (!userData) throw new ApiError(404, "User not found");
-    if (userData.block_status) throw new ApiError(403, "User is blocked");
-    if (userData.status !== "active") throw new ApiError(403, "User is inactive");
+    if (userData.block_status) throw new ApiError(401, "User is blocked");
+    if (userData.status !== "active") throw new ApiError(401, "User is inactive");
 
     // Optimized: Simplified destructuring
     const { deposit_amount = 0.0, is_kyc_enabled, is_deposit_enabled } = checks || {};

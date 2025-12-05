@@ -289,29 +289,79 @@ exports.deletePackage = async (req, res, next) => {
 
 //Boxes Actions
 exports.getBoxes = async (req, res, next) => {
-  try {
-    const boxes = await db.boxes.findAll({
-      attributes: ["id", "unique_id", "device_id", "status", "total_powerbanks", "available_powerbanks", "location_id", "corporate_id", "type"],
-      include: [
-        {
-          model: db.locations,
-          attributes: ["name"],
-          as: "location",
-        },
-        {
-          model: db.corporates,
-          attributes: ["name"],
-          as: "corporate",
-        },
-        {
-          model: db.qr_codes,
-          attributes: ["code"],
-          as: "qr_code",
-        },
-      ],
-      order: [["createdAt", "DESC"]],
+  const { page = 1, limit = 10, type, status } = req.query;
+
+  console.log(req.query);
+
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const offset = (pageNum - 1) * limitNum;
+
+  const boxWhere = {};
+  if (status) {
+    boxWhere.status = status;
+  }
+
+  const dynamicInclude = [
+    {
+      model: db.qr_codes,
+      attributes: ["code"],
+      as: "qr_code",
+    },
+  ];
+
+  if (!type) {
+    dynamicInclude.push(
+      {
+        model: db.locations,
+        attributes: ["name"],
+        as: "location",
+      },
+      {
+        model: db.corporates,
+        attributes: ["name"],
+        as: "corporate",
+      }
+    );
+  } else if (type === "location") {
+    dynamicInclude.push({
+      model: db.locations,
+      attributes: ["name"],
+      as: "location",
+      required: true,
     });
-    sendSuccess(res, "Boxes fetched successfully", { boxes }, 200);
+  } else if (type === "corporate") {
+    dynamicInclude.push({
+      model: db.corporates,
+      attributes: ["name"],
+      as: "corporate",
+      required: true,
+    });
+  }
+
+  console.log(dynamicInclude);
+
+  try {
+    const { rows: boxes, count } = await db.boxes.findAndCountAll({
+      attributes: ["id", "unique_id", "device_id", "status", "total_powerbanks", "available_powerbanks", "location_id", "corporate_id", "type"],
+      where: boxWhere,
+      include: dynamicInclude,
+      order: [["createdAt", "DESC"]],
+      limit: limitNum,
+      offset,
+    });
+
+    const totalPages = Math.ceil(count / limitNum);
+    const pagination = {
+      currentPage: pageNum,
+      totalPages,
+      totalItems: count,
+      itemsPerPage: limitNum,
+      hasNextPage: pageNum < totalPages,
+      hasPreviousPage: pageNum > 1,
+    };
+
+    sendSuccess(res, "Boxes fetched successfully", { boxes, pagination }, 200);
   } catch (error) {
     console.log(error);
     next(error);

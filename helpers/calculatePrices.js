@@ -270,4 +270,23 @@ function calculateTotalTimeUsed(startDate, endDate, status = "completed") {
   return data;
 }
 
-module.exports = { calculatePriceOnRentals, getHourlyPrice, getEndTime, calculateRentalCharge, calculateTotalTimeUsed };
+function isTimeBetween(start, end) {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const [sH, sM] = start.split(":").map(Number);
+  const [eH, eM] = end.split(":").map(Number);
+
+  const startMinutes = sH * 60 + sM;
+  const endMinutes = eH * 60 + eM;
+
+  // Handle normal range (e.g., 13:00 → 14:04)
+  if (startMinutes <= endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+  }
+
+  // Handle overnight ranges (e.g., 22:00 → 04:00)
+  return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+}
+
+module.exports = { calculatePriceOnRentals, getHourlyPrice, getEndTime, calculateRentalCharge, calculateTotalTimeUsed, isTimeBetween };

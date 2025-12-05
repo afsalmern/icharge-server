@@ -138,11 +138,10 @@ const deleteReferelCode = async (entity_id, entity_type, transaction) => {
       transaction,
     });
 
-    if (!referelCode) {
-      throw new ApiError(400, "Referral code does not exist");
+    if (referelCode) {
+      await referelCode.destroy({ transaction });
     }
 
-    await referelCode.destroy({ transaction });
     return true;
   } catch (error) {
     console.error("Error deleting referral code:", error);

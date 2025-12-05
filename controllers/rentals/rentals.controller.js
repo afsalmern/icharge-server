@@ -1,5 +1,5 @@
 const { sendSuccess } = require("../../handlers/success_response_handler");
-const { calculatePriceOnRentals, calculateTotalTimeUsed } = require("../../helpers/calculatePrices");
+const { calculatePriceOnRentals, calculateTotalTimeUsed, isTimeBetween } = require("../../helpers/calculatePrices");
 const { sendOtp } = require("../../helpers/OtpHelper");
 const { addUserReferelCode } = require("../../helpers/referelCodeHelper");
 const { returnItem, getDuration, startRent, startFree } = require("../../helpers/rentalsHelper");
@@ -36,13 +36,48 @@ exports.checkIsDeviceValid = async (req, res, next) => {
       where: { device_id },
     });
 
-    // If no box is found, return "Device is not valid"
     if (!box) {
       return sendSuccess(res, "Device is not valid", { is_scan_valid: false }, 200);
     }
+
+    const boxType = box?.type;
     const isBoxValid = box?.status === "active";
 
-    console.log("isBoxValid", box?.status);
+    if (boxType == "location") {
+      const boxLocation = await box.getLocation({ attributes: ["id", "is_active", "starting_hour", "ending_hour"] });
+
+      const isLocationActive = boxLocation?.is_active;
+
+      if (!isLocationActive) {
+        return sendSuccess(res, "Location is inactive", { is_scan_valid: false }, 200);
+      }
+
+      function formatTime(t) {
+        // Converts "13:00:00" → "13:00"
+        return t.slice(0, 5);
+      }
+
+      const isBetween = isTimeBetween(boxLocation.starting_hour, boxLocation.ending_hour);
+
+      if (!isBetween) {
+        return sendSuccess(
+          res,
+          `Location is inactive now. Active hours are from ${formatTime(boxLocation.starting_hour)} to ${formatTime(boxLocation.ending_hour)}.`,
+          { is_scan_valid: false },
+          200
+        );
+      }
+    }
+
+    if (boxType == "corporate") {
+      const boxCorporate = await box.getCorporate({ attributes: ["id", "is_active"] });
+
+      const isLocationActive = boxCorporate?.is_active;
+
+      if (!isLocationActive) {
+        return sendSuccess(res, "Corporate is inactive", { is_scan_valid: false }, 200);
+      }
+    }
 
     if (!isBoxValid) {
       const statusMessage = {
@@ -59,8 +94,6 @@ exports.checkIsDeviceValid = async (req, res, next) => {
     if (box.available_powerbanks <= 0) {
       return sendSuccess(res, "No powerbanks available in this device", { is_scan_valid: false }, 200);
     }
-
-    const boxType = box?.type;
 
     const entity_id = boxType == "location" ? box?.location_id : box?.corporate_id;
 
