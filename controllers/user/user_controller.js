@@ -109,7 +109,7 @@ exports.getHome = async (req, res, next) => {
           "block_status",
           "status",
           "is_verified",
-          "referel_applied",
+          ["referel_applied", "is_corporate"],
           "user_preferred_method",
         ],
         include: {
