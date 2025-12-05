@@ -272,34 +272,21 @@ function calculateTotalTimeUsed(startDate, endDate, status = "completed") {
 
 function isTimeBetween(start, end) {
   const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  console.log(start);
-  console.log(end);
-  console.log(now);
-  console.log(currentMinutes);
+  // convert to IST
+  const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const currentMinutes = istNow.getHours() * 60 + istNow.getMinutes();
 
   const [sH, sM] = start.split(":").map(Number);
   const [eH, eM] = end.split(":").map(Number);
 
-  console.log(sH);
-  console.log(sM);
-  console.log(eH);
-  console.log(eM);
-
   const startMinutes = sH * 60 + sM;
   const endMinutes = eH * 60 + eM;
 
-  console.log(startMinutes);
-  console.log(endMinutes);
-  console.log(currentMinutes);
-
-  // Handle normal range (e.g., 13:00 → 14:04)
   if (startMinutes <= endMinutes) {
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
   }
 
-  // Handle overnight ranges (e.g., 22:00 → 04:00)
   return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
 }
 
