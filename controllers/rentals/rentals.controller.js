@@ -195,18 +195,12 @@ exports.getRentalHistory = async (req, res, next) => {
 
       const extraAmount = status == "ongoing" ? extra_charge : parseFloat(extraFromRental || 0);
 
-      const formatDT = (dt) =>
-        new Date(dt).toLocaleString("en-IN", {
-          dateStyle: "medium",
-          timeStyle: "short",
-        });
-
       return {
         totalTime: time_used,
         extra_charge: extraAmount,
         extra_hours,
         order_id,
-        start_time: formatDT(start_time),
+        start_time: start_time,
         status,
         net_amount: amountPaid,
         dispute: reason,
