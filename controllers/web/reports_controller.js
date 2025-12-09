@@ -264,6 +264,8 @@ exports.generateRevenewReport = async (req, res, next) => {
 
       const { extra_charge } = cost_details;
 
+      const isDeleted = rental?.rented_user?.deleted_at || rental?.rented_user?.dataValues?.deleted_at;
+
       // Calculate amounts with safeguards
       const rentedAmount = parseFloat(payment.amount);
       const extraAmount = extra_charge;
@@ -288,7 +290,7 @@ exports.generateRevenewReport = async (req, res, next) => {
       return {
         rentalId: rental?.id || "N/A",
         userName: rental?.rented_user?.name || "N/A",
-        isDeleted: rental?.deleted_at ? "Yes" : "No",
+        isDeleted: isDeleted ? "yes" : "no",
         rentalLocation: rented_from,
         packageType: type || "N/A",
         packageAmount: packagePrice,
