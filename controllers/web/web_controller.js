@@ -41,6 +41,7 @@ exports.getDropDownDatas = async (req, res, next) => {
             attributes: [
               ["id", "value"],
               ["name", "label"],
+              ["deleted_at", "isDeleted"],
             ],
             paranoid: false,
           });
