@@ -11,7 +11,22 @@ const Rentals = db.rentals;
 // Generate Rental Report
 exports.generateRentalReport = async (req, res, next) => {
   try {
-    const { user, startDate, endDate, packageType, rentalStatus, paymentStatus, locationId, corporateId, type, page = 1, limit = 20 } = req.query;
+    const {
+      user,
+      startDate,
+      endDate,
+      packageType,
+      rentalStatus,
+      paymentStatus,
+      locationId,
+      corporateId,
+      type,
+      page = 1,
+      limit = 20,
+      show_deleted = true,
+    } = req.query;
+
+    const deleted = show_deleted == "true";
 
     // Build filter conditions
     const where = {
@@ -47,9 +62,9 @@ exports.generateRentalReport = async (req, res, next) => {
     let result = {};
 
     if (type == "location") {
-      result = await getLocationWiseRentals(where, locationId, page, limit);
+      result = await getLocationWiseRentals(where, locationId, page, limit, deleted);
     } else {
-      result = await getCorporateWiseRentals(where, corporateId, page, limit);
+      result = await getCorporateWiseRentals(where, corporateId, page, limit, deleted);
     }
 
     const { rentals, pagination } = result;
@@ -71,7 +86,7 @@ exports.generateRentalReport = async (req, res, next) => {
       const pickup_location = type == "location" ? rental.pickup_location?.name : rental.rented_corporate?.name;
       const returned_location = type == "location" ? rental.return_location?.name : rental.rented_corporate?.name;
 
-      const { name } = rented_user;
+      const name = rented_user?.name || "N/A";
       const { hourly_price, duration, type: packageType, price: packagePrice } = rented_package;
 
       const packageDuration = duration || 0;
@@ -88,6 +103,7 @@ exports.generateRentalReport = async (req, res, next) => {
       return {
         rentalId: id,
         userName: name || "N/A",
+        isDeleted: rented_user?.dataValues?.deleted_at ? "yes" : "no",
         rentedFrom: pickup_location || "N/A",
         rentedTo: returned_location || "N/A",
         rentedAt: start_time,
@@ -208,7 +224,10 @@ exports.generateRevenewReport = async (req, res, next) => {
       type: rentalType,
       page = 1,
       limit = 20,
+      show_deleted = true,
     } = req.query;
+
+    const deleted = show_deleted == "true";
 
     const where = {};
 
@@ -225,9 +244,9 @@ exports.generateRevenewReport = async (req, res, next) => {
 
     let payments = [];
     if (rentalType == "location") {
-      payments = await locationWiseRevenues(where, packageType, locationId, page, limit);
+      payments = await locationWiseRevenues(where, packageType, locationId, page, limit, deleted);
     } else {
-      payments = await corporateWiseRevenues(where, packageType, corporateId, page, limit);
+      payments = await corporateWiseRevenues(where, packageType, corporateId, page, limit, deleted);
     }
 
     const { payments: paymentsData, pagination } = payments;
@@ -269,6 +288,7 @@ exports.generateRevenewReport = async (req, res, next) => {
       return {
         rentalId: rental?.id || "N/A",
         userName: rental?.rented_user?.name || "N/A",
+        isDeleted: rental?.deleted_at ? "Yes" : "No",
         rentalLocation: rented_from,
         packageType: type || "N/A",
         packageAmount: packagePrice,
@@ -315,7 +335,7 @@ exports.getUserReferels = async (req, res, next) => {
   }
 };
 
-const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) => {
+const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20, show_deleted) => {
   if (location_id) {
     where["location_id"] = location_id;
   }
@@ -333,7 +353,14 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
         {
           model: db.packages,
           as: "rented_package",
-          attributes: [], // Removed 'amount' due to error
+          attributes: [],
+        },
+        {
+          model: db.users,
+          as: "rented_user",
+          attributes: ["name"],
+          paranoid: !show_deleted,
+          required: !show_deleted,
         },
       ],
       attributes: ["id"],
@@ -347,7 +374,9 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
         {
           model: db.users,
           as: "rented_user",
-          attributes: ["name"],
+          attributes: ["name", "deleted_at"],
+          paranoid: !show_deleted,
+          required: !show_deleted,
         },
         {
           model: db.boxes,
@@ -402,7 +431,7 @@ const getLocationWiseRentals = async (where, location_id, page = 1, limit = 20) 
   }
 };
 
-const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20) => {
+const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20, show_deleted) => {
   if (corporate_id) {
     where["corporate_id"] = corporate_id;
   }
@@ -421,6 +450,13 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
           as: "rented_package",
           attributes: [], // Removed 'amount' due to error
         },
+        {
+          model: db.users,
+          as: "rented_user",
+          attributes: ["name"],
+          paranoid: !show_deleted,
+          required: !show_deleted,
+        },
       ],
       attributes: ["id"],
       order: [["start_time", "DESC"]],
@@ -433,7 +469,9 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
         {
           model: db.users,
           as: "rented_user",
-          attributes: ["name"],
+          attributes: ["name", "deleted_at"],
+          paranoid: !show_deleted,
+          required: !show_deleted,
         },
         {
           model: db.packages,
@@ -478,7 +516,7 @@ const getCorporateWiseRentals = async (where, corporate_id, page = 1, limit = 20
   }
 };
 
-const locationWiseRevenues = async (where, packageType, locationId, page = 1, limit = 20) => {
+const locationWiseRevenues = async (where, packageType, locationId, page = 1, limit = 20, show_deleted) => {
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
   const offset = (pageNum - 1) * limitNum;
@@ -493,6 +531,13 @@ const locationWiseRevenues = async (where, packageType, locationId, page = 1, li
           required: true,
           attributes: ["id"],
           include: [
+            {
+              model: db.users,
+              as: "rented_user",
+              attributes: ["name"],
+              paranoid: !show_deleted,
+              required: !show_deleted,
+            },
             {
               model: db.locations,
               as: "pickup_location", // 🔹 first location association
@@ -533,7 +578,9 @@ const locationWiseRevenues = async (where, packageType, locationId, page = 1, li
             {
               model: db.users,
               as: "rented_user",
-              attributes: ["name"],
+              attributes: ["name", "deleted_at"],
+              paranoid: !show_deleted,
+              required: !show_deleted,
             },
             {
               model: db.locations,
@@ -585,7 +632,7 @@ const locationWiseRevenues = async (where, packageType, locationId, page = 1, li
   }
 };
 
-const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, limit = 20) => {
+const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, limit = 20, show_deleted) => {
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
   const offset = (pageNum - 1) * limitNum;
@@ -599,6 +646,13 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
           required: true,
           attributes: ["id"],
           include: [
+            {
+              model: db.users,
+              as: "rented_user",
+              attributes: ["name"],
+              paranoid: !show_deleted,
+              required: !show_deleted,
+            },
             {
               model: db.corporates,
               as: "rented_corporate", // 🔹 first location association
@@ -639,7 +693,9 @@ const corporateWiseRevenues = async (where, packageType, corporateId, page = 1, 
             {
               model: db.users,
               as: "rented_user",
-              attributes: ["name"],
+              attributes: ["name", "deleted_at"],
+              paranoid: !show_deleted,
+              required: !show_deleted,
             },
             {
               model: db.corporates,

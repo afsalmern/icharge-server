@@ -31,6 +31,7 @@ const {
   getChecksAndAmount,
   getTestOtps,
   hardDeleteUser,
+  softDeleteUser,
 } = require("../../controllers/web/web_controller");
 const { upload, uploadComplaints } = require("../../middlewares/multer");
 const { getKycDatas, updateKyc, updateKycStatus } = require("../../controllers/kyc/kyc_controller");
@@ -96,6 +97,7 @@ router.get("/terms-conditions", verifyToken, getLocations);
 //Users
 router.get("/users", verifyToken, checkRole("admin"), getAllUsers);
 router.delete("/user/:id", hardDeleteUser);
+router.delete("/delete-user/:id", softDeleteUser);
 router.patch("/users/:id", verifyToken, checkRole("admin"), validateId, validate, blockOrUnblockUser);
 router.patch("/user-status/:id", verifyToken, checkRole("admin"), validateId, validate, activeOrInactiveUser);
 

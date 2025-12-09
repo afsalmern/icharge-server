@@ -42,6 +42,7 @@ exports.getDropDownDatas = async (req, res, next) => {
               ["id", "value"],
               ["name", "label"],
             ],
+            paranoid: false,
           });
           data["users"] = users;
           break;
@@ -124,7 +125,7 @@ exports.getAllUsers = async (req, res, next) => {
       limit: limitNum,
       offset,
       order: [["created_at", "DESC"]],
-      paranoid: false,
+      paranoid: status == "all" ? false : true,
     });
 
     // Pagination info
@@ -194,6 +195,21 @@ exports.hardDeleteUser = async (req, res, next) => {
   try {
     await user.destroy({ force: true });
     sendSuccess(res, "User deleted permanently", {}, 200);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+exports.softDeleteUser = async (req, res, next) => {
+  const { id: user_id } = req.params;
+  const user = await Users.findByPk(user_id);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+  try {
+    await user.destroy();
+    sendSuccess(res, "User deleted successfully", {}, 200);
   } catch (error) {
     console.log(error);
     next(error);
