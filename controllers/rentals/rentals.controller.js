@@ -17,7 +17,7 @@ const RentalsOtps = db.rental_otps;
 const UserReferels = db.user_referels;
 
 exports.checkIsDeviceValid = async (req, res, next) => {
-  const { device_id } = req.query;
+  const { device_id, scan_type = "rental" } = req.query;
   const { user_id } = req;
   try {
     const userData = await Users.findByPk(user_id, { attributes: ["id", "block_status", "status"] });
@@ -91,7 +91,7 @@ exports.checkIsDeviceValid = async (req, res, next) => {
     }
 
     // Check if available_powerbanks is 0 or less
-    if (box.available_powerbanks <= 0) {
+    if (scan_type == "rental" && box.available_powerbanks <= 0) {
       return sendSuccess(res, "No powerbanks available in this device", { is_scan_valid: false }, 200);
     }
 
