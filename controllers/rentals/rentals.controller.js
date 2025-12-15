@@ -499,7 +499,7 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
       return sendSuccess(res, "Device is not valid", { is_otp_valid: false }, 400);
     }
 
-    const location = await box.getLocation({ attributes: ["id", "name", "phone", "starting_hour", "ending_hour", "is_active "] });
+    const location = await box.getLocation({ attributes: ["id", "name", "phone", "starting_hour", "ending_hour", "is_active"] });
 
     if (!location) {
       return sendSuccess(res, "Location not found for this device", { is_otp_valid: false }, 400);
