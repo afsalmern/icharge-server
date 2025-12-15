@@ -14,6 +14,7 @@ const ChecksAndAmounts = db.checks_and_amounts;
 const QRCode = db.qr_codes;
 const Corporates = db.corporates;
 const TestOtps = db.test_otps;
+const ReferelCodes = db.referel_codes;
 
 //Data for Drop down
 exports.getDropDownDatas = async (req, res, next) => {
@@ -189,11 +190,21 @@ exports.activeOrInactiveUser = async (req, res, next) => {
 
 exports.hardDeleteUser = async (req, res, next) => {
   const { id: user_id } = req.params;
-  const user = await Users.findByPk(user_id, { paranoid: false });
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
   try {
+    const user = await Users.findByPk(user_id, { paranoid: false });
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    const onGoingRental = await db.rentals.findOne({
+      attributes: ["id"],
+      where: { user_id, status: "ongoing" },
+    });
+
+    if (onGoingRental) {
+      throw new ApiError(400, "User have an ongoing rental");
+    }
+
     await user.destroy({ force: true });
     sendSuccess(res, "User deleted permanently", {}, 200);
   } catch (error) {
@@ -204,11 +215,19 @@ exports.hardDeleteUser = async (req, res, next) => {
 
 exports.softDeleteUser = async (req, res, next) => {
   const { id: user_id } = req.params;
-  const user = await Users.findByPk(user_id);
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
   try {
+    const user = await Users.findByPk(user_id);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    const onGoingRental = await db.rentals.findOne({
+      attributes: ["id"],
+      where: { user_id, status: "ongoing" },
+    });
+
+    if (onGoingRental) {
+      throw new ApiError(400, "User have an ongoing rental");
+    }
     await user.destroy();
     sendSuccess(res, "User deleted successfully", {}, 200);
   } catch (error) {
@@ -308,11 +327,11 @@ exports.deletePackage = async (req, res, next) => {
 exports.getBoxes = async (req, res, next) => {
   const { page = 1, limit = 10, type, status } = req.query;
 
-  console.log(req.query);
-
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
   const offset = (pageNum - 1) * limitNum;
+
+  const includeAttributes = ["name", "id"];
 
   const boxWhere = {};
   if (status) {
@@ -331,32 +350,30 @@ exports.getBoxes = async (req, res, next) => {
     dynamicInclude.push(
       {
         model: db.locations,
-        attributes: ["name"],
+        attributes: includeAttributes,
         as: "location",
       },
       {
         model: db.corporates,
-        attributes: ["name"],
+        attributes: includeAttributes,
         as: "corporate",
       }
     );
   } else if (type === "location") {
     dynamicInclude.push({
       model: db.locations,
-      attributes: ["name"],
+      attributes: includeAttributes,
       as: "location",
       required: true,
     });
   } else if (type === "corporate") {
     dynamicInclude.push({
       model: db.corporates,
-      attributes: ["name"],
+      attributes: includeAttributes,
       as: "corporate",
       required: true,
     });
   }
-
-  console.log(dynamicInclude);
 
   try {
     const { rows: boxes, count } = await db.boxes.findAndCountAll({
@@ -366,6 +383,21 @@ exports.getBoxes = async (req, res, next) => {
       order: [["createdAt", "DESC"]],
       limit: limitNum,
       offset,
+    });
+
+    const referelCodes = await ReferelCodes.findAll({ attributes: ["id", "code", "type", "reference_id", "is_valid", "is_active"] });
+
+    const formattedBoxes = boxes.map((box) => {
+      const isLocation = box.location_id ? true : false;
+      const refId = isLocation ? box.location_id : box.corporate_id;
+
+      const code = referelCodes.find((code) => code.reference_id == refId && code.type == `${isLocation ? "location" : "corporate"}`);
+      console.log(code);
+
+      return {
+        ...box.dataValues,
+        referral_code: code ? code.code : "N/A",
+      };
     });
 
     const totalPages = Math.ceil(count / limitNum);
@@ -378,7 +410,7 @@ exports.getBoxes = async (req, res, next) => {
       hasPreviousPage: pageNum > 1,
     };
 
-    sendSuccess(res, "Boxes fetched successfully", { boxes, pagination }, 200);
+    sendSuccess(res, "Boxes fetched successfully", { boxes: formattedBoxes, pagination }, 200);
   } catch (error) {
     console.log(error);
     next(error);

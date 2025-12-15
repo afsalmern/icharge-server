@@ -102,9 +102,9 @@ exports.sendOtp = asyncWrapper(async (req, res, next) => {
     paranoid: false,
   });
 
-  if (user && user?.dataValues?.deleted_at) {
-    throw new ApiError(403, "This account has been permanently deleted and can no longer be used to access the app");
-  }
+  // if (user && user?.dataValues?.deleted_at) {
+  //   throw new ApiError(403, "This account has been permanently deleted and can no longer be used to access the app");
+  // }
 
   if (user && user.status == "inactive") {
     throw new ApiError(400, "User is blocked");

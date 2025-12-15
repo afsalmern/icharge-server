@@ -16,7 +16,6 @@ module.exports = (sequelize, DataTypes) => {
       email: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        unique: true,
       },
       dob: {
         type: DataTypes.STRING(15),
@@ -29,7 +28,6 @@ module.exports = (sequelize, DataTypes) => {
       mobile: {
         type: DataTypes.STRING(20),
         allowNull: false,
-        unique: true,
       },
       deposit_amount: {
         type: DataTypes.DECIMAL(10, 2),

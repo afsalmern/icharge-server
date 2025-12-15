@@ -33,7 +33,7 @@ exports.checkIsDeviceValid = async (req, res, next) => {
 
     // Fetch the box by device_id
     const box = await Boxes.findOne({
-      where: { device_id },
+      where: { device_id, status: "active" },
     });
 
     if (!box) {
@@ -98,6 +98,7 @@ exports.checkIsDeviceValid = async (req, res, next) => {
     const entity_id = boxType == "location" ? box?.location_id : box?.corporate_id;
 
     const referel_code = await Codes.findOne({
+      attributes: ["id", "code", "type", "reference_id", "is_active"],
       where: {
         reference_id: entity_id,
         type: boxType == "location" ? "location" : "corporate",
@@ -126,6 +127,7 @@ exports.checkIsDeviceValid = async (req, res, next) => {
         is_scan_valid: true,
         device_type: boxType == "location" ? "location" : "corporate",
         is_code_available: referel_code ? true : false,
+        referel_code: referel_code ? referel_code?.code : null,
         is_code_already_used: isCodeUsed,
         entity_id,
       },
@@ -484,23 +486,45 @@ exports.verfiyRentalsOtp = async (req, res, next) => {
 
     // Validate request input
     if (!device_id) {
-      return sendSuccess(res, "Device ID is required", { is_scan_valid: false }, 400);
+      return sendSuccess(res, "Device ID is required", { is_otp_valid: false }, 400);
     }
 
     // Fetch the box by device_id
     const box = await Boxes.findOne({
-      where: { device_id },
+      where: { device_id, status: "active" },
     });
-
-    const location = await box.getLocation({ attributes: ["id", "name", "phone"] });
-
-    if (!location) {
-      return sendSuccess(res, "Location not found for this device", { is_scan_valid: false }, 400);
-    }
 
     // If no box is found, return "Device is not valid"
     if (!box) {
-      return sendSuccess(res, "Device is not valid", { is_scan_valid: false }, 200);
+      return sendSuccess(res, "Device is not valid", { is_otp_valid: false }, 400);
+    }
+
+    const location = await box.getLocation({ attributes: ["id", "name", "phone", "starting_hour", "ending_hour", "is_active "] });
+
+    if (!location) {
+      return sendSuccess(res, "Location not found for this device", { is_otp_valid: false }, 400);
+    }
+
+    if (!location.is_active) {
+      return sendSuccess(res, "Location is not active", { is_otp_valid: false }, 400);
+    }
+
+    if (order_type == "return") {
+      const isBetween = isTimeBetween(location.starting_hour, location.ending_hour);
+
+      function formatTime(t) {
+        // Converts "13:00:00" → "13:00"
+        return t.slice(0, 5);
+      }
+
+      if (!isBetween) {
+        return sendSuccess(
+          res,
+          `Location is inactive now. Active hours are from ${formatTime(location?.starting_hour)} to ${formatTime(location?.ending_hour)}.`,
+          { is_otp_valid: false },
+          400
+        );
+      }
     }
 
     const verifyOtp = await RentalsOtps.findOne({ where: { box_id: box.id, otp, user_id, location_id: location.id } });
