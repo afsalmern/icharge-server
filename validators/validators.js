@@ -1,7 +1,7 @@
 const { body, param, check, validationResult } = require("express-validator");
 const { ApiError } = require("../middlewares/error");
 
-const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly", "free"];
+const allowedTypesForPackageTypes = ["hourly", "weekly", "monthly", "free", "daily"];
 
 const locationDataValidation = [
   body("name").not().isEmpty().withMessage("Name is required"),
@@ -46,13 +46,10 @@ const validateCorporateUpdate = [
 ];
 
 const mobileNumberValidation = [
-  body("mobile")
-    .not()
-    .isEmpty()
-    .withMessage("Mobile number is required")
-    .bail() // Stops validation if empty
-    .isMobilePhone("en-IN")
-    .withMessage("Mobile number is not valid"),
+  body("mobile").not().isEmpty().withMessage("Mobile number is required"),
+  // .bail() // Stops validation if empty
+  // .isMobilePhone("en-IN")
+  // .withMessage("Mobile number is not valid"),
 ];
 
 const adminSignupValidation = [

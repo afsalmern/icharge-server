@@ -62,6 +62,7 @@ exports.getDropDownDatas = async (req, res, next) => {
 
         case "packages":
           const packages = await Packages.findAll({
+            where: { status: "active" },
             attributes: [
               ["id", "value"],
               ["type", "label"],
@@ -147,7 +148,7 @@ exports.getAllUsers = async (req, res, next) => {
           hasPreviousPage: pageNum > 1,
         },
       },
-      200
+      200,
     );
   } catch (error) {
     console.log(error);
@@ -268,7 +269,7 @@ exports.addPackage = async (req, res, next) => {
 
 exports.updatePackage = async (req, res, next) => {
   const { id } = req.params;
-  const { name, description, price, duration, swap, type } = req.body;
+  const { name, description, price, duration, swap, type, status } = req.body;
 
   const package_image = (req.files && req.files?.["image"]?.[0]?.filename) || null;
 
@@ -282,9 +283,9 @@ exports.updatePackage = async (req, res, next) => {
     let hourly_price = getHourlyPrice(type, price, duration);
 
     const updatedPackage = await package.update(
-      { name, description, price, duration, swap: 0, image: package_image ? package_image : package.image, type, hourly_price },
+      { name, description, price, duration, swap: 0, image: package_image ? package_image : package.image, type, hourly_price, status },
       { returning: true },
-      { transacion }
+      { transacion },
     );
     await transacion.commit();
     sendSuccess(res, "Package updated successfully", { updatedPackage }, 200);
@@ -298,7 +299,8 @@ exports.updatePackage = async (req, res, next) => {
 exports.getPackages = async (req, res, next) => {
   try {
     const packages = await db.packages.findAll({
-      attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type", "hourly_price"],
+      // where: { status: "active" },
+      attributes: ["id", "name", "description", "price", "duration", "swap", "image", "type", "hourly_price", "status"],
       order: [["created_at", "DESC"]],
     });
     sendSuccess(res, "Packages fetched successfully", { packages }, 200);
@@ -357,7 +359,7 @@ exports.getBoxes = async (req, res, next) => {
         model: db.corporates,
         attributes: includeAttributes,
         as: "corporate",
-      }
+      },
     );
   } else if (type === "location") {
     dynamicInclude.push({
@@ -479,7 +481,7 @@ exports.addBoxes = async (req, res, next) => {
         available_powerbanks,
         type: location_id ? "location" : "corporate",
       },
-      { transaction }
+      { transaction },
     );
 
     const deviceId = box.device_id;
@@ -574,7 +576,7 @@ exports.updateBox = async (req, res, next) => {
     const box = await Boxes.findByPk(id, { transaction });
     const updatedBox = await box.update(
       { status, available_powerbanks, location_id, corporate_id, total_powerbanks, type: location_id ? "location" : "corporate" },
-      { transaction }
+      { transaction },
     );
     await transaction.commit();
     sendSuccess(res, "Package updated successfully", { updatedBox }, 200);
@@ -665,7 +667,7 @@ exports.getTestOtps = async (req, res, next) => {
           hasPreviousPage: pageNum > 1,
         },
       },
-      200
+      200,
     );
   } catch (error) {
     console.log(error);

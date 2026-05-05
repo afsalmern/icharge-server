@@ -14,7 +14,7 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
       packageHours = Number(package_duration) || 0;
       break;
     case "daily":
-      packageHours = (Number(package_duration) || 0) * 24;
+      packageHours = 1 * 24;
       break;
     case "weekly":
       packageHours = (Number(package_duration) || 0) * 7 * 24;
@@ -25,6 +25,8 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
     default:
       throw new Error("Invalid package type: " + package_type);
   }
+
+  console.log("Package hours allowed:", packageHours);
 
   const roundBy30Minutes = (hours) => {
     const whole = Math.floor(hours);
@@ -106,10 +108,15 @@ const calculatePriceOnRentals = (start_time, hourly_price, package_duration, pac
 
 const getHourlyPrice = (type, price, duration = 1) => {
   let hourly = 0;
+  const dailyHours = 24;
 
   switch (type) {
     case "free":
       hourly = price;
+      break;
+
+    case "daily":
+      hourly = price / dailyHours;
       break;
 
     case "hourly":
@@ -145,6 +152,10 @@ const getEndTime = (start_date, duration, type) => {
   switch (type) {
     case "free":
       return new Date(startDate.getTime() + duration * 60 * 60 * 1000); // duration in hours
+
+    case "daily":
+      return new Date(startDate.getTime() + 1 * 24 * 60 * 60 * 1000); // duration in days
+
     case "hourly":
       return new Date(startDate.getTime() + duration * 60 * 60 * 1000); // duration in hours
 

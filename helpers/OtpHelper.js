@@ -62,14 +62,14 @@ const TestOtps = db.test_otps;
 const sendOtp = async (otp, number) => {
   console.log("Sending OTP:", otp, "to number:", number);
 
-  // const otpData = {
-  //   mobile: number,
-  //   otp,
-  // };
+  const otpData = {
+    mobile: number,
+    otp,
+  };
 
-  // await TestOtps.create(otpData);
+  await TestOtps.create(otpData);
 
-  // return true;
+  return true;
 
   try {
     // Payload for Fast2SMS

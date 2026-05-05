@@ -220,7 +220,7 @@ exports.getHome = async (req, res, next) => {
           deposit_amount: Number(deposit_amount),
         },
       },
-      200
+      200,
     );
   } catch (error) {
     console.error("Error in getHome:", error);
@@ -251,7 +251,7 @@ exports.updatUserProfile = async (req, res, next) => {
 
     await user.update(
       { name, dob: dob ? dob : user.dob, email: email ? email : user.email, avatar: avatar ? avatar : user.avatar, referel_applied: code },
-      { returning: true, transaction }
+      { returning: true, transaction },
     );
     await transaction.commit();
     sendSuccess(res, "User profile updated successfully", { user }, 200);
@@ -280,11 +280,13 @@ exports.getPackages = async (req, res, next) => {
 
     const queryOptions = {
       attributes: ["id", "name", "duration", "price", "description", "image", "swap", "type", "hourly_price"],
+      where: { status: "active" },
       order: [["created_at", "DESC"]],
     };
 
     if (rentals.length > 0) {
       queryOptions.where = {
+        status: "active",
         type: { [Op.notIn]: ["free"] }, // exclude free packages
       };
     }
