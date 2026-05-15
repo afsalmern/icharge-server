@@ -156,6 +156,15 @@ const validateReferelCodeUpdate = [
   body("is_valid").optional().isBoolean().withMessage("is_valid must be a boolean value"),
 ];
 
+const forgotPasswordValidation = [
+  body("email").not().isEmpty().withMessage("Email is required").bail().isEmail().withMessage("Email is not valid"),
+];
+
+const resetPasswordValidation = [
+  body("token").not().isEmpty().withMessage("Reset token is required"),
+  body("password").not().isEmpty().withMessage("Password is required").bail().isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+];
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -173,6 +182,8 @@ module.exports = {
   mobileNumberValidation,
   adminSignupValidation,
   adminLoginValidation,
+  forgotPasswordValidation,
+  resetPasswordValidation,
   validatePackagesData,
   validateBoxesData,
   validateId,

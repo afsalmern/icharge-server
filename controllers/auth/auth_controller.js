@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const axios = require("axios");
 const bcrypt = require("bcrypt");
 const { sendSuccess } = require("../../handlers/success_response_handler");
@@ -7,11 +8,13 @@ const { generateOtp } = require("../../utils/generateOtp");
 const { generateToken } = require("../../utils/generateToken");
 const asyncWrapper = require("../../handlers/async_handler");
 const { sendOtp } = require("../../helpers/OtpHelper");
+const { sendResetPasswordEmail } = require("../../helpers/emailHelper");
 
 const Otp = db.otps;
 const User = db.users;
 const Admins = db.admins;
 const KycDetails = db.kyc_details;
+const PasswordResetTokens = db.password_reset_tokens;
 
 // exports.sendOtp = asyncWrapper(async (req, res, next) => {
 //   const { mobile } = req.body;
@@ -257,4 +260,42 @@ exports;
 exports.getAdmins = asyncWrapper(async (req, res) => {
   const admins = await Admins.findAll();
   sendSuccess(res, "Admins fetched successfully", { admins }, 200);
+});
+
+exports.forgotPassword = asyncWrapper(async (req, res) => {
+  const { email } = req.body;
+
+  const admin = await Admins.findOne({ attributes: ["id", "email"], where: { email } });
+  if (!admin) throw new ApiError(404, "No admin found with this email");
+
+  await PasswordResetTokens.destroy({ where: { admin_id: admin.id } });
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+  await PasswordResetTokens.create({ admin_id: admin.id, token, expires_at: expiresAt });
+
+  const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password2?token=${token}`;
+  await sendResetPasswordEmail(email, resetUrl);
+
+  sendSuccess(res, "Password reset link sent to your email", {}, 200);
+});
+
+exports.resetPassword = asyncWrapper(async (req, res) => {
+  const { token, password } = req.body;
+
+  const record = await PasswordResetTokens.findOne({ where: { token, used: false } });
+  if (!record) throw new ApiError(400, "Invalid or expired reset token");
+  if (new Date() > new Date(record.expires_at)) throw new ApiError(400, "Reset token has expired");
+
+  const admin = await Admins.findByPk(record.admin_id);
+  if (!admin) throw new ApiError(404, "Admin not found");
+
+  const salt = await bcrypt.genSalt(10);
+  const hashed = await bcrypt.hash(password, salt);
+  await admin.update({ password: hashed });
+
+  await record.update({ used: true });
+
+  sendSuccess(res, "Password reset successful", {}, 200);
 });

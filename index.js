@@ -35,10 +35,24 @@ app.use((req, res, next) => {
 
 app.use(errorHandler);
 
+const createDefaultAdmin = async () => {
+  const existing = await db.admins.findOne({ where: { email: "afsal@intersmart.in" } });
+  if (!existing) {
+    await db.admins.create({
+      name: "admin",
+      email: "afsal@intersmart.in",
+      password: "Admin@123",
+      role: "admin",
+    });
+    console.log("Default admin created");
+  }
+};
+
 const startServer = async () => {
   try {
     await db.sequelize.authenticate();
     console.log("Database connected");
+    await createDefaultAdmin();
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
     });
