@@ -9,9 +9,11 @@ const { generateToken } = require("../../utils/generateToken");
 const asyncWrapper = require("../../handlers/async_handler");
 const { sendOtp } = require("../../helpers/OtpHelper");
 const { sendResetPasswordEmail } = require("../../helpers/emailHelper");
+const { sendWattiTemplateMessage } = require("../../helpers/wattiHelper");
 
 const Otp = db.otps;
 const User = db.users;
+const PromoCode = db.promo_codes;
 const Admins = db.admins;
 const KycDetails = db.kyc_details;
 const PasswordResetTokens = db.password_reset_tokens;
@@ -202,6 +204,42 @@ exports.verifyOtp = asyncWrapper(async (req, res) => {
 
   // Step 4: Invalidate old FCM token and update with new one
   await user.update({ fcm_token });
+
+  // Step 4.5: Send welcome WhatsApp message if it's a new user
+  if (isNewUser) {
+    try {
+      const { Op } = require("sequelize");
+      const latestPromo = await PromoCode.findOne({
+        where: {
+          status: "active",
+          send_whatsapp: true,
+          [Op.or]: [
+            { valid_until: null },
+            { valid_until: { [Op.gte]: new Date() } }
+          ],
+          [Op.or]: [
+            { valid_from: null },
+            { valid_from: { [Op.lte]: new Date() } }
+          ]
+        },
+        order: [["created_at", "DESC"]],
+      });
+
+      if (latestPromo) {
+        const welcomeTemplate = latestPromo.watti_template_name || "user_offer_template";
+        const parameters = [
+          { name: "name", value: user.name || "User" },
+          { name: "code", value: latestPromo.code },
+          { name: "offer", value: `${latestPromo.discount_value}${latestPromo.discount_type === "percentage" ? "%" : ""} Off` },
+          { name: "store", value: latestPromo.applies_to || "all our stations" },
+        ];
+        // We don't await this to avoid blocking the login process
+        sendWattiTemplateMessage(mobile, welcomeTemplate, "Welcome Message", parameters);
+      }
+    } catch (promoError) {
+      console.error("Error fetching promo code for welcome message:", promoError);
+    }
+  }
 
   // Optional: Fetch KYC status
   const kycDetails = await KycDetails.findOne({

@@ -165,6 +165,34 @@ const resetPasswordValidation = [
   body("password").not().isEmpty().withMessage("Password is required").bail().isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
 ];
 
+const validatePromoCode = [
+  body("code").not().isEmpty().withMessage("Code is required").isString().withMessage("Code must be a string"),
+  body("discount_type")
+    .not()
+    .isEmpty()
+    .withMessage("Discount type is required")
+    .isIn(["percentage", "fixed"])
+    .withMessage("Discount type must be either 'percentage' or 'fixed'"),
+  body("discount_value").not().isEmpty().withMessage("Discount value is required").isDecimal().withMessage("Discount value must be a decimal"),
+  body("valid_from").optional({ checkFalsy: true }).isISO8601().toDate().withMessage("Valid from must be a valid date"),
+  body("valid_until").optional({ checkFalsy: true }).isISO8601().toDate().withMessage("Valid until must be a valid date"),
+  body("status").optional().isIn(["active", "inactive"]).withMessage("Status must be either 'active' or 'inactive'"),
+  body("max_usage").optional({ checkFalsy: true }).isInt({ min: 1 }).withMessage("Max usage must be a positive integer"),
+  body("send_whatsapp").optional().isBoolean().withMessage("Send whatsapp must be a boolean"),
+  body("applies_to").optional().isString().withMessage("Applies to must be a string"),
+];
+
+const validatePromoCodeUpdate = [
+  body("code").optional().isString().withMessage("Code must be a string"),
+  body("discount_type").optional().isIn(["percentage", "fixed"]).withMessage("Discount type must be either 'percentage' or 'fixed'"),
+  body("discount_value").optional().isDecimal().withMessage("Discount value must be a decimal"),
+  body("valid_from").optional({ checkFalsy: true }).isISO8601().toDate().withMessage("Valid from must be a valid date"),
+  body("valid_until").optional({ checkFalsy: true }).isISO8601().toDate().withMessage("Valid until must be a valid date"),
+  body("status").optional().isIn(["active", "inactive"]).withMessage("Status must be either 'active' or 'inactive'"),
+  body("max_usage").optional({ checkFalsy: true }).isInt({ min: 1 }).withMessage("Max usage must be a positive integer"),
+  body("applies_to").optional().isString().withMessage("Applies to must be a string"),
+];
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -194,5 +222,7 @@ module.exports = {
   validateReferelCodeUpdate,
   validateCorporate,
   validateCorporateUpdate,
+  validatePromoCode,
+  validatePromoCodeUpdate,
   validate,
 };

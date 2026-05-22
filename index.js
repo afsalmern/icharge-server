@@ -6,9 +6,10 @@ const path = require("path");
 const authRouter = require("./routes/v1/auth_route");
 const userRouter = require("./routes/v1/user_routes");
 const webRouter = require("./routes/v1/web_routes");
+const promoRouter = require("./routes/v1/promo_routes");
 const { errorHandler } = require("./middlewares/error");
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const port = process.env.PORT || 3000;
 
@@ -25,6 +26,7 @@ app.use("/uploads", express.static(path.join("uploads")));
 app.use("/api/v1/auth/", authRouter);
 app.use("/api/v1/user/", userRouter);
 app.use("/api/v1/web/", webRouter);
+app.use("/api/v1/promo-codes/", promoRouter);
 
 app.use((req, res, next) => {
   res.status(404).json({

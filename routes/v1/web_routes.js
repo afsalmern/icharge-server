@@ -42,6 +42,7 @@ const router = express.Router();
 const complaintController = require("../../controllers/complaints/complaints_controller");
 const powerbankController = require("../../controllers/web/powerbank_controller");
 const { getDashboard, getYearWiseData } = require("../../controllers/web/dashboard_controller");
+const wattiController = require("../../controllers/web/watti_controller");
 
 //dashboard
 router.get("/dashboard", verifyToken, checkRole("admin"), getDashboard);
@@ -129,6 +130,10 @@ router.get("/rental-report", generateRentalReport);
 router.get("/revenue-report", generateRevenewReport);
 router.get("/location-report", generateLocationsReport);
 router.get("/user-referals", getUserReferels);
+
+// Watti Templates
+router.get("/watti-templates", verifyToken, checkRole("admin"), wattiController.listWattiTemplates);
+router.post("/watti-broadcast", verifyToken, checkRole("admin"), wattiController.sendWattiBroadcast);
 
 router.get("/test", getDashboard);
 
