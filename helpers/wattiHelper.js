@@ -25,6 +25,8 @@ const sendWattiTemplateMessage = async (whatsappNumber, templateName, broadcastN
       parameters: parameters,
     };
 
+
+
     const response = await axios.post(url, payload, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -36,7 +38,7 @@ const sendWattiTemplateMessage = async (whatsappNumber, templateName, broadcastN
       console.log(`Watti message sent to ${whatsappNumber} successfully.`);
       return true;
     }
-    
+
     return false;
   } catch (error) {
     console.error("Error sending Watti template message:", error.response?.data || error.message);
@@ -61,8 +63,8 @@ const getWattiTemplates = async (channelPhoneNumber = "", pageNumber = 1, pageSi
     }
 
     let url = `${baseUrl}/${tenantId}/api/v1/getMessageTemplates?pageNumber=${pageNumber}&pageSize=${pageSize}`;
- console.log(`url${url}`);
-   if (channelPhoneNumber) {
+    console.log(`url${url}`);
+    if (channelPhoneNumber) {
       url += `&channelPhoneNumber=${channelPhoneNumber}`;
     }
 
@@ -75,7 +77,7 @@ const getWattiTemplates = async (channelPhoneNumber = "", pageNumber = 1, pageSi
     if (response.status === 200) {
       return response.data;
     }
-    
+
     return { error: `Watti API returned status ${response.status}` };
   } catch (error) {
     const errorMsg = error.response?.data?.message || error.response?.data || error.message;
