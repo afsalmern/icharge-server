@@ -1,10 +1,25 @@
-const { getWattiTemplates, sendWattiTemplateMessage } = require("../../helpers/wattiHelper");
+const { getWattiTemplates, sendWattiTemplateMessage, generatePromoCode } = require("../../helpers/wattiHelper");
 const { resolveWattiParameters, resolveWattiHeaderImage } = require("../../helpers/wattiMappingResolver");
 const db = require("../../models");
 const { Op } = require("sequelize");
 
 const User = db.users;
 const WattiTemplateConfig = db.watti_template_configs;
+
+
+const templateConstants = {
+  user: "user_name",
+  image: "image_url"
+}
+
+const setParameter = (params, name, value) => {
+  const idx = params.findIndex((p) => p.name === name);
+  if (idx > -1) {
+    params[idx].value = value;
+  } else {
+    params.push({ name, value });
+  }
+};
 
 /**
  * List all Watti templates for Admin Panel
@@ -131,7 +146,6 @@ const sendWattiBroadcast = async (req, res) => {
     } = req.body;
 
     const finalTemplateName = template_name || templateName;
-    const finalBroadcastName = broadcast_name || broadcastName;
 
     // Convert string recipient to array if needed
     const finalRecipients = Array.isArray(recipients) ? recipients : (recipients ? [recipients] : []);
@@ -154,68 +168,67 @@ const sendWattiBroadcast = async (req, res) => {
       let number = rawNumber.replace(/\D/g, "");
       if (number.length === 10) number = "91" + number;
 
-      let finalParameters = parameters || [];
-      let finalHeaderImage = header_image_url || null;
+      // 1. Fetch matched user
+      const user = await User.findOne({
+        attributes: ["id", "name", "mobile"],
+        where: {
+          [Op.or]: [
+            { mobile: number },
+            { mobile: number.substring(2) }
+          ]
+        }
+      });
 
-      // Resolve parameters dynamically if mapping config is found in the database
+      let finalParameters = [];
+
       if (templateConfig) {
-        // Try to fetch the user matching this number to build contextual data
-        // const matchedUser = await User.findOne({
-        //   where: {
-        //     [Op.or]: [
-        //       { phone_number: number },
-        //       { mobile: number },
-        //       { phone_number: rawNumber },
-        //       { mobile: rawNumber }
-        //     ]
-        //   }
-        // });
-
-        const context = {
-          user: { name: "Customer", mobile: number },
-        };
-
         // If body mappings exist in config, resolve parameters dynamically
         if (templateConfig.body_mappings && Object.keys(templateConfig.body_mappings).length > 0) {
-
-          console.log(templateConfig.body_mappings)
-          console.log(context)
-
-          finalParameters = resolveWattiParameters(templateConfig.body_mappings, context);
-
-          console.log("finalParameters", finalParameters);
+          finalParameters = resolveWattiParameters(templateConfig.body_mappings);
 
           // Exclude internal metadata parameters from payload
           finalParameters = finalParameters.filter(p => p.name !== "isDynamicHeader");
 
-          // 1. Check if dynamic header is enabled
+          // 2. Set name parameter
+          const nameParamName = templateConstants?.user || "user_name";
+          setParameter(
+            finalParameters,
+            nameParamName,
+            user ? (user.name || "Customer") : "Customer"
+          );
+
+          // 3. Generate and set promo code
+          const promoCode = await generatePromoCode(number);
+          setParameter(
+            finalParameters,
+            "promo_code",
+            promoCode
+          );
+
+          // 4. Save promo code to database
+          if (user) {
+            await db.promo_codes.create({
+              user_id: user.id,
+              phone_number: number,
+              promo_code: promoCode,
+              template_name: finalTemplateName,
+            });
+          }
+
+          // 5. Dynamic Image Header check
           if (templateConfig.body_mappings.isDynamicHeader === true) {
-            // Fetch the latest image from watti_media table
             const latestMedia = await db.watti_media.findOne({
               order: [['created_at', 'DESC']]
             });
 
             if (latestMedia) {
               const imageUrl = latestMedia.file_url;
-
-              // Find parameter matching image or url
-              let imageParamName = Object.keys(templateConfig.body_mappings).find(
-                key => key.toLowerCase().includes("image") || key.toLowerCase().includes("url")
-              ) || "offer_image_url";
-
-              // Clean dynamic parameter names
-              const nameMatch = imageParamName.match(/\{\{(.*?)\}\}/);
-              if (nameMatch && nameMatch[1]) {
-                imageParamName = nameMatch[1];
-              }
-
-              // Update parameter values
-              const existingIdx = finalParameters.findIndex(p => p.name === imageParamName);
-              if (existingIdx > -1) {
-                finalParameters[existingIdx].value = imageUrl;
-              } else {
-                finalParameters.push({ name: imageParamName, value: imageUrl });
-              }
+              const imageParamName = templateConstants?.image || "image_url";
+              setParameter(
+                finalParameters,
+                imageParamName,
+                imageUrl
+              );
             }
           }
         }
@@ -226,7 +239,7 @@ const sendWattiBroadcast = async (req, res) => {
       const success = await sendWattiTemplateMessage(
         number,
         finalTemplateName,
-        finalBroadcastName || (templateConfig && templateConfig.broadcast_name ? templateConfig.broadcast_name : "Promotion"),
+        user ? (user.name || "Customer") : "Customer",
         finalParameters
       );
       results.push({ number, success });
@@ -247,121 +260,207 @@ const sendWattiBroadcast = async (req, res) => {
   }
 };
 
-/**
- * Test sending a template using saved configuration mapping (Postman/Testing endpoint)
- */
+
 const testSendTemplate = async (req, res) => {
   try {
     const { template_name, phone_number } = req.body;
 
+    // =========================
+    // VALIDATIONS
+    // =========================
+
     if (!template_name || !phone_number) {
       return res.status(400).json({
         status: false,
-        message: "template_name and phone_number are required in request body",
+        message: "template_name and phone_number are required",
       });
     }
 
-    // 1. Fetch saved configuration
+    // =========================
+    // FETCH USER
+    // =========================
+
+    const user = await User.findOne({
+      attributes: ["id", "name", "mobile"],
+      where: { mobile: phone_number },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: "User not found",
+      });
+    }
+
+    // =========================
+    // FETCH TEMPLATE CONFIG
+    // =========================
+
     const templateConfig = await WattiTemplateConfig.findOne({
-      where: { template_name }
+      where: { template_name },
     });
 
     if (!templateConfig) {
       return res.status(404).json({
         status: false,
-        message: `No saved configuration mapping found for template: ${template_name}. Please configure it in the admin panel first.`,
+        message: "Template config not found",
       });
     }
 
-    // Standardize phone number
-    let number = phone_number.replace(/\D/g, "");
-    if (number.length === 10) number = "91" + number;
+    // =========================
+    // VALIDATE BODY MAPPINGS
+    // =========================
 
-    // 2. Fetch matched user context (if any)
-    const matchedUser = await User.findOne({
-      where: {
-        [Op.or]: [
-          { phone_number: number },
-          { mobile: number },
-          { phone_number: phone_number },
-          { mobile: phone_number }
-        ]
-      }
-    });
-
-    const context = {
-      user: matchedUser || { name: "Test Customer", mobile: number }
-    };
-
-    // 3. Resolve parameters & dynamic media header
-    let resolvedParameters = [];
-    if (templateConfig.body_mappings) {
-      resolvedParameters = resolveWattiParameters(templateConfig.body_mappings, context);
-
-      // Exclude internal metadata parameters from payload
-      resolvedParameters = resolvedParameters.filter(p => p.name !== "isDynamicHeader");
-
-      // Check if dynamic header is enabled
-      if (templateConfig.body_mappings.isDynamicHeader === true) {
-        // Fetch the latest image from watti_media table
-        const latestMedia = await db.watti_media.findOne({
-          order: [['created_at', 'DESC']]
-        });
-
-        if (latestMedia) {
-          const imageUrl = latestMedia.file_url;
-
-          // Find parameter matching image or url
-          let imageParamName = Object.keys(templateConfig.body_mappings).find(
-            key => key.toLowerCase().includes("image") || key.toLowerCase().includes("url")
-          ) || "offer_image_url";
-
-          // Clean dynamic parameter names
-          const nameMatch = imageParamName.match(/\{\{(.*?)\}\}/);
-          if (nameMatch && nameMatch[1]) {
-            imageParamName = nameMatch[1];
-          }
-
-          // Update parameter values
-          const existingIdx = resolvedParameters.findIndex(p => p.name === imageParamName);
-          if (existingIdx > -1) {
-            resolvedParameters[existingIdx].value = imageUrl;
-          } else {
-            resolvedParameters.push({ name: imageParamName, value: imageUrl });
-          }
-        }
-      }
+    if (
+      !templateConfig.body_mappings ||
+      Object.keys(templateConfig.body_mappings).length === 0
+    ) {
+      return res.status(404).json({
+        status: false,
+        message: "Template mappings not found",
+      });
     }
 
-    console.log(`[Postman Test Send] Sending to ${number} with parameters:`, resolvedParameters);
+    // =========================
+    // FORMAT PHONE NUMBER
+    // =========================
 
-    // 4. Trigger Watti sending
+    let number = phone_number.replace(/\D/g, "");
+
+    if (!number.startsWith("91")) {
+      number = "91" + number;
+    }
+
+    // =========================
+    // RESOLVE PARAMETERS
+    // =========================
+
+    let finalParameters = resolveWattiParameters(
+      templateConfig.body_mappings
+    );
+
+    // Remove helper field if exists
+    finalParameters = finalParameters.filter(
+      (p) => p.name !== "isDynamicHeader"
+    );
+
+    // =========================
+    // USER NAME PARAM
+    // =========================
+
+    const nameParamName =
+      templateConstants?.name || "user_name";
+
+    setParameter(
+      finalParameters,
+      nameParamName,
+      user.name || "Customer"
+    );
+
+    // =========================
+    // GENERATE PROMO CODE
+    // =========================
+
+    const promoCode = await generatePromoCode(number);
+
+    setParameter(
+      finalParameters,
+      "promo_code",
+      promoCode
+    );
+
+    // =========================
+    // SAVE PROMO CODE
+    // =========================
+
+    // await db.promo_codes.create({
+    //   user_id: user.id,
+    //   phone_number: number,
+    //   promo_code: promoCode,
+    //   template_name,
+    // });
+
+    // =========================
+    // DYNAMIC IMAGE HEADER
+    // =========================
+
+    if (templateConfig.body_mappings.isDynamicHeader === true) {
+
+      const latestMedia = await db.watti_media.findOne({
+        order: [["created_at", "DESC"]],
+      });
+
+      if (!latestMedia) {
+        return res.status(404).json({
+          status: false,
+          message:
+            "This template requires a custom image but no media was uploaded.",
+        });
+      }
+
+      const imageUrl = latestMedia.file_url;
+
+      const imageParamName =
+        templateConstants?.image || "image_url";
+
+      setParameter(
+        finalParameters,
+        imageParamName,
+        imageUrl
+      );
+    }
+
+    // =========================
+    // LOG FINAL PARAMETERS
+    // =========================
+
+    console.log(
+      `Sending template "${template_name}" to ${number}`
+    );
+
+    console.log(
+      JSON.stringify(finalParameters, null, 2)
+    );
+
+    // =========================
+    // SEND TEMPLATE
+    // =========================
+
     const success = await sendWattiTemplateMessage(
       number,
       template_name,
-      "Postman Test Broadcast",
-      resolvedParameters
+      user.name,
+      finalParameters
     );
 
+    // =========================
+    // RESPONSE
+    // =========================
+
     return res.status(200).json({
-      status: true,
-      message: success ? "Message sent successfully!" : "Failed to send message via Watti API.",
-      debug: {
-        recipient_phone: number,
-        template_name: template_name,
-        user_context_found: !!matchedUser,
-        resolved_parameters: resolvedParameters,
-        resolved_header_image: null,
-        watti_response_success: success
-      }
+      status: success,
+      message: success
+        ? "Message sent successfully!"
+        : "Failed to send message via Watti API.",
+      data: {
+        phone_number: number,
+        template_name,
+        promo_code: promoCode,
+        parameters: finalParameters,
+      },
     });
 
   } catch (error) {
-    console.error("Error in testSendTemplate controller:", error);
+
+    console.error(
+      "Error in testSendTemplate controller:",
+      error
+    );
+
     return res.status(500).json({
       status: false,
       message: "Internal server error",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -546,6 +645,9 @@ const deleteWattiMedia = async (req, res) => {
     });
   }
 };
+
+
+
 
 module.exports = {
   listWattiTemplates,

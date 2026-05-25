@@ -1,14 +1,20 @@
 const axios = require("axios");
 
-/**
- * Send WhatsApp Template Message via Watti
- * @param {string} whatsappNumber - Recipient phone number with country code (e.g., 919747508010)
- * @param {string} templateName - Name of the template (e.g., user_offer_template)
- * @param {string} broadcastName - Name for the broadcast log
- * @param {Array} parameters - Array of parameter objects {name: string, value: string}
- */
+
+
+const generatePromoCode = (phone) => {
+  const last4 = phone.slice(-4);
+
+  const uniquePart = Date.now().toString().slice(-3);
+
+  return `ICHARGE${last4}${uniquePart}`;
+};
+
 const sendWattiTemplateMessage = async (whatsappNumber, templateName, broadcastName, parameters) => {
   try {
+
+    return true
+
     const baseUrl = process.env.WATTI_BASE_URL;
     const tenantId = process.env.WATTI_TENANT_ID;
     const token = process.env.WATTI_TOKEN;
@@ -46,12 +52,7 @@ const sendWattiTemplateMessage = async (whatsappNumber, templateName, broadcastN
   }
 };
 
-/**
- * Get Message Templates from Watti
- * @param {string} channelPhoneNumber - Optional channel phone number
- * @param {number} pageNumber - Optional page number
- * @param {number} pageSize - Optional page size
- */
+
 const getWattiTemplates = async (channelPhoneNumber = "", pageNumber = 1, pageSize = 10) => {
   try {
     const baseUrl = process.env.WATTI_BASE_URL;
@@ -86,4 +87,4 @@ const getWattiTemplates = async (channelPhoneNumber = "", pageNumber = 1, pageSi
   }
 };
 
-module.exports = { sendWattiTemplateMessage, getWattiTemplates };
+module.exports = { sendWattiTemplateMessage, getWattiTemplates, generatePromoCode };

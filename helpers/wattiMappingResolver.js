@@ -17,7 +17,7 @@ const getNestedValue = (obj, path, fallback = "") => {
  * @param {Object} bodyMappings - JSON body_mappings from watti_template_configs
  * @param {Object} contextData - Context object containing entities: { user, promo, transaction, store }
  */
-const resolveWattiParameters = (bodyMappings, contextData = {}) => {
+const resolveWattiParameters = (bodyMappings) => {
   if (!bodyMappings) return [];
 
   return Object.keys(bodyMappings).map((paramName) => {

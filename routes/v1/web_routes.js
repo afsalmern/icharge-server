@@ -144,8 +144,6 @@ router.get("/watti-media", verifyToken, checkRole("admin"), wattiController.list
 router.post("/watti-media", verifyToken, checkRole("admin"), upload, wattiController.addWattiMedia);
 router.put("/watti-media/:id", verifyToken, checkRole("admin"), upload, wattiController.updateWattiMedia);
 router.delete("/watti-media/:id", verifyToken, checkRole("admin"), wattiController.deleteWattiMedia);
-// router.post("/watti-templates/test-send", verifyToken, checkRole("admin"), wattiController.testSendTemplate);
 
-router.get("/test", getDashboard);
 
 module.exports = router;
