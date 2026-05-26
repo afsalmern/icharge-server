@@ -166,13 +166,25 @@ const resetPasswordValidation = [
 ];
 
 const validateOffer = [
-  body("description").not().isEmpty().withMessage("Description is required").isString().withMessage("Description must be a string"),
+  body("description")
+    .not()
+    .isEmpty()
+    .withMessage("Description is required")
+    .isString()
+    .withMessage("Description must be a string")
+    .isLength({ max: 200 })
+    .withMessage("Description must be 200 characters or less"),
   body("order").optional({ checkFalsy: true }).isInt({ min: 0 }).withMessage("Order must be a positive integer"),
   body("status").optional().isIn(["active", "inactive"]).withMessage("Status must be either 'active' or 'inactive'"),
 ];
 
 const validateOfferUpdate = [
-  body("description").optional().isString().withMessage("Description must be a string"),
+  body("description")
+    .optional()
+    .isString()
+    .withMessage("Description must be a string")
+    .isLength({ max: 200 })
+    .withMessage("Description must be 200 characters or less"),
   body("order").optional({ checkFalsy: true }).isInt({ min: 0 }).withMessage("Order must be a positive integer"),
   body("status").optional().isIn(["active", "inactive"]).withMessage("Status must be either 'active' or 'inactive'"),
 ];
