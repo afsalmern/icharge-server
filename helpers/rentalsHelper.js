@@ -3,6 +3,7 @@ const db = require("../models");
 const { getEndTime, calculateRentalCharge, calculatePriceOnRentals } = require("./calculatePrices");
 const { startRefund } = require("./razorPayHelpers");
 const sendFCMNotification = require("../utils/sendFCMNotification");
+const { sendTemplateMessage } = require("./wattiHelper");
 
 const Users = db.users;
 
@@ -488,7 +489,19 @@ const addDepositAmount = async (user_id, deposit_amount, order_id) => {
       { transaction }
     );
 
-    // 5️⃣ Commit transaction
+    // 5️⃣ Send deposit confirmation template message via Watti (participates in same transaction)
+    try {
+      if (user && user.mobile) {
+        await sendTemplateMessage({
+          phone_number: user.mobile,
+          transaction,
+        });
+      }
+    } catch (wattiErr) {
+      console.error("Error in addDepositAmount sending template message:", wattiErr.message);
+    }
+
+    // 6️⃣ Commit transaction
     await transaction.commit();
 
     return { success: true, user };

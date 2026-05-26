@@ -30,6 +30,27 @@ const listWattiTemplates = async (req, res) => {
     const templates = await getWattiTemplates(channelPhoneNumber, pageNumber, pageSize);
 
     if (templates && !templates.error) {
+      // Fetch saved config statuses from local database
+      const savedConfigs = await WattiTemplateConfig.findAll();
+      const configMap = {};
+      savedConfigs.forEach((cfg) => {
+        configMap[cfg.template_name] = cfg;
+      });
+
+      // Map local status fields to template items
+      if (templates.messageTemplates && Array.isArray(templates.messageTemplates)) {
+        templates.messageTemplates = templates.messageTemplates.map((tpl) => {
+          const tplName = tpl.elementName || tpl.templateName || tpl.name || tpl.template_name;
+          const matchedConfig = configMap[tplName];
+          return {
+            ...tpl,
+            isActive: matchedConfig ? matchedConfig.status : false,
+            broadcastName: matchedConfig ? matchedConfig.broadcast_name : "Watti Broadcast",
+            hasConfig: !!matchedConfig,
+          };
+        });
+      }
+
       return res.status(200).json({
         status: true,
         message: "Watti templates fetched successfully",
@@ -92,7 +113,8 @@ const saveTemplateConfig = async (req, res) => {
     const {
       template_name,
       broadcast_name,
-      body_mappings
+      body_mappings,
+      status
     } = req.body;
 
     if (!template_name) {
@@ -107,6 +129,7 @@ const saveTemplateConfig = async (req, res) => {
       defaults: {
         broadcast_name: broadcast_name || "Watti Broadcast",
         body_mappings: body_mappings || {},
+        status: status !== undefined ? status : false,
       }
     });
 
@@ -114,13 +137,32 @@ const saveTemplateConfig = async (req, res) => {
       await config.update({
         broadcast_name: broadcast_name !== undefined ? broadcast_name : config.broadcast_name,
         body_mappings: body_mappings !== undefined ? body_mappings : config.body_mappings,
+        status: status !== undefined ? status : config.status,
       });
     }
+
+    // If this template is set as active (status: true), deactivate all other templates
+    if (status === true) {
+      await WattiTemplateConfig.update(
+        { status: false },
+        {
+          where: {
+            template_name: {
+              [Op.ne]: template_name,
+            },
+          },
+        }
+      );
+    }
+
+    const updatedConfig = await WattiTemplateConfig.findOne({
+      where: { template_name }
+    });
 
     return res.status(200).json({
       status: true,
       message: created ? "Template configuration created successfully" : "Template configuration updated successfully",
-      data: config
+      data: updatedConfig
     });
   } catch (error) {
     console.error("Error in saveTemplateConfig controller:", error);
