@@ -136,6 +136,7 @@ router.get("/watti-templates", verifyToken, checkRole("admin"), wattiController.
 router.post("/watti-broadcast", verifyToken, checkRole("admin"), wattiController.sendWattiBroadcast);
 router.get("/watti-templates/config/:templateName", verifyToken, checkRole("admin"), wattiController.getTemplateConfig);
 router.post("/watti-templates/config", verifyToken, checkRole("admin"), wattiController.saveTemplateConfig);
+router.post("/watti-templates/set-active", verifyToken, checkRole("admin"), wattiController.setTemplateActive);
 router.post("/watti-templates/test-send", wattiController.testSendTemplate);
 
 // Watti Media CRUD

@@ -175,6 +175,64 @@ const saveTemplateConfig = async (req, res) => {
 };
 
 /**
+ * Dedicated API to set a single template as active
+ */
+const setTemplateActive = async (req, res) => {
+  try {
+    const { template_name } = req.body;
+
+    if (!template_name) {
+      return res.status(400).json({
+        status: false,
+        message: "Template name is required",
+      });
+    }
+
+    // 1️⃣ Find or create the configuration for this template name
+    const [config, created] = await WattiTemplateConfig.findOrCreate({
+      where: { template_name },
+      defaults: {
+        broadcast_name: "Watti Broadcast",
+        body_mappings: {},
+        status: true,
+      }
+    });
+
+    // 2️⃣ If it already existed, update its status to true
+    if (!created) {
+      config.status = true;
+      await config.save();
+    }
+
+    // 3️⃣ Mark all other templates as inactive
+    const { Op } = require("sequelize");
+    await WattiTemplateConfig.update(
+      { status: false },
+      {
+        where: {
+          template_name: {
+            [Op.ne]: template_name,
+          },
+        },
+      }
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: `Template "${template_name}" is now the active template!`,
+      data: config,
+    });
+  } catch (error) {
+    console.error("Error setting template active:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * Send a Watti broadcast message (integrated with dynamic configs)
  */
 const sendWattiBroadcast = async (req, res) => {
@@ -695,6 +753,7 @@ module.exports = {
   listWattiTemplates,
   getTemplateConfig,
   saveTemplateConfig,
+  setTemplateActive,
   sendWattiBroadcast,
   testSendTemplate,
   uploadMediaFile,
