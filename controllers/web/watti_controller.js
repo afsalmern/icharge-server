@@ -305,13 +305,13 @@ const sendWattiBroadcast = async (req, res) => {
 
 const testSendTemplate = async (req, res) => {
   try {
-    const { template_name, phone_number } = req.body;
+    const { phone_number } = req.body;
 
     // =========================
     // VALIDATIONS
     // =========================
 
-    if (!template_name || !phone_number) {
+    if (!phone_number) {
       return res.status(400).json({
         status: false,
         message: "template_name and phone_number are required",
@@ -339,7 +339,7 @@ const testSendTemplate = async (req, res) => {
     // =========================
 
     const templateConfig = await WattiTemplateConfig.findOne({
-      where: { template_name },
+      where: { status: true },
     });
 
     if (!templateConfig) {
@@ -415,12 +415,12 @@ const testSendTemplate = async (req, res) => {
     // SAVE PROMO CODE
     // =========================
 
-    // await db.promo_codes.create({
-    //   user_id: user.id,
-    //   phone_number: number,
-    //   promo_code: promoCode,
-    //   template_name,
-    // });
+    await db.promo_codes.create({
+      user_id: user.id,
+      phone_number: number,
+      promo_code: promoCode,
+      template_name: templateConfig.template_name,
+    });
 
     // =========================
     // DYNAMIC IMAGE HEADER
@@ -457,7 +457,7 @@ const testSendTemplate = async (req, res) => {
     // =========================
 
     console.log(
-      `Sending template "${template_name}" to ${number}`
+      `Sending template "${templateConfig.template_name}" to ${number}`
     );
 
     console.log(
@@ -470,7 +470,7 @@ const testSendTemplate = async (req, res) => {
 
     const success = await sendWattiTemplateMessage(
       number,
-      template_name,
+      templateConfig.template_name,
       user.name,
       finalParameters
     );
@@ -486,7 +486,7 @@ const testSendTemplate = async (req, res) => {
         : "Failed to send message via Watti API.",
       data: {
         phone_number: number,
-        template_name,
+        template_name: templateConfig.template_name,
         promo_code: promoCode,
         parameters: finalParameters,
       },

@@ -16,7 +16,7 @@ const generatePromoCode = (phone) => {
 const sendWattiTemplateMessage = async (whatsappNumber, templateName, broadcastName, parameters) => {
   try {
 
-    return true
+    // return true
 
     const baseUrl = process.env.WATTI_BASE_URL;
     const tenantId = process.env.WATTI_TENANT_ID;
